@@ -1,0 +1,49 @@
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+.eggs/
+
+# ── Virtual Environments ─────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── IDE / Editor ─────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── Jupyter ──────────────────────────────────────────
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# ── OS ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Data (keep structure, ignore large files) ───────
+data/raw/*.json
+data/raw/*.csv
+data/labeled/*.json
+data/labeled/*.csv
+data/synthetic/*.json
+data/synthetic/*.csv
+
+# ── Model artefacts ──────────────────────────────────
+*.pt
+*.bin
+*.onnx
+*.safetensors
+
+# ── Misc ─────────────────────────────────────────────
+*.log
+.coverage
+htmlcov/

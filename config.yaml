@@ -1,0 +1,43 @@
+# ==============================================================================
+# SemDrift — Shared Configuration
+# ==============================================================================
+# This file holds thresholds, model names, paths, and other shared settings
+# used across all pipeline stages.
+
+# ---------- Paths ----------
+paths:
+  raw_data: "data/raw/"
+  labeled_data: "data/labeled/"
+  synthetic_data: "data/synthetic/"
+
+# ---------- Parser ----------
+parser:
+  language: "python"           # Target language for AST parsing
+  max_file_size_kb: 500        # Skip files larger than this
+
+# ---------- Embedder ----------
+embedder:
+  model_name: "microsoft/codebert-base"   # HuggingFace model identifier
+  max_token_length: 512                    # Max tokens per code snippet
+  batch_size: 32                           # Batch size for embedding
+  device: "cpu"                            # "cpu" | "cuda"
+
+# ---------- Comparator ----------
+comparator:
+  similarity_metric: "cosine"              # cosine | euclidean | manhattan
+  drift_threshold: 0.15                    # Score above which drift is flagged
+  aggregation: "mean"                      # mean | max | weighted
+
+# ---------- Mining ----------
+mining:
+  max_commits: null            # null = mine all commits
+  file_extensions:
+    - ".py"
+
+# ---------- Evaluation ----------
+eval:
+  metrics:
+    - "precision"
+    - "recall"
+    - "f1"
+    - "accuracy"
