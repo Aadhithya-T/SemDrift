@@ -1,0 +1,202 @@
+# Editor temporary/working/backup files #
+#########################################
+.#*
+[#]*#
+*~
+*$
+*.bak
+*.diff
+.idea/
+*.iml
+*.ipr
+*.iws
+*.org
+.project
+pmip
+*.rej
+.settings/
+.*.sw[nop]
+.sw[nop]
+*.tmp
+*.vim
+.vscode
+tags
+cscope.out
+# gnu global
+GPATH
+GRTAGS
+GSYMS
+GTAGS
+.cache
+.mypy_cache/
+
+# Compiled source #
+###################
+*.a
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.o.d
+*.py[ocd]
+*.so
+*.mod
+
+# Python files #
+################
+# meson build/installation directories
+build
+build-*
+# meson python output
+.mesonpy-native-file.ini
+# sphinx build directory
+_build
+# dist directory is where sdist/wheel end up
+dist
+doc/build
+doc/docenv
+doc/cdoc/build
+# Egg metadata
+*.egg-info
+# The shelf plugin uses this dir
+./.shelf
+.cache
+pip-wheel-metadata
+.python-version
+# virtual envs
+numpy-dev/
+venv/
+
+# Paver generated files #
+#########################
+/release
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# Patches #
+###########
+*.patch
+*.diff
+
+# Do not ignore the following patches: #
+########################################
+!tools/ci/emscripten/0001-do-not-set-meson-environment-variable-pyodide-gh-4502.patch
+
+# OS generated files #
+######################
+.DS_Store*
+.VolumeIcon.icns
+.fseventsd
+Icon?
+.gdb_history
+ehthumbs.db
+Thumbs.db
+.directory
+
+# pytest generated files #
+##########################
+/.pytest_cache
+
+# doc build generated files #
+#############################
+doc/source/savefig/
+doc/source/**/generated/
+doc/source/release/notes-towncrier.rst
+doc/source/.jupyterlite.doit.db
+
+# AI coding agent configuration files #
+#######################################
+# Personal/local config — not shared with the project.
+# Remove entries below if the project decides to check in shared
+# project-wide instructions (e.g. a team CLAUDE.md or AGENTS.md).
+
+# Claude Code (Anthropic)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.claudeignore
+
+# AGENTS.md (cross-tool standard: Codex, Cursor, Cline, Windsurf, etc.)
+AGENTS.md
+AGENTS.override.md
+
+# OpenAI Codex
+.codex/
+
+# Cursor
+.cursorrules
+.cursorignore
+.cursor/
+
+# Windsurf / Codeium
+.windsurfrules
+.windsurf/
+.codeiumignore
+
+# Warp
+WARP.md
+
+# Google Gemini CLI
+GEMINI.md
+.gemini/
+.geminiignore
+
+# Google Jules
+JULES.md
+
+# JetBrains Junie
+.junie/
+
+# Cline
+.clinerules
+.clinerules/
+
+# Roo Code
+.roorules
+.roo/
+
+# KiloCode
+.kilocoderules
+.kilocode/
+
+# Aider
+.aider*
+.aider.conf.yml
+
+# Continue.dev
+.continue/
+
+# Generic / cross-tool AI ignore files
+.aiignore
+.aiexclude
+.uignore
+
+# Things specific to this project #
+###################################
+benchmarks/results
+benchmarks/html
+benchmarks/env
+benchmarks/numpy
+benchmarks/_asv_compare.conf.json
+test.obj
+tools/swig/test/Array_wrap.cxx
+tools/swig/test/Farray_wrap.cxx
+tools/swig/test/Farray.py
+tools/swig/test/Flat_wrap.cxx
+tools/swig/test/Flat.py
+tools/swig/test/Fortran_wrap.cxx
+tools/swig/test/Fortran.py
+tools/swig/test/Matrix_wrap.cxx
+tools/swig/test/Matrix.py
+tools/swig/test/Tensor_wrap.cxx
+tools/swig/test/Tensor.py
+tools/swig/test/Vector.py
+tools/swig/test/Vector_wrap.cxx
+tools/swig/test/Array.py
+.openblas
+numpy/_distributor_init_local.py

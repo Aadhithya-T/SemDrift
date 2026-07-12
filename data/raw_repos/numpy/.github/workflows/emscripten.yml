@@ -1,0 +1,43 @@
+name: Test Emscripten/Pyodide build
+
+on:
+  pull_request:
+    branches:
+      - main
+      - maintenance/**
+    paths-ignore:
+      - '**.pyi'
+      - '**.md'
+      - '**.rst'
+      - 'tools/stubtest/**'
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+env:
+  FORCE_COLOR: 3
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+
+jobs:
+  build-wasm-emscripten:
+    name: Pyodide test
+    runs-on: ubuntu-22.04
+    # To enable this workflow on a fork, comment out:
+    if: github.repository == 'numpy/numpy'
+    steps:
+      - name: Checkout NumPy
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          submodules: recursive
+          fetch-tags: true
+          persist-credentials: false
+      - uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55  # v4.1.0
+        env:
+          CIBW_PLATFORM: pyodide
+          CIBW_BUILD: cp314-pyodide_wasm32
+          CIBW_ENABLE: pyodide-prerelease
+          CIBW_BUILD_VERBOSITY: 3
