@@ -1,0 +1,92 @@
+"""
+Timedelta benchmarks with non-tslibs dependencies.  See
+benchmarks.tslibs.timedelta for benchmarks that rely only on tslibs.
+"""
+
+from pandas import (
+    DataFrame,
+    Series,
+    timedelta_range,
+)
+
+
+class DatetimeAccessor:
+    def setup_cache(self):
+        N = 100000
+        series = Series(timedelta_range("1 days", periods=N, freq="h"))
+        return series
+
+    def time_dt_accessor(self, series):
+        series.dt
+
+    def time_timedelta_days(self, series):
+        series.dt.days
+
+    def time_timedelta_seconds(self, series):
+        series.dt.seconds
+
+    def time_timedelta_microseconds(self, series):
+        series.dt.microseconds
+
+    def time_timedelta_nanoseconds(self, series):
+        series.dt.nanoseconds
+
+
+class TimedeltaComponents:
+    params = ["NumPy", "PyArrow"]
+    param_names = ["backend"]
+    # number=1 so asv re-runs setup before every timed call. The PyArrow
+    # accessors cache ``_dt_day_remainder`` on the array; rebuilding the series
+    # each call keeps every measurement cold (no cache reuse) and keeps the
+    # NumPy/PyArrow comparison fair.
+    number = 1
+
+    def setup(self, backend):
+        N = 100000
+        self.series = Series(timedelta_range("1 days", periods=N, freq="h"))
+        if backend == "PyArrow":
+            self.series = self.series.astype("duration[ns][pyarrow]")
+
+    def time_days(self, backend):
+        self.series.dt.days
+
+    def time_seconds(self, backend):
+        self.series.dt.seconds
+
+    def time_microseconds(self, backend):
+        self.series.dt.microseconds
+
+    def time_nanoseconds(self, backend):
+        self.series.dt.nanoseconds
+
+    def time_components(self, backend):
+        self.series.dt.components
+
+
+class TimedeltaIndexing:
+    def setup(self):
+        self.index = timedelta_range(start="1985", periods=1000, freq="D")
+        self.index2 = timedelta_range(start="1986", periods=1000, freq="D")
+        self.series = Series(range(1000), index=self.index)
+        self.timedelta = self.index[500]
+
+    def time_get_loc(self):
+        self.index.get_loc(self.timedelta)
+
+    def time_shallow_copy(self):
+        self.index._view()
+
+    def time_series_loc(self):
+        self.series.loc[self.timedelta]
+
+    def time_align(self):
+        DataFrame({"a": self.series, "b": self.series[:500]})
+
+    def time_intersection(self):
+        self.index.intersection(self.index2)
+
+    def time_union(self):
+        self.index.union(self.index2)
+
+    def time_unique(self):
+        self.index.unique()

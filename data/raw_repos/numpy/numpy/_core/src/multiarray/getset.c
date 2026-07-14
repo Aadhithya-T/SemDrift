@@ -1,0 +1,827 @@
+/* Array Descr Object */
+#define NPY_NO_DEPRECATED_API NPY_API_VERSION
+#define _MULTIARRAYMODULE
+
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <structmember.h>
+
+#include "numpy/arrayobject.h"
+
+#include "npy_config.h"
+
+#include "npy_import.h"
+
+#include "array_assign.h"
+#include "common.h"
+#include "conversion_utils.h"
+#include "ctors.h"
+#include "dtype_transfer.h"
+#include "dtypemeta.h"
+#include "lowlevel_strided_loops.h"
+#include "scalartypes.h"
+#include "descriptor.h"
+#include "flagsobject.h"
+#include "getset.h"
+#include "arrayobject.h"
+#include "mem_overlap.h"
+#include "number.h"
+#include "alloc.h"
+#include "npy_buffer.h"
+#include "shape.h"
+#include "multiarraymodule.h"
+#include "array_api_standard.h"
+
+/*******************  array attribute get and set routines ******************/
+
+static PyObject *
+array_ndim_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyLong_FromLong(PyArray_NDIM(self));
+}
+
+static PyObject *
+array_flags_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_NewFlagsObject((PyObject *)self);
+}
+
+static PyObject *
+array_shape_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_IntTupleFromIntp(PyArray_NDIM(self), PyArray_DIMS(self));
+}
+
+
+NPY_NO_EXPORT int
+array_shape_set_internal(PyArrayObject *self, PyObject *val)
+{
+    int nd;
+    PyArrayObject *ret;
+    assert(val);
+
+    /* Assumes C-order */
+    ret = (PyArrayObject *)PyArray_Reshape(self, val);
+    if (ret == NULL) {
+        return -1;
+    }
+    if (PyArray_DATA(ret) != PyArray_DATA(self)) {
+        Py_DECREF(ret);
+        PyErr_SetString(PyExc_AttributeError,
+                        "Incompatible shape for in-place modification. Use "
+                        "`.reshape()` to make a copy with the desired shape.");
+        return -1;
+    }
+
+    nd = PyArray_NDIM(ret);
+    if (nd > 0) {
+        /* create new dimensions and strides */
+        npy_intp *_dimensions = npy_alloc_cache_dim(2 * nd);
+        if (_dimensions == NULL) {
+            Py_DECREF(ret);
+            PyErr_NoMemory();
+            return -1;
+        }
+        /* Free old dimensions and strides */
+        npy_free_cache_dim_array(self);
+        ((PyArrayObject_fields *)self)->nd = nd;
+        ((PyArrayObject_fields *)self)->dimensions = _dimensions;
+        ((PyArrayObject_fields *)self)->strides = _dimensions + nd;
+
+        if (nd) {
+            memcpy(PyArray_DIMS(self), PyArray_DIMS(ret), nd*sizeof(npy_intp));
+            memcpy(PyArray_STRIDES(self), PyArray_STRIDES(ret), nd*sizeof(npy_intp));
+        }
+    }
+    else {
+        /* Free old dimensions and strides */
+        npy_free_cache_dim_array(self);
+        ((PyArrayObject_fields *)self)->nd = 0;
+        ((PyArrayObject_fields *)self)->dimensions = NULL;
+        ((PyArrayObject_fields *)self)->strides = NULL;
+    }
+
+    Py_DECREF(ret);
+    PyArray_UpdateFlags(self, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS);
+    return 0;
+}
+
+static int
+array_shape_set(PyArrayObject *self, PyObject *val, void* NPY_UNUSED(ignored))
+{
+    if (val == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                "Cannot delete array shape");
+        return -1;
+    }
+
+    /* Deprecated NumPy 2.5, 2026-01-05 */
+    if (DEPRECATE("Setting the shape on a NumPy array has been deprecated"
+                  " in NumPy 2.5.\nAs an alternative, you can create a new"
+                  " view using np.reshape (with copy=False if needed)."
+                 ) < 0 ) {
+            return -1;
+    }
+
+    return array_shape_set_internal(self, val);
+}
+
+static PyObject *
+array_strides_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_IntTupleFromIntp(PyArray_NDIM(self), PyArray_STRIDES(self));
+}
+
+static int
+array_strides_set(PyArrayObject *self, PyObject *obj, void *NPY_UNUSED(ignored))
+{
+    if (obj == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                "Cannot delete array strides");
+        return -1;
+    }
+
+    /* Deprecated NumPy 2.4, 2025-05-11 */
+    if (DEPRECATE("Setting the strides on a NumPy array has been deprecated in NumPy 2.4.\n"
+                  "As an alternative, you can create a new view using np.lib.stride_tricks.as_strided."
+                 ) < 0 ) {
+        return -1;
+    }
+
+    PyArray_Dims newstrides = {NULL, -1};
+    PyArrayObject *new;
+    npy_intp numbytes = 0;
+    npy_intp offset = 0;
+    npy_intp lower_offset = 0;
+    npy_intp upper_offset = 0;
+    Py_buffer view;
+
+    if (!PyArray_OptionalIntpConverter(obj, &newstrides) ||
+        newstrides.len == -1) {
+        PyErr_SetString(PyExc_TypeError, "invalid strides");
+        return -1;
+    }
+    if (newstrides.len != PyArray_NDIM(self)) {
+        PyErr_Format(PyExc_ValueError, "strides must be "       \
+                     " same length as shape (%d)", PyArray_NDIM(self));
+        goto fail;
+    }
+    new = self;
+    while(PyArray_BASE(new) && PyArray_Check(PyArray_BASE(new))) {
+        new = (PyArrayObject *)(PyArray_BASE(new));
+    }
+    /*
+     * Get the available memory through the buffer interface on
+     * PyArray_BASE(new) or if that fails from the current new
+     */
+    if (PyArray_BASE(new) &&
+            PyObject_GetBuffer(PyArray_BASE(new), &view, PyBUF_SIMPLE) >= 0) {
+        offset = PyArray_BYTES(self) - (char *)view.buf;
+        numbytes = view.len + offset;
+        PyBuffer_Release(&view);
+    }
+    else {
+        PyErr_Clear();
+        offset_bounds_from_strides(PyArray_ITEMSIZE(new), PyArray_NDIM(new),
+                                   PyArray_DIMS(new), PyArray_STRIDES(new),
+                                   &lower_offset, &upper_offset);
+
+        offset = PyArray_BYTES(self) - (PyArray_BYTES(new) + lower_offset);
+        numbytes = upper_offset - lower_offset;
+    }
+
+    /* numbytes == 0 is special here, but the 0-size array case always works */
+    if (!PyArray_CheckStrides(PyArray_ITEMSIZE(self), PyArray_NDIM(self),
+                              numbytes, offset,
+                              PyArray_DIMS(self), newstrides.ptr)) {
+        PyErr_SetString(PyExc_ValueError, "strides is not "\
+                        "compatible with available memory");
+        goto fail;
+    }
+    if (newstrides.len) {
+        memcpy(PyArray_STRIDES(self), newstrides.ptr, sizeof(npy_intp)*newstrides.len);
+    }
+    PyArray_UpdateFlags(self, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS |
+                              NPY_ARRAY_ALIGNED);
+    npy_free_cache_dim_obj(newstrides);
+    return 0;
+
+ fail:
+    npy_free_cache_dim_obj(newstrides);
+    return -1;
+}
+
+
+
+static PyObject *
+array_priority_get(PyArrayObject *NPY_UNUSED(self), void *NPY_UNUSED(ignored))
+{
+    return PyFloat_FromDouble(NPY_PRIORITY);
+}
+
+static PyObject *
+array_descr_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    Py_INCREF(PyArray_DESCR(self));
+    return (PyObject *)PyArray_DESCR(self);
+}
+
+static PyObject *
+array_protocol_strides_get(PyArrayObject *self)
+{
+    if (PyArray_ISCONTIGUOUS(self)) {
+        Py_RETURN_NONE;
+    }
+    return PyArray_IntTupleFromIntp(PyArray_NDIM(self), PyArray_STRIDES(self));
+}
+
+
+
+static PyObject *
+array_dataptr_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return Py_BuildValue("NO",
+                         PyLong_FromVoidPtr(PyArray_DATA(self)),
+                         ((PyArray_FLAGS(self) & NPY_ARRAY_WRITEABLE) &&
+                          !(PyArray_FLAGS(self) & NPY_ARRAY_WARN_ON_WRITE)) ?
+                         Py_False : Py_True);
+}
+
+static PyObject *
+array_ctypes_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    PyObject *_numpy_internal;
+    PyObject *ret;
+    _numpy_internal = PyImport_ImportModule("numpy._core._internal");
+    if (_numpy_internal == NULL) {
+        return NULL;
+    }
+    ret = PyObject_CallMethod(_numpy_internal, "_ctypes", "ON", self,
+                              PyLong_FromVoidPtr(PyArray_DATA(self)));
+    Py_DECREF(_numpy_internal);
+    return ret;
+}
+
+static PyObject *
+array_interface_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    PyObject *dataptr = NULL;
+    PyObject *strides = NULL;
+    PyObject *shape = NULL;
+    PyObject *descr = NULL;
+    PyObject *typestr = NULL;
+    PyObject *dict = NULL;
+
+    dataptr = array_dataptr_get(self, NULL);
+    if (dataptr == NULL) {
+        goto finish;
+    }
+
+    strides = array_protocol_strides_get(self);
+    if (strides == NULL) {
+        goto finish;
+    }
+
+    descr = array_protocol_descr_get(PyArray_DESCR(self));
+    if (descr == NULL) {
+        goto finish;
+    }
+
+    typestr = arraydescr_protocol_typestr_get(PyArray_DESCR(self), NULL);
+    if (typestr == NULL) {
+        goto finish;
+    }
+
+    shape = array_shape_get(self, NULL);
+    if (shape == NULL) {
+        goto finish;
+    }
+
+    dict = build_array_interface(
+        dataptr, descr, strides, typestr, shape
+    );
+    goto finish;
+
+finish:
+    Py_XDECREF(dataptr);
+    Py_XDECREF(strides);
+    Py_XDECREF(shape);
+    Py_XDECREF(descr);
+    Py_XDECREF(typestr);
+    return dict;
+}
+
+static PyObject *
+array_data_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyMemoryView_FromObject((PyObject *)self);
+}
+
+static PyObject *
+array_itemsize_get(PyArrayObject *self, void* NPY_UNUSED(ignored))
+{
+    return PyLong_FromLong((long) PyArray_ITEMSIZE(self));
+}
+
+static PyObject *
+array_size_get(PyArrayObject *self, void* NPY_UNUSED(ignored))
+{
+    return PyArray_PyIntFromIntp(PyArray_SIZE(self));
+}
+
+static PyObject *
+array_nbytes_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_PyIntFromIntp(PyArray_NBYTES(self));
+}
+
+
+/*
+ * If the type is changed.
+ * Also needing change: strides, itemsize
+ *
+ * Either itemsize is exactly the same or the array is single-segment
+ * (contiguous or fortran) with compatible dimensions The shape and strides
+ * will be adjusted in that case as well.
+ */
+NPY_NO_EXPORT int
+array_descr_set_internal(PyArrayObject *self, PyObject *arg)
+{
+    PyArray_Descr *newtype = NULL;
+    assert(arg);
+
+    if (!(PyArray_DescrConverter(arg, &newtype)) ||
+        newtype == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                "invalid data-type for array");
+        return -1;
+    }
+    /* Check dtype and possibly give new dim & stride for last axis */
+    int newnd;
+    npy_intp *newdims = NULL;
+    npy_intp *newstrides = NULL;
+    /* Check whether the type is compatible, get pointers to dimensions and
+       strides (can be from input or to newly allocated dim_array). */
+    Py_SETREF(newtype, _check_compatibility_with_new_dtype(
+                  self, newtype, &newnd, &newdims, &newstrides));
+    if (newtype == NULL) {
+        return -1;
+    }
+    if (newnd != PyArray_NDIM(self)) {
+        /* Update self with new dim array created above (subarray dtype). */
+        assert(newdims != PyArray_DIMS(self));
+        npy_free_cache_dim_array(self);
+        ((PyArrayObject_fields *)self)->nd = newnd;
+        ((PyArrayObject_fields *)self)->dimensions = newdims;
+        ((PyArrayObject_fields *)self)->strides = newstrides;
+    }
+    else { /* We keep our old dims (possibly changed inplace) */
+        assert(newdims == PyArray_DIMS(self));
+    }
+    Py_DECREF(PyArray_DESCR(self));
+    ((PyArrayObject_fields *)self)->descr = newtype;
+    PyArray_UpdateFlags(self, NPY_ARRAY_UPDATE_ALL);
+    return 0;
+}
+
+static int
+array_descr_set(PyArrayObject *self, PyObject *arg)
+{
+    if (arg == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                "Cannot delete array dtype");
+        return -1;
+    }
+
+    /* DEPRECATED 2026-02-06, NumPy 2.5 */
+    if (DEPRECATE(
+            "Setting the dtype on a NumPy array has been deprecated in NumPy 2.5.\n"
+            "Instead of changing the dtype on an array x, create a new array "
+            "with x.view(new_dtype)") < 0) {
+        return -1;
+    }
+    return array_descr_set_internal(self, arg);
+}
+
+static PyObject *
+array_struct_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    PyArrayInterface *inter;
+
+    inter = (PyArrayInterface *)PyArray_malloc(sizeof(PyArrayInterface));
+    if (inter==NULL) {
+        return PyErr_NoMemory();
+    }
+    inter->two = 2;
+    inter->nd = PyArray_NDIM(self);
+    inter->typekind = PyArray_DESCR(self)->kind;
+    inter->itemsize = PyArray_ITEMSIZE(self);
+    inter->flags = PyArray_FLAGS(self);
+    if (inter->flags & NPY_ARRAY_WARN_ON_WRITE) {
+        /* Export a warn-on-write array as read-only */
+        inter->flags = inter->flags & ~NPY_ARRAY_WARN_ON_WRITE;
+        inter->flags = inter->flags & ~NPY_ARRAY_WRITEABLE;
+    }
+    /* reset unused flags */
+    inter->flags &= ~(NPY_ARRAY_WRITEBACKIFCOPY | NPY_ARRAY_OWNDATA);
+    if (PyArray_ISNOTSWAPPED(self)) inter->flags |= NPY_ARRAY_NOTSWAPPED;
+    /*
+     * Copy shape and strides over since these can be reset
+     *when the array is "reshaped".
+     */
+    if (PyArray_NDIM(self) > 0) {
+        inter->shape = (npy_intp *)PyArray_malloc(2*sizeof(npy_intp)*PyArray_NDIM(self));
+        if (inter->shape == NULL) {
+            PyArray_free(inter);
+            return PyErr_NoMemory();
+        }
+        inter->strides = inter->shape + PyArray_NDIM(self);
+        if (PyArray_NDIM(self)) {
+            memcpy(inter->shape, PyArray_DIMS(self), sizeof(npy_intp)*PyArray_NDIM(self));
+            memcpy(inter->strides, PyArray_STRIDES(self), sizeof(npy_intp)*PyArray_NDIM(self));
+        }
+    }
+    else {
+        inter->shape = NULL;
+        inter->strides = NULL;
+    }
+    inter->data = PyArray_DATA(self);
+    if (PyDataType_HASFIELDS(PyArray_DESCR(self))) {
+        inter->descr = arraydescr_protocol_descr_get(PyArray_DESCR(self), NULL);
+        if (inter->descr == NULL) {
+            PyErr_Clear();
+        }
+        else {
+            inter->flags &= NPY_ARR_HAS_DESCR;
+        }
+    }
+    else {
+        inter->descr = NULL;
+    }
+    PyObject *ret = PyCapsule_New(inter, NULL, gentype_struct_free);
+    if (ret == NULL) {
+        return NULL;
+    }
+    Py_INCREF(self);
+    if (PyCapsule_SetContext(ret, self) < 0) {
+        return NULL;
+    }
+    return ret;
+}
+
+static PyObject *
+array_base_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    if (PyArray_BASE(self) == NULL) {
+        Py_RETURN_NONE;
+    }
+    else {
+        Py_INCREF(PyArray_BASE(self));
+        return PyArray_BASE(self);
+    }
+}
+
+
+/*
+ * Fetches the real or imaginary part of an array. If `need_view` is set the return
+ * cannot be a copy (must be a view).
+ * If `need_view` is zero it will return the `ufunc`s result (a new array) and set it
+ * to read-only.
+ */
+static PyObject *
+_get_part(PyArrayObject *self, PyObject *ufunc, PyBoundArrayMethodObject *meth, int need_view)
+{
+    PyObject *ret = NULL;
+    PyArray_Descr *descrs[2] = {PyArray_DESCR(self), NULL};
+    PyArray_Descr *loop_descrs[2] = {NULL, NULL};
+    npy_intp view_offset = NPY_MIN_INTP;
+    int res = meth->method->resolve_descriptors(
+        meth->method, meth->dtypes, descrs, loop_descrs, &view_offset);
+    if (res < 0) {
+        return NULL;
+    }
+    if (view_offset != NPY_MIN_INTP) {
+        Py_INCREF(loop_descrs[1]);
+        ret = PyArray_NewFromDescr_int(
+            Py_TYPE(self), loop_descrs[1],
+            PyArray_NDIM(self), PyArray_DIMS(self),
+            PyArray_STRIDES(self), PyArray_BYTES(self) + view_offset,
+            PyArray_FLAGS(self), (PyObject *)self, (PyObject *)self,
+            _NPY_ARRAY_ENSURE_DTYPE_IDENTITY);
+    }
+    else if (!need_view) {
+        // resolve_descriptors was successful, but view_offset is not set so we call
+        // the ufunc to let it deal with the (potential) complexity.
+        ret = PyArray_GenericUnaryFunction(self, ufunc);
+        if (ret != NULL && PyArray_Check(ret)) {
+            // Make result read-only, since otherwise `arr.imag[...] = val`
+            // would for example work.
+            PyArray_CLEARFLAGS((PyArrayObject *)ret, NPY_ARRAY_WRITEABLE);
+        }
+    }
+
+    Py_DECREF(loop_descrs[0]);
+    Py_DECREF(loop_descrs[1]);
+    return ret;
+}
+
+
+static PyObject *
+array_real_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    PyBoundArrayMethodObject *meth = NPY_DT_SLOTS(NPY_DTYPE(PyArray_DTYPE(self)))->real_meth;
+
+    if (meth == NULL) {
+        // If the method is not set, we just assume this can be seen as "real"
+        // it really may be nice to change that one day.
+        return Py_NewRef((PyObject *)self);
+    }
+
+    return _get_part(self, n_ops.real, meth, /* need_view */ 0);
+}
+
+static int
+array_real_set(PyArrayObject *self, PyObject *val, void *NPY_UNUSED(ignored))
+{
+    if (val == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                "Cannot delete array real part");
+        return -1;
+    }
+
+    PyArrayObject *part;
+    PyBoundArrayMethodObject *meth = NPY_DT_SLOTS(NPY_DTYPE(PyArray_DTYPE(self)))->real_meth;
+
+    if (meth == NULL) {
+        // See above, we may want to not guess this always...
+        Py_INCREF(self);
+        part = self;
+    }
+    else {
+        part = (PyArrayObject *)_get_part(
+            self, n_ops.real, meth, /* need_view */ 1);
+        if (part == NULL) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_TypeError,
+                        "Cannot set real part when `.real` isn't a view.");
+            }
+            return -1;
+        }
+    }
+
+    int ret = PyArray_CopyObject(part, val);
+    Py_DECREF(part);
+    return ret;
+}
+
+
+static PyObject *
+array_imag_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    PyBoundArrayMethodObject *meth = NPY_DT_SLOTS(NPY_DTYPE(PyArray_DTYPE(self)))->imag_meth;
+
+    if (meth == NULL) {
+        // We assume this is a real type, so return a zeroed array.
+        Py_INCREF(PyArray_DESCR(self));
+        PyObject *ret = PyArray_NewFromDescr_int(
+                Py_TYPE(self),
+                PyArray_DESCR(self),
+                PyArray_NDIM(self),
+                PyArray_DIMS(self),
+                NULL, NULL,
+                PyArray_ISFORTRAN(self),
+                (PyObject *)self, NULL, _NPY_ARRAY_ZEROED);
+        if (ret == NULL) {
+            return NULL;
+        }
+        PyArray_CLEARFLAGS((PyArrayObject *)ret, NPY_ARRAY_WRITEABLE);
+        return ret;
+    }
+
+    return _get_part(self, n_ops.imag, meth, /* need_view */ 0);
+}
+
+static int
+array_imag_set(PyArrayObject *self, PyObject *val, void *NPY_UNUSED(ignored))
+{
+    if (val == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                "Cannot delete array imaginary part");
+        return -1;
+    }
+    PyArrayObject *part;
+    PyBoundArrayMethodObject *meth = NPY_DT_SLOTS(NPY_DTYPE(PyArray_DTYPE(self)))->imag_meth;
+
+    if (meth == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+            "Cannot set imaginary part of non-complex array.");
+        return -1;
+    }
+
+    part = (PyArrayObject *)_get_part(
+        self, n_ops.imag, meth, /* need_view */ 1);
+    if (part == NULL) {
+        if (!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError,
+                    "Cannot set imaginary part when `.imag` isn't a view.");
+        }
+        return -1;
+    }
+
+    int ret = PyArray_CopyObject(part, val);
+    Py_DECREF(part);
+    return ret;
+}
+
+static PyObject *
+array_flat_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_IterNew((PyObject *)self);
+}
+
+static int
+array_flat_set(PyArrayObject *self, PyObject *val, void *NPY_UNUSED(ignored))
+{
+    PyArrayObject *arr = NULL;
+    int retval = -1;
+    PyArrayIterObject *selfit = NULL, *arrit = NULL;
+    PyArray_Descr *typecode;
+    int swap;
+    PyArray_CopySwapFunc *copyswap;
+
+    if (val == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                "Cannot delete array flat iterator");
+        return -1;
+    }
+    if (PyArray_FailUnlessWriteable(self, "array") < 0) return -1;
+    typecode = PyArray_DESCR(self);
+    Py_INCREF(typecode);
+    arr = (PyArrayObject *)PyArray_FromAny(val, typecode,
+                  0, 0, NPY_ARRAY_FORCECAST | PyArray_FORTRAN_IF(self), NULL);
+    if (arr == NULL) {
+        return -1;
+    }
+    arrit = (PyArrayIterObject *)PyArray_IterNew((PyObject *)arr);
+    if (arrit == NULL) {
+        goto exit;
+    }
+    selfit = (PyArrayIterObject *)PyArray_IterNew((PyObject *)self);
+    if (selfit == NULL) {
+        goto exit;
+    }
+    if (arrit->size == 0) {
+        retval = 0;
+        goto exit;
+    }
+    copyswap = PyDataType_GetArrFuncs(PyArray_DESCR(self))->copyswap;
+    if (copyswap == NULL || PyDataType_REFCHK(PyArray_DESCR(self))) {
+        /* reference dtypes have copyswap, but the transfer path handles
+           refcounts and is better for structured dtypes */
+        NPY_cast_info cast_info;
+        NPY_ARRAYMETHOD_FLAGS transfer_flags = 0;
+        npy_intp one = 1;
+        npy_intp itemsize = PyArray_ITEMSIZE(self);
+        npy_intp transfer_strides[2] = {itemsize, itemsize};
+
+        NPY_cast_info_init(&cast_info);
+        if (PyArray_GetDTypeTransferFunction(
+                IsUintAligned(self) && IsUintAligned(arr),
+                itemsize, itemsize,
+                PyArray_DESCR(arr), PyArray_DESCR(self), 0,
+                &cast_info, &transfer_flags) < 0) {
+            goto exit;
+        }
+        while (selfit->index < selfit->size) {
+            char *args[2] = {arrit->dataptr, selfit->dataptr};
+            if (cast_info.func(&cast_info.context, args, &one,
+                               transfer_strides, cast_info.auxdata) < 0) {
+                NPY_cast_info_xfree(&cast_info);
+                goto exit;
+            }
+            PyArray_ITER_NEXT(selfit);
+            PyArray_ITER_NEXT(arrit);
+            if (arrit->index == arrit->size) {
+                PyArray_ITER_RESET(arrit);
+            }
+        }
+        NPY_cast_info_xfree(&cast_info);
+        retval = 0;
+        goto exit;
+    }
+
+    swap = PyArray_ISNOTSWAPPED(self) != PyArray_ISNOTSWAPPED(arr);
+    while(selfit->index < selfit->size) {
+        copyswap(selfit->dataptr, arrit->dataptr, swap, self);
+        PyArray_ITER_NEXT(selfit);
+        PyArray_ITER_NEXT(arrit);
+        if (arrit->index == arrit->size) {
+            PyArray_ITER_RESET(arrit);
+        }
+    }
+    retval = 0;
+
+ exit:
+    Py_XDECREF(selfit);
+    Py_XDECREF(arrit);
+    Py_XDECREF(arr);
+    return retval;
+}
+
+static PyObject *
+array_transpose_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_Transpose(self, NULL);
+}
+
+static PyObject *
+array_matrix_transpose_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
+{
+    return PyArray_MatrixTranspose(self);
+}
+
+NPY_NO_EXPORT PyGetSetDef array_getsetlist[] = {
+    {"ndim",
+        (getter)array_ndim_get,
+        NULL,
+        NULL, NULL},
+    {"flags",
+        (getter)array_flags_get,
+        NULL,
+        NULL, NULL},
+    {"shape",
+        (getter)array_shape_get,
+        (setter)array_shape_set,
+        NULL, NULL},
+    {"strides",
+        (getter)array_strides_get,
+        (setter)array_strides_set,
+        NULL, NULL},
+    {"data",
+        (getter)array_data_get,
+        NULL,
+        NULL, NULL},
+    {"itemsize",
+        (getter)array_itemsize_get,
+        NULL,
+        NULL, NULL},
+    {"size",
+        (getter)array_size_get,
+        NULL,
+        NULL, NULL},
+    {"nbytes",
+        (getter)array_nbytes_get,
+        NULL,
+        NULL, NULL},
+    {"base",
+        (getter)array_base_get,
+        NULL,
+        NULL, NULL},
+    {"dtype",
+        (getter)array_descr_get,
+        (setter)array_descr_set,
+        NULL, NULL},
+    {"real",
+        (getter)array_real_get,
+        (setter)array_real_set,
+        NULL, NULL},
+    {"imag",
+        (getter)array_imag_get,
+        (setter)array_imag_set,
+        NULL, NULL},
+    {"flat",
+        (getter)array_flat_get,
+        (setter)array_flat_set,
+        NULL, NULL},
+    {"ctypes",
+        (getter)array_ctypes_get,
+        NULL,
+        NULL, NULL},
+    {"T",
+        (getter)array_transpose_get,
+        NULL,
+        NULL, NULL},
+    {"mT",
+        (getter)array_matrix_transpose_get,
+        NULL,
+        NULL, NULL},
+    {"device",
+        (getter)array_device,
+        NULL,
+        NULL, NULL},
+    {"__array_interface__",
+        (getter)array_interface_get,
+        NULL,
+        NULL, NULL},
+    {"__array_struct__",
+        (getter)array_struct_get,
+        NULL,
+        NULL, NULL},
+    {"__array_priority__",
+        (getter)array_priority_get,
+        NULL,
+        NULL, NULL},
+    {NULL, NULL, NULL, NULL, NULL},  /* Sentinel */
+};
+
+/****************** end of attribute get and set routines *******************/
