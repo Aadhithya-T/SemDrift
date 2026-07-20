@@ -1,21 +1,24 @@
 """
-semdrift.parser.formatter — Model input formatter.
+semdrift.parser.formatter — Formats AST parser outputs into model input JSON.
 
-Combines the output of :class:`ASTParser` and :class:`DocExtractor` into
-the JSON structure that the CodeBERT divergence-detection model expects.
+Converts a list of :class:`~semdrift.parser.ast_parser.FunctionInfo` objects
+into the standard JSON schema expected by the embedder and downstream models:
 
-Output format per function::
+.. code-block:: json
 
-    {
-        "function_id": "flask_app_py_get_send_file_max_age_001",
-        "code": "def get_send_file_max_age(self, filename: ...) -> ...:\\n    ...",
-        "docstring": "Used by send_file to determine the max_age cache value ..."
-    }
+    [
+      {
+        "function_id": "pandas_core_frame_py_DataFrame_eval_001",
+        "code": "def eval(self, expr, ...): ...",
+        "docstring": "Evaluate a string describing operations on DataFrame columns."
+      }
+    ]
 
-The ``code`` field contains the function source **without** its docstring.
-The ``docstring`` field contains the normalised documentation text.
-The ``function_id`` is a deterministic, human-readable identifier.
+The ``function_id`` is a deterministic, human-readable key that uniquely
+identifies each function across the codebase.
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -27,13 +30,7 @@ from semdrift.parser.doc_extractor import DocExtractor
 
 
 class ModelInputFormatter:
-    """Formats parsed function data into model-ready JSON records.
-
-    This is the final stage of the parser pipeline.  It takes a list of
-    :class:`FunctionInfo` objects (produced by :class:`ASTParser`), runs
-    each docstring through the :class:`DocExtractor` for normalisation,
-    and outputs a list of dictionaries matching the schema expected by
-    the CodeBERT model.
+    """Formats :class:`FunctionInfo` records into CodeBERT model-ready dicts.
 
     Parameters
     ----------
@@ -56,7 +53,7 @@ class ModelInputFormatter:
         include_undocumented: bool = False,
         normalise_docstring: bool = True,
     ) -> None:
-        self.base_path = os.path.abspath(base_path) if base_path else None
+        self.base_path = os.path.normpath(os.path.abspath(base_path)) if base_path else None
         self.include_undocumented = include_undocumented
         self.normalise_docstring = normalise_docstring
         self._doc_extractor = DocExtractor()
@@ -124,9 +121,9 @@ class ModelInputFormatter:
         functions : list[FunctionInfo]
             Output from :class:`ASTParser`.
         output_path : str or None
-            If provided, write the JSON to this file path.
+            If specified, the JSON string is saved to this filepath.
         indent : int
-            JSON indentation level.  Default 2.
+            JSON indentation level. Default 2.
 
         Returns
         -------
@@ -159,11 +156,20 @@ class ModelInputFormatter:
             flask_app_py_Flask_get_send_file_max_age_001
             utils_py_parse_config_001
         """
-        # Make file path relative if base_path is set.
-        if self.base_path and func.file_path.startswith(self.base_path):
-            rel_path = os.path.relpath(func.file_path, self.base_path)
+        norm_file_path = os.path.normpath(func.file_path)
+        if self.base_path and (norm_file_path.startswith(self.base_path) or func.file_path.startswith(self.base_path.replace("\\", "/")) or func.file_path.startswith(self.base_path)):
+            try:
+                rel_path = os.path.relpath(norm_file_path, self.base_path)
+            except ValueError:
+                rel_path = os.path.basename(norm_file_path)
         else:
-            rel_path = os.path.basename(func.file_path)
+            # Fallback for relative paths or mismatched drives
+            clean_path = func.file_path.lstrip("/\\")
+            if self.base_path:
+                base_clean = os.path.basename(self.base_path)
+                if base_clean and clean_path.startswith(base_clean):
+                    clean_path = clean_path[len(base_clean):].lstrip("/\\")
+            rel_path = clean_path if clean_path else os.path.basename(norm_file_path)
 
         # Convert path separators and dots to underscores.
         file_stem = re.sub(r"[/\\.]", "_", rel_path)
