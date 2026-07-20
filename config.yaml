@@ -19,8 +19,8 @@ parser:
 embedder:
   model_name: "microsoft/codebert-base"   # HuggingFace model identifier
   max_token_length: 512                    # Max tokens per code snippet
-  batch_size: 32                           # Batch size for embedding
-  device: "cpu"                            # "cpu" | "cuda"
+  batch_size: 64                           # Batch size for embedding (64 for GPU)
+  device: "cuda"                           # "cuda" | "cpu" (auto-fallbacks if no GPU)
 
 # ---------- Comparator ----------
 comparator:
