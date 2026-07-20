@@ -81,6 +81,7 @@ def main():
                 "lineno": r.get("lineno"),
                 "label": label_str,
                 "drift_type": drift_type,
+                "severity": r.get("severity"),
             }
 
             out_f.write(json.dumps(converted) + "\n")
