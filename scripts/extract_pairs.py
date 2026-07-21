@@ -1,6 +1,7 @@
 import ast
 import json
 import os
+import argparse
 
 
 def is_dev_tooling_function(node):
@@ -20,6 +21,27 @@ def is_dev_tooling_function(node):
     return False
 
 
+def remove_docstring_from_function(node):
+    """Remove leading docstring statement from FunctionDef/AsyncFunctionDef in-place."""
+    if not node.body:
+        return
+    first_stmt = node.body[0]
+    is_docstring = False
+    if isinstance(first_stmt, ast.Expr):
+        val = first_stmt.value
+        if isinstance(val, ast.Constant) and isinstance(val.value, str):
+            is_docstring = True
+        elif isinstance(val, ast.Str):  # for older Python versions
+            is_docstring = True
+
+    if is_docstring:
+        if len(node.body) > 1:
+            node.body = node.body[1:]
+        else:
+            # If the body was only a docstring, replace with 'pass'
+            node.body = [ast.Pass()]
+
+
 def extract_pairs_from_file(filepath, repo_name):
     """Extract (function, docstring) pairs from a single .py file."""
     try:
@@ -28,23 +50,32 @@ def extract_pairs_from_file(filepath, repo_name):
         tree = ast.parse(source)
     except (SyntaxError, UnicodeDecodeError):
         return []
-    pairs = []
+    
+    # Walk tree to gather target function nodes first (prevents mutation issues during walk)
+    func_nodes = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             docstring = ast.get_docstring(node)
             if docstring and not is_dev_tooling_function(node):
-                try:
-                    code = ast.unparse(node)
-                except Exception:
-                    continue
-                pairs.append({
-                    "repo": repo_name,
-                    "file": filepath,
-                    "function_name": node.name,
-                    "code": code,
-                    "docstring": docstring,
-                    "lineno": node.lineno,  # NEW: line number of the 'def' line
-                })
+                func_nodes.append((node, docstring))
+
+    pairs = []
+    for node, docstring in func_nodes:
+        # Strip docstring from AST in-place before unparsing to code
+        remove_docstring_from_function(node)
+        try:
+            code = ast.unparse(node)
+        except Exception:
+            continue
+
+        pairs.append({
+            "repo": repo_name,
+            "file": filepath,
+            "function_name": node.name,
+            "code": code,
+            "docstring": docstring,
+            "lineno": node.lineno,
+        })
     return pairs
 
 
@@ -66,16 +97,29 @@ def walk_repo(repo_path, repo_name):
 
 
 if __name__ == "__main__":
-    raw_repos_dir = "data/raw_repos"
-    output_file = "data/extracted_pairs.jsonl"
+    parser = argparse.ArgumentParser(description="Extract function-docstring pairs with docstring stripping.")
+    parser.add_argument("--repos_dir", default="data/raw_repos", help="Directory containing raw repos")
+    parser.add_argument("--output", default="data/extracted_pairs.jsonl", help="Output JSONL file path")
+    args = parser.parse_args()
+
+    raw_repos_dir = args.repos_dir
+    output_file = args.output
+    
+    # Ensure parent directory exists
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
+
     all_pairs = []
-    for repo_name in os.listdir(raw_repos_dir):
-        repo_path = os.path.join(raw_repos_dir, repo_name)
-        if os.path.isdir(repo_path):
-            print(f"Extracting from {repo_name}...")
-            pairs = walk_repo(repo_path, repo_name)
-            print(f"  -> found {len(pairs)} pairs")
-            all_pairs.extend(pairs)
+    if os.path.exists(raw_repos_dir):
+        for repo_name in os.listdir(raw_repos_dir):
+            repo_path = os.path.join(raw_repos_dir, repo_name)
+            if os.path.isdir(repo_path):
+                print(f"Extracting from {repo_name}...")
+                pairs = walk_repo(repo_path, repo_name)
+                print(f"  -> found {len(pairs)} pairs")
+                all_pairs.extend(pairs)
+    else:
+        print(f"Warning: directory {raw_repos_dir} does not exist.")
+
     with open(output_file, "w", encoding="utf-8") as f:
         for pair in all_pairs:
             f.write(json.dumps(pair) + "\n")

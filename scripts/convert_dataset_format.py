@@ -42,16 +42,22 @@ def make_function_id(repo, file_path, function_name, counter):
 
 
 def main():
-    records = load_jsonl(MUTATED_PATH)
-    print(f"Loaded {len(records)} records from mutated_dataset.jsonl")
+    import argparse
+    parser = argparse.ArgumentParser(description="Convert mutated dataset to target schema.")
+    parser.add_argument("--input", default=MUTATED_PATH, help="Path to input mutated_dataset.jsonl")
+    parser.add_argument("--output", default=OUTPUT_PATH, help="Path to output semdrift_labeled.jsonl")
+    args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    records = load_jsonl(args.input)
+    print(f"Loaded {len(records)} records from {args.input}")
+
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
     function_id_counters = defaultdict(int)
     missing_file = 0
     missing_lineno = 0
 
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as out_f:
+    with open(args.output, "w", encoding="utf-8") as out_f:
         for r in records:
             repo = r["repo"]
             file_path = r.get("file")
@@ -86,7 +92,7 @@ def main():
 
             out_f.write(json.dumps(converted) + "\n")
 
-    print(f"\nWrote {len(records)} converted records to {OUTPUT_PATH}")
+    print(f"\nWrote {len(records)} converted records to {args.output}")
     print(f"Records missing 'file': {missing_file}")
     print(f"Records missing 'lineno': {missing_lineno}")
     if missing_file == 0 and missing_lineno == 0:

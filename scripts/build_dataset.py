@@ -456,8 +456,18 @@ def build_dataset(input_file, output_file, mutation_fraction=0.5, seed=42):
 
 
 if __name__ == "__main__":
+    import argparse
+    import os
+    parser = argparse.ArgumentParser(description="Inject synthetic semantic mutations to generate training dataset.")
+    parser.add_argument("--input", default="data/filtered_pairs.jsonl", help="Input filtered JSONL path")
+    parser.add_argument("--output", default="data/mutated_dataset.jsonl", help="Output mutated JSONL path")
+    parser.add_argument("--fraction", type=float, default=0.5, help="Fraction of mutated pairs")
+    args = parser.parse_args()
+
+    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+
     build_dataset(
-        input_file="data/filtered_pairs.jsonl",
-        output_file="data/mutated_dataset.jsonl",
-        mutation_fraction=0.5,
+        input_file=args.input,
+        output_file=args.output,
+        mutation_fraction=args.fraction,
     )

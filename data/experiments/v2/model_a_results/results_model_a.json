@@ -1,0 +1,145 @@
+{
+  "model": "Model A (CodeBERT Dual-Encoder Baseline)",
+  "model_name": "microsoft/codebert-base",
+  "pooling": "mean",
+  "clean_docstrings": true,
+  "normalize": true,
+  "sweep_metric": "balanced_accuracy",
+  "optimal_threshold": 0.9975,
+  "val_metrics": {
+    "accuracy": 0.5415,
+    "precision": 0.5283,
+    "recall": 0.4043,
+    "f1": 0.4581,
+    "macro_f1": 0.5304,
+    "count": 578
+  },
+  "test_overall": {
+    "accuracy": 0.5262,
+    "precision": 0.5122,
+    "recall": 0.3804,
+    "f1": 0.4366,
+    "macro_f1": 0.5139,
+    "count": 572
+  },
+  "breakdowns": {
+    "by_drift_type": {
+      "return_value_change": {
+        "accuracy": 0.377,
+        "precision": 1.0,
+        "recall": 0.377,
+        "f1": 0.5476,
+        "macro_f1": 0.2738,
+        "count": 61
+      },
+      "doc_negation": {
+        "accuracy": 0.2419,
+        "precision": 1.0,
+        "recall": 0.2419,
+        "f1": 0.3896,
+        "macro_f1": 0.1948,
+        "count": 62
+      },
+      "param_rename": {
+        "accuracy": 0.4356,
+        "precision": 1.0,
+        "recall": 0.4356,
+        "f1": 0.6069,
+        "macro_f1": 0.3034,
+        "count": 101
+      },
+      "aligned": {
+        "accuracy": 0.6622,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.3984,
+        "count": 296
+      },
+      "doc_sentence_delete": {
+        "accuracy": 0.4423,
+        "precision": 1.0,
+        "recall": 0.4423,
+        "f1": 0.6133,
+        "macro_f1": 0.3067,
+        "count": 52
+      }
+    },
+    "by_severity": {
+      "moderate": {
+        "accuracy": 0.4348,
+        "precision": 1.0,
+        "recall": 0.4348,
+        "f1": 0.6061,
+        "macro_f1": 0.303,
+        "count": 92
+      },
+      "mild": {
+        "accuracy": 0.4353,
+        "precision": 1.0,
+        "recall": 0.4353,
+        "f1": 0.6066,
+        "macro_f1": 0.3033,
+        "count": 85
+      },
+      "aligned": {
+        "accuracy": 0.6622,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.3984,
+        "count": 296
+      },
+      "severe": {
+        "accuracy": 0.2828,
+        "precision": 1.0,
+        "recall": 0.2828,
+        "f1": 0.4409,
+        "macro_f1": 0.2205,
+        "count": 99
+      }
+    },
+    "by_repo": {
+      "scikit-learn": {
+        "accuracy": 0.4634,
+        "precision": 0.4643,
+        "recall": 0.375,
+        "f1": 0.4149,
+        "macro_f1": 0.4597,
+        "count": 205
+      },
+      "numpy": {
+        "accuracy": 0.5227,
+        "precision": 0.44,
+        "recall": 0.2821,
+        "f1": 0.3438,
+        "macro_f1": 0.4844,
+        "count": 88
+      },
+      "flask": {
+        "accuracy": 0.5238,
+        "precision": 0.5,
+        "recall": 0.2,
+        "f1": 0.2857,
+        "macro_f1": 0.4643,
+        "count": 21
+      },
+      "requests": {
+        "accuracy": 0.5556,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.3571,
+        "count": 9
+      },
+      "pandas": {
+        "accuracy": 0.5783,
+        "precision": 0.5889,
+        "recall": 0.438,
+        "f1": 0.5024,
+        "macro_f1": 0.5683,
+        "count": 249
+      }
+    }
+  }
+}

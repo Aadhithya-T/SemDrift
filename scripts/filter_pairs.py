@@ -1,4 +1,7 @@
 import json
+import argparse
+import os
+
 
 def is_useful(pair):
     docstring = pair["docstring"].strip()
@@ -21,8 +24,15 @@ def is_useful(pair):
 
 
 if __name__ == "__main__":
-    input_file = "data/extracted_pairs.jsonl"
-    output_file = "data/filtered_pairs.jsonl"
+    parser = argparse.ArgumentParser(description="Filter extracted function-docstring pairs.")
+    parser.add_argument("--input", default="data/extracted_pairs.jsonl", help="Input extracted pairs JSONL file")
+    parser.add_argument("--output", default="data/filtered_pairs.jsonl", help="Output filtered pairs JSONL file")
+    args = parser.parse_args()
+
+    input_file = args.input
+    output_file = args.output
+
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
 
     kept = 0
     dropped = 0
