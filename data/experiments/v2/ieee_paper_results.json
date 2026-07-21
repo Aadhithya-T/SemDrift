@@ -1,0 +1,656 @@
+{
+  "overall_performance": {
+    "Model A (Baseline)": {
+      "accuracy": 52.62,
+      "precision": 51.22,
+      "recall": 38.04,
+      "f1": 43.66,
+      "macro_f1": 51.39,
+      "balanced_accuracy": 52.13,
+      "tn": 196,
+      "fp": 100,
+      "fn": 171,
+      "tp": 105,
+      "count": 572
+    },
+    "Model B (Dual Encoder)": {
+      "accuracy": 79.02,
+      "precision": 86.11,
+      "recall": 67.39,
+      "f1": 75.61,
+      "macro_f1": 78.6,
+      "balanced_accuracy": 78.63,
+      "tn": 266,
+      "fp": 30,
+      "fn": 90,
+      "tp": 186,
+      "count": 572
+    },
+    "Model B (Joint)": {
+      "accuracy": 82.34,
+      "precision": 91.87,
+      "recall": 69.57,
+      "f1": 79.18,
+      "macro_f1": 81.92,
+      "balanced_accuracy": 81.91,
+      "tn": 279,
+      "fp": 17,
+      "fn": 84,
+      "tp": 192,
+      "count": 572
+    }
+  },
+  "bootstrap_confidence_intervals": {
+    "Model A (Baseline)": {
+      "accuracy_ci": "[48.60, 56.64]",
+      "f1_ci": "[38.09, 48.98]",
+      "macro_f1_ci": "[47.24, 55.42]"
+    },
+    "Model B (Dual Encoder)": {
+      "accuracy_ci": "[75.52, 82.34]",
+      "f1_ci": "[71.16, 79.68]",
+      "macro_f1_ci": "[75.01, 81.96]"
+    },
+    "Model B (Joint)": {
+      "accuracy_ci": "[79.19, 85.14]",
+      "f1_ci": "[75.05, 82.93]",
+      "macro_f1_ci": "[78.57, 84.93]"
+    }
+  },
+  "mcnemar_significance_tests": {
+    "model_a_vs_joint": {
+      "contingency_table": {
+        "n00": 63,
+        "n01_m2_wins": 208,
+        "n10_m1_wins": 38,
+        "n11": 263
+      },
+      "statistic": 116.1016,
+      "p_value": 4.515541415819823e-27,
+      "p_value_formatted": "4.5155e-27",
+      "is_statistically_significant": true
+    },
+    "dual_vs_joint": {
+      "contingency_table": {
+        "n00": 80,
+        "n01_m2_wins": 40,
+        "n10_m1_wins": 21,
+        "n11": 431
+      },
+      "statistic": 5.3115,
+      "p_value": 0.021185407615737752,
+      "p_value_formatted": "0.0212",
+      "is_statistically_significant": true
+    }
+  },
+  "breakdown_by_drift_type": {
+    "Model A (Baseline)": {
+      "return_value_change": {
+        "accuracy": 37.7,
+        "precision": 100.0,
+        "recall": 37.7,
+        "f1": 54.76,
+        "macro_f1": 27.38,
+        "balanced_accuracy": 37.7,
+        "tn": 0,
+        "fp": 0,
+        "fn": 38,
+        "tp": 23,
+        "count": 61
+      },
+      "doc_negation": {
+        "accuracy": 24.19,
+        "precision": 100.0,
+        "recall": 24.19,
+        "f1": 38.96,
+        "macro_f1": 19.48,
+        "balanced_accuracy": 24.19,
+        "tn": 0,
+        "fp": 0,
+        "fn": 47,
+        "tp": 15,
+        "count": 62
+      },
+      "param_rename": {
+        "accuracy": 43.56,
+        "precision": 100.0,
+        "recall": 43.56,
+        "f1": 60.69,
+        "macro_f1": 30.34,
+        "balanced_accuracy": 43.56,
+        "tn": 0,
+        "fp": 0,
+        "fn": 57,
+        "tp": 44,
+        "count": 101
+      },
+      "aligned": {
+        "accuracy": 66.22,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 39.84,
+        "balanced_accuracy": 66.22,
+        "tn": 196,
+        "fp": 100,
+        "fn": 0,
+        "tp": 0,
+        "count": 296
+      },
+      "doc_sentence_delete": {
+        "accuracy": 44.23,
+        "precision": 100.0,
+        "recall": 44.23,
+        "f1": 61.33,
+        "macro_f1": 30.67,
+        "balanced_accuracy": 44.23,
+        "tn": 0,
+        "fp": 0,
+        "fn": 29,
+        "tp": 23,
+        "count": 52
+      }
+    },
+    "Model B (Dual Encoder)": {
+      "return_value_change": {
+        "accuracy": 75.41,
+        "precision": 100.0,
+        "recall": 75.41,
+        "f1": 85.98,
+        "macro_f1": 42.99,
+        "balanced_accuracy": 75.41,
+        "tn": 0,
+        "fp": 0,
+        "fn": 15,
+        "tp": 46,
+        "count": 61
+      },
+      "doc_negation": {
+        "accuracy": 11.29,
+        "precision": 100.0,
+        "recall": 11.29,
+        "f1": 20.29,
+        "macro_f1": 10.14,
+        "balanced_accuracy": 11.29,
+        "tn": 0,
+        "fp": 0,
+        "fn": 55,
+        "tp": 7,
+        "count": 62
+      },
+      "param_rename": {
+        "accuracy": 95.05,
+        "precision": 100.0,
+        "recall": 95.05,
+        "f1": 97.46,
+        "macro_f1": 48.73,
+        "balanced_accuracy": 95.05,
+        "tn": 0,
+        "fp": 0,
+        "fn": 5,
+        "tp": 96,
+        "count": 101
+      },
+      "aligned": {
+        "accuracy": 89.86,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 47.33,
+        "balanced_accuracy": 89.86,
+        "tn": 266,
+        "fp": 30,
+        "fn": 0,
+        "tp": 0,
+        "count": 296
+      },
+      "doc_sentence_delete": {
+        "accuracy": 71.15,
+        "precision": 100.0,
+        "recall": 71.15,
+        "f1": 83.15,
+        "macro_f1": 41.57,
+        "balanced_accuracy": 71.15,
+        "tn": 0,
+        "fp": 0,
+        "fn": 15,
+        "tp": 37,
+        "count": 52
+      }
+    },
+    "Model B (Joint)": {
+      "return_value_change": {
+        "accuracy": 90.16,
+        "precision": 100.0,
+        "recall": 90.16,
+        "f1": 94.83,
+        "macro_f1": 47.41,
+        "balanced_accuracy": 90.16,
+        "tn": 0,
+        "fp": 0,
+        "fn": 6,
+        "tp": 55,
+        "count": 61
+      },
+      "doc_negation": {
+        "accuracy": 11.29,
+        "precision": 100.0,
+        "recall": 11.29,
+        "f1": 20.29,
+        "macro_f1": 10.14,
+        "balanced_accuracy": 11.29,
+        "tn": 0,
+        "fp": 0,
+        "fn": 55,
+        "tp": 7,
+        "count": 62
+      },
+      "param_rename": {
+        "accuracy": 96.04,
+        "precision": 100.0,
+        "recall": 96.04,
+        "f1": 97.98,
+        "macro_f1": 48.99,
+        "balanced_accuracy": 96.04,
+        "tn": 0,
+        "fp": 0,
+        "fn": 4,
+        "tp": 97,
+        "count": 101
+      },
+      "aligned": {
+        "accuracy": 94.26,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 48.52,
+        "balanced_accuracy": 94.26,
+        "tn": 279,
+        "fp": 17,
+        "fn": 0,
+        "tp": 0,
+        "count": 296
+      },
+      "doc_sentence_delete": {
+        "accuracy": 63.46,
+        "precision": 100.0,
+        "recall": 63.46,
+        "f1": 77.65,
+        "macro_f1": 38.82,
+        "balanced_accuracy": 63.46,
+        "tn": 0,
+        "fp": 0,
+        "fn": 19,
+        "tp": 33,
+        "count": 52
+      }
+    }
+  },
+  "breakdown_by_severity": {
+    "Model A (Baseline)": {
+      "moderate": {
+        "accuracy": 43.48,
+        "precision": 100.0,
+        "recall": 43.48,
+        "f1": 60.61,
+        "macro_f1": 30.3,
+        "balanced_accuracy": 43.48,
+        "tn": 0,
+        "fp": 0,
+        "fn": 52,
+        "tp": 40,
+        "count": 92
+      },
+      "mild": {
+        "accuracy": 43.53,
+        "precision": 100.0,
+        "recall": 43.53,
+        "f1": 60.66,
+        "macro_f1": 30.33,
+        "balanced_accuracy": 43.53,
+        "tn": 0,
+        "fp": 0,
+        "fn": 48,
+        "tp": 37,
+        "count": 85
+      },
+      "aligned": {
+        "accuracy": 66.22,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 39.84,
+        "balanced_accuracy": 66.22,
+        "tn": 196,
+        "fp": 100,
+        "fn": 0,
+        "tp": 0,
+        "count": 296
+      },
+      "severe": {
+        "accuracy": 28.28,
+        "precision": 100.0,
+        "recall": 28.28,
+        "f1": 44.09,
+        "macro_f1": 22.05,
+        "balanced_accuracy": 28.28,
+        "tn": 0,
+        "fp": 0,
+        "fn": 71,
+        "tp": 28,
+        "count": 99
+      }
+    },
+    "Model B (Dual Encoder)": {
+      "moderate": {
+        "accuracy": 68.48,
+        "precision": 100.0,
+        "recall": 68.48,
+        "f1": 81.29,
+        "macro_f1": 40.65,
+        "balanced_accuracy": 68.48,
+        "tn": 0,
+        "fp": 0,
+        "fn": 29,
+        "tp": 63,
+        "count": 92
+      },
+      "mild": {
+        "accuracy": 70.59,
+        "precision": 100.0,
+        "recall": 70.59,
+        "f1": 82.76,
+        "macro_f1": 41.38,
+        "balanced_accuracy": 70.59,
+        "tn": 0,
+        "fp": 0,
+        "fn": 25,
+        "tp": 60,
+        "count": 85
+      },
+      "aligned": {
+        "accuracy": 89.86,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 47.33,
+        "balanced_accuracy": 89.86,
+        "tn": 266,
+        "fp": 30,
+        "fn": 0,
+        "tp": 0,
+        "count": 296
+      },
+      "severe": {
+        "accuracy": 63.64,
+        "precision": 100.0,
+        "recall": 63.64,
+        "f1": 77.78,
+        "macro_f1": 38.89,
+        "balanced_accuracy": 63.64,
+        "tn": 0,
+        "fp": 0,
+        "fn": 36,
+        "tp": 63,
+        "count": 99
+      }
+    },
+    "Model B (Joint)": {
+      "moderate": {
+        "accuracy": 73.91,
+        "precision": 100.0,
+        "recall": 73.91,
+        "f1": 85.0,
+        "macro_f1": 42.5,
+        "balanced_accuracy": 73.91,
+        "tn": 0,
+        "fp": 0,
+        "fn": 24,
+        "tp": 68,
+        "count": 92
+      },
+      "mild": {
+        "accuracy": 69.41,
+        "precision": 100.0,
+        "recall": 69.41,
+        "f1": 81.94,
+        "macro_f1": 40.97,
+        "balanced_accuracy": 69.41,
+        "tn": 0,
+        "fp": 0,
+        "fn": 26,
+        "tp": 59,
+        "count": 85
+      },
+      "aligned": {
+        "accuracy": 94.26,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 48.52,
+        "balanced_accuracy": 94.26,
+        "tn": 279,
+        "fp": 17,
+        "fn": 0,
+        "tp": 0,
+        "count": 296
+      },
+      "severe": {
+        "accuracy": 65.66,
+        "precision": 100.0,
+        "recall": 65.66,
+        "f1": 79.27,
+        "macro_f1": 39.63,
+        "balanced_accuracy": 65.66,
+        "tn": 0,
+        "fp": 0,
+        "fn": 34,
+        "tp": 65,
+        "count": 99
+      }
+    }
+  },
+  "breakdown_by_repository": {
+    "Model A (Baseline)": {
+      "scikit-learn": {
+        "accuracy": 46.34,
+        "precision": 46.43,
+        "recall": 37.5,
+        "f1": 41.49,
+        "macro_f1": 45.97,
+        "balanced_accuracy": 46.47,
+        "tn": 56,
+        "fp": 45,
+        "fn": 65,
+        "tp": 39,
+        "count": 205
+      },
+      "numpy": {
+        "accuracy": 52.27,
+        "precision": 44.0,
+        "recall": 28.21,
+        "f1": 34.38,
+        "macro_f1": 48.44,
+        "balanced_accuracy": 49.82,
+        "tn": 35,
+        "fp": 14,
+        "fn": 28,
+        "tp": 11,
+        "count": 88
+      },
+      "flask": {
+        "accuracy": 52.38,
+        "precision": 50.0,
+        "recall": 20.0,
+        "f1": 28.57,
+        "macro_f1": 46.43,
+        "balanced_accuracy": 50.91,
+        "tn": 9,
+        "fp": 2,
+        "fn": 8,
+        "tp": 2,
+        "count": 21
+      },
+      "requests": {
+        "accuracy": 55.56,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 35.71,
+        "balanced_accuracy": 35.71,
+        "tn": 5,
+        "fp": 2,
+        "fn": 2,
+        "tp": 0,
+        "count": 9
+      },
+      "pandas": {
+        "accuracy": 57.83,
+        "precision": 58.89,
+        "recall": 43.8,
+        "f1": 50.24,
+        "macro_f1": 56.83,
+        "balanced_accuracy": 57.45,
+        "tn": 91,
+        "fp": 37,
+        "fn": 68,
+        "tp": 53,
+        "count": 249
+      }
+    },
+    "Model B (Dual Encoder)": {
+      "scikit-learn": {
+        "accuracy": 80.98,
+        "precision": 87.36,
+        "recall": 73.08,
+        "f1": 79.58,
+        "macro_f1": 80.89,
+        "balanced_accuracy": 81.09,
+        "tn": 90,
+        "fp": 11,
+        "fn": 28,
+        "tp": 76,
+        "count": 205
+      },
+      "numpy": {
+        "accuracy": 80.68,
+        "precision": 89.29,
+        "recall": 64.1,
+        "f1": 74.63,
+        "macro_f1": 79.52,
+        "balanced_accuracy": 78.99,
+        "tn": 46,
+        "fp": 3,
+        "fn": 14,
+        "tp": 25,
+        "count": 88
+      },
+      "flask": {
+        "accuracy": 57.14,
+        "precision": 53.85,
+        "recall": 70.0,
+        "f1": 60.87,
+        "macro_f1": 56.75,
+        "balanced_accuracy": 57.73,
+        "tn": 5,
+        "fp": 6,
+        "fn": 3,
+        "tp": 7,
+        "count": 21
+      },
+      "requests": {
+        "accuracy": 77.78,
+        "precision": 50.0,
+        "recall": 100.0,
+        "f1": 66.67,
+        "macro_f1": 75.0,
+        "balanced_accuracy": 85.71,
+        "tn": 5,
+        "fp": 2,
+        "fn": 0,
+        "tp": 2,
+        "count": 9
+      },
+      "pandas": {
+        "accuracy": 78.71,
+        "precision": 90.48,
+        "recall": 62.81,
+        "f1": 74.15,
+        "macro_f1": 78.03,
+        "balanced_accuracy": 78.28,
+        "tn": 120,
+        "fp": 8,
+        "fn": 45,
+        "tp": 76,
+        "count": 249
+      }
+    },
+    "Model B (Joint)": {
+      "scikit-learn": {
+        "accuracy": 85.37,
+        "precision": 95.12,
+        "recall": 75.0,
+        "f1": 83.87,
+        "macro_f1": 85.24,
+        "balanced_accuracy": 85.52,
+        "tn": 97,
+        "fp": 4,
+        "fn": 26,
+        "tp": 78,
+        "count": 205
+      },
+      "numpy": {
+        "accuracy": 84.09,
+        "precision": 96.3,
+        "recall": 66.67,
+        "f1": 78.79,
+        "macro_f1": 83.03,
+        "balanced_accuracy": 82.31,
+        "tn": 48,
+        "fp": 1,
+        "fn": 13,
+        "tp": 26,
+        "count": 88
+      },
+      "flask": {
+        "accuracy": 80.95,
+        "precision": 87.5,
+        "recall": 70.0,
+        "f1": 77.78,
+        "macro_f1": 80.56,
+        "balanced_accuracy": 80.45,
+        "tn": 10,
+        "fp": 1,
+        "fn": 3,
+        "tp": 7,
+        "count": 21
+      },
+      "requests": {
+        "accuracy": 77.78,
+        "precision": 50.0,
+        "recall": 100.0,
+        "f1": 66.67,
+        "macro_f1": 75.0,
+        "balanced_accuracy": 85.71,
+        "tn": 5,
+        "fp": 2,
+        "fn": 0,
+        "tp": 2,
+        "count": 9
+      },
+      "pandas": {
+        "accuracy": 79.52,
+        "precision": 89.77,
+        "recall": 65.29,
+        "f1": 75.6,
+        "macro_f1": 78.98,
+        "balanced_accuracy": 79.13,
+        "tn": 119,
+        "fp": 9,
+        "fn": 42,
+        "tp": 79,
+        "count": 249
+      }
+    }
+  }
+}
