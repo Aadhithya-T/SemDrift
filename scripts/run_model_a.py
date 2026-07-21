@@ -202,7 +202,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for embedding")
     parser.add_argument("--pooling", choices=["mean", "cls"], default="mean", help="Pooling strategy")
     parser.add_argument("--metric", choices=["accuracy", "balanced_accuracy", "macro_f1", "f1"], default="balanced_accuracy", help="Sweep target metric")
-    parser.add_argument("--clean_docstrings", action="store_true", default=True, help="Clean REPL examples from docstrings")
+    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false", default=True, help="Disable extracting summary from docstrings (use full docstrings)")
     parser.add_argument("--normalize", action="store_true", default=True, help="Apply L2 normalization")
     parser.add_argument("--mean_center", action="store_true", default=True, help="Apply mean centering to mitigate CodeBERT anisotropy")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda/cpu)")
