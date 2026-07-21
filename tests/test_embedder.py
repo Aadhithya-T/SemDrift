@@ -70,3 +70,12 @@ class TestEmbedder:
         assert d_emb.shape == (1, 768)
         div = compute_divergence(c_emb, d_emb)
         assert isinstance(div, float)
+
+    def test_compute_divergence_mean_centering(self):
+        """Ensure mean-centering shifts distributions prior to L2 normalization."""
+        emb1 = torch.tensor([[10.0, 10.0], [12.0, 10.0], [8.0, 10.0]])
+        emb2 = torch.tensor([[10.0, 10.0], [10.0, 12.0], [10.0, 8.0]])
+        divs_raw = compute_divergence(emb1, emb2, normalize=True, mean_center=False)
+        divs_centered = compute_divergence(emb1, emb2, normalize=True, mean_center=True)
+        assert not torch.allclose(divs_raw, divs_centered)
+        assert divs_centered.shape == (3,)

@@ -71,12 +71,13 @@ def compute_dataset_divergences(
     pooling: str = "mean",
     model_name: str = "microsoft/codebert-base",
     normalize: bool = True,
+    mean_center: bool = True,
 ) -> list[float]:
     """Extract code & docstrings from records, embed them, and calculate divergence scores."""
     codes = [r["code"] for r in records]
     docstrings = [r["docstring"] for r in records]
 
-    print(f"Generating embeddings for {len(records)} pairs (batch_size={batch_size}, device={device}, pooling={pooling}, normalize={normalize})...", flush=True)
+    print(f"Generating embeddings for {len(records)} pairs (batch_size={batch_size}, device={device}, pooling={pooling}, normalize={normalize}, mean_center={mean_center})...", flush=True)
     start_time = time.time()
 
     print(" -> Embedding code snippets...", flush=True)
@@ -88,7 +89,7 @@ def compute_dataset_divergences(
         docstrings, batch_size=batch_size, device=device, pooling=pooling, model_name=model_name, show_progress=True
     )
 
-    divergences = compute_divergence(code_embs, doc_embs, normalize=normalize)
+    divergences = compute_divergence(code_embs, doc_embs, normalize=normalize, mean_center=mean_center)
     if isinstance(divergences, torch.Tensor):
         divergences = divergences.tolist()
     elif isinstance(divergences, float):
@@ -202,7 +203,8 @@ def main():
     parser.add_argument("--pooling", choices=["mean", "cls"], default="mean", help="Pooling strategy")
     parser.add_argument("--metric", choices=["accuracy", "balanced_accuracy", "macro_f1", "f1"], default="balanced_accuracy", help="Sweep target metric")
     parser.add_argument("--clean_docstrings", action="store_true", default=True, help="Clean REPL examples from docstrings")
-    parser.add_argument("--normalize", action="store_true", default=True, help="Apply L2 normalization & mean centering")
+    parser.add_argument("--normalize", action="store_true", default=True, help="Apply L2 normalization")
+    parser.add_argument("--mean_center", action="store_true", default=True, help="Apply mean centering to mitigate CodeBERT anisotropy")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda/cpu)")
     parser.add_argument("--output_dir", default="data/labeled", help="Directory to write predictions and results")
     args = parser.parse_args()
@@ -219,6 +221,7 @@ def main():
     print(f"Batch Size       : {args.batch_size}", flush=True)
     print(f"Clean Docstrings : {args.clean_docstrings}", flush=True)
     print(f"L2 Normalization : {args.normalize}", flush=True)
+    print(f"Mean Centering   : {args.mean_center}", flush=True)
     print(f"Sweep Metric     : {args.metric}", flush=True)
     print("----------------------------------------------------------------------", flush=True)
 
@@ -234,7 +237,7 @@ def main():
     # 2. Compute Divergences on Validation Set
     print("\n[Step 1/3] Processing Validation Set...", flush=True)
     val_divs = compute_dataset_divergences(
-        val_records, batch_size=args.batch_size, device=args.device, pooling=args.pooling, model_name=model_name, normalize=args.normalize
+        val_records, batch_size=args.batch_size, device=args.device, pooling=args.pooling, model_name=model_name, normalize=args.normalize, mean_center=args.mean_center
     )
 
     val_y_true = [r["label"] for r in val_records]
@@ -251,7 +254,7 @@ def main():
     # 4. Evaluate on Test Set using optimal threshold
     print("\n[Step 3/3] Processing Test Set with Optimal Threshold (tau*)...", flush=True)
     test_divs = compute_dataset_divergences(
-        test_records, batch_size=args.batch_size, device=args.device, pooling=args.pooling, model_name=model_name, normalize=args.normalize
+        test_records, batch_size=args.batch_size, device=args.device, pooling=args.pooling, model_name=model_name, normalize=args.normalize, mean_center=args.mean_center
     )
 
     test_y_true = [r["label"] for r in test_records]

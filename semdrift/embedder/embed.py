@@ -166,15 +166,31 @@ def compute_divergence(
     code_emb: torch.Tensor,
     doc_emb: torch.Tensor,
     normalize: bool = False,
+    mean_center: bool = False,
+    code_mean: torch.Tensor | None = None,
+    doc_mean: torch.Tensor | None = None,
 ) -> float | torch.Tensor:
     """Compute semantic divergence: ``1 - cosine_similarity(code_emb, doc_emb)``.
 
-    When ``normalize=True``, applies L2-normalization across batch features.
+    When ``mean_center=True``, subtracts the dataset mean vector from embeddings
+    to mitigate CodeBERT anisotropy before computing cosine similarity.
+    When ``normalize=True``, applies L2-normalization across feature dimensions.
     """
     if code_emb.ndim == 1:
         code_emb = code_emb.unsqueeze(0)
     if doc_emb.ndim == 1:
         doc_emb = doc_emb.unsqueeze(0)
+
+    if mean_center:
+        if code_mean is not None:
+            code_emb = code_emb - code_mean
+        elif code_emb.size(0) > 1:
+            code_emb = code_emb - code_emb.mean(dim=0, keepdim=True)
+
+        if doc_mean is not None:
+            doc_emb = doc_emb - doc_mean
+        elif doc_emb.size(0) > 1:
+            doc_emb = doc_emb - doc_emb.mean(dim=0, keepdim=True)
 
     if normalize:
         code_emb = F.normalize(code_emb, p=2, dim=1)
