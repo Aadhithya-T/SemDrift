@@ -159,7 +159,20 @@ python scripts/train_dual_encoder.py --train data/experiments/v2/train.jsonl --v
 python scripts/train_model_b.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --code_truncation head_tail --pooling cls --checkpoint_metric macro_f1 --output_dir data/experiments/v2/joint_encoder_results/
 ```
 
-### 5. Generate IEEE Paper Artifacts & LaTeX Tables
+### 5. Repository CLI Scanner (Inference)
+
+```bash
+# Scan a codebase using fine-tuned Model B (Joint-Encoder)
+python scripts/scan_repo.py semdrift --threshold 0.60
+
+# Interactive step-through review mode
+python scripts/scan_repo.py . --interactive
+
+# Export Markdown report
+python scripts/scan_repo.py . --output markdown --output_file drift_report.md
+```
+
+### 6. Generate IEEE Paper Artifacts & LaTeX Tables
 
 ```bash
 python scripts/generate_ieee_results.py --v2_dir data/experiments/v2 --output_dir data/experiments/v2
