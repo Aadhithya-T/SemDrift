@@ -47,3 +47,5 @@ data/synthetic/*.csv
 *.log
 .coverage
 htmlcov/
+
+data/raw_repos/
