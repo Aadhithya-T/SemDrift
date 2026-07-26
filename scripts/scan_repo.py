@@ -72,7 +72,7 @@ if PROJECT_ROOT not in sys.path:
 
 from semdrift.parser.ast_parser import ASTParser, FunctionInfo
 from semdrift.parser.formatter import ModelInputFormatter
-from scripts.train_model_b import JointEncoderModel, make_collate_fn, extract_docstring_summary
+from semdrift.models.joint_encoder import JointEncoderModel, make_collate_fn, extract_docstring_summary
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "data", "experiments", "v2", "model_b_checkpoint.pt")

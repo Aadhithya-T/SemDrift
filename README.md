@@ -81,38 +81,37 @@ All models were evaluated on the clean, un-leaked V2 benchmark dataset (`data/ex
 
 ```text
 SemDrift/
-├── semdrift/
-│   ├── parser/                 # AST parsing & docstring extraction
-│   ├── embedder/               # Transformer embedding module
-│   ├── comparator/             # Scoring & similarity functions
-│   └── pipeline.py             # End-to-end integration API
-├── scripts/
-│   ├── extract_pairs.py        # Parses AST & strips docstrings from code
-│   ├── filter_pairs.py         # Heuristic quality filtering
-│   ├── build_dataset.py        # Injects synthetic semantic mutations
-│   ├── convert_dataset_format.py# Converts schema & assigns stable IDs
-│   ├── split_dataset.py        # MD5 deterministic function splitting
-│   ├── run_model_a.py          # Model A baseline evaluation
-│   ├── train_dual_encoder.py   # Model B dual-encoder ablation trainer
-│   ├── train_model_b.py        # Model B joint-encoder primary trainer
-│   └── generate_ieee_results.py# IEEE paper tables & McNemar significance tests
-├── tests/
-│   ├── test_parser.py          # 115 unit tests for AST parser
-│   ├── test_embedder.py        # Unit tests for embedding logic
-│   └── test_v2_updates.py      # Unit tests for V2 updates & head-tail truncation
-├── data/
-│   └── experiments/v2/         # V2 Benchmark Datasets & Results
-│       ├── train.jsonl         # 4,506 training pairs
-│       ├── val.jsonl           # 578 validation pairs
-│       ├── test.jsonl          # 572 test pairs
-│       ├── model_a_results/    # Model A outputs & predictions
-│       ├── dual_encoder_results/# Model B Dual-Encoder outputs & predictions
-│       ├── joint_encoder_results/# Model B Joint-Encoder outputs & predictions
-│       ├── ieee_paper_results.json # Full benchmark metrics & CIs
-│       └── ieee_paper_tables.tex   # Ready-to-paste IEEEtran LaTeX tables
-├── config.yaml                 # Configuration parameters
+├── semdrift/                     # Core Library Package
+│   ├── parser/                   # AST parsing & docstring extraction
+│   ├── embedder/                 # CodeBERT embedding module
+│   ├── comparator/               # Scoring & similarity functions
+│   ├── models/                   # PyTorch neural network architectures
+│   │   ├── dual_encoder.py       # Dual-Encoder model class
+│   │   └── joint_encoder.py      # Joint-Encoder model class & Focal Loss
+│   └── pipeline.py               # End-to-end integration API
+├── scripts/                      # Categorized Workflow Scripts
+│   ├── data_pipeline/            # Dataset extraction, filtering, mutation, & splitting
+│   │   ├── extract_pairs.py
+│   │   ├── filter_pairs.py
+│   │   ├── build_dataset.py
+│   │   ├── convert_dataset_format.py
+│   │   └── split_dataset.py
+│   ├── training/                 # Model training & baseline scripts
+│   │   ├── run_model_a.py
+│   │   ├── train_dual_encoder.py
+│   │   └── train_model_b.py
+│   ├── analysis/                 # Benchmark results & LaTeX table generators
+│   │   ├── generate_ieee_results.py
+│   │   └── scan_example_heavy_docs.py
+│   ├── runners/                  # Automated sequential retraining scripts
+│   │   ├── retrain_all_models.ps1
+│   │   └── retrain_all_models.bat
+│   └── scan_repo.py              # CLI Terminal Scanner Entrypoint
+├── tests/                        # Unit test suite
+├── data/                         # Datasets & Checkpoints
+├── config.yaml                   # Configuration parameters
 ├── requirements.txt            # Dependency specifications
-└── README.md                   # Project documentation
+└── README.md                     # Project documentation
 ```
 
 ---
@@ -139,24 +138,24 @@ python -m unittest discover tests/
 ### 3. Rebuild Dataset (Optional)
 
 ```bash
-python scripts/extract_pairs.py --repos_dir data/raw_repos --output data/experiments/v2/extracted_pairs.jsonl
-python scripts/filter_pairs.py --input data/experiments/v2/extracted_pairs.jsonl --output data/experiments/v2/filtered_pairs.jsonl
-python scripts/build_dataset.py --input data/experiments/v2/filtered_pairs.jsonl --output data/experiments/v2/mutated_dataset.jsonl
-python scripts/convert_dataset_format.py --input data/experiments/v2/mutated_dataset.jsonl --output data/experiments/v2/semdrift_labeled.jsonl
-python scripts/split_dataset.py --input data/experiments/v2/semdrift_labeled.jsonl --output_dir data/experiments/v2/
+python scripts/data_pipeline/extract_pairs.py --repos_dir data/raw_repos --output data/experiments/v2/extracted_pairs.jsonl
+python scripts/data_pipeline/filter_pairs.py --input data/experiments/v2/extracted_pairs.jsonl --output data/experiments/v2/filtered_pairs.jsonl
+python scripts/data_pipeline/build_dataset.py --input data/experiments/v2/filtered_pairs.jsonl --output data/experiments/v2/mutated_dataset.jsonl
+python scripts/data_pipeline/convert_dataset_format.py --input data/experiments/v2/mutated_dataset.jsonl --output data/experiments/v2/semdrift_labeled.jsonl
+python scripts/data_pipeline/split_dataset.py --input data/experiments/v2/semdrift_labeled.jsonl --output_dir data/experiments/v2/
 ```
 
 ### 4. Train & Evaluate Models
 
 ```bash
 # Model A Baseline
-python scripts/run_model_a.py --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --output_dir data/experiments/v2/model_a_results --device cuda
+python scripts/training/run_model_a.py --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --output_dir data/experiments/v2/model_a_results --device cuda
 
 # Model B Dual-Encoder Ablation
-python scripts/train_dual_encoder.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --output_dir data/experiments/v2/dual_encoder_results/
+python scripts/training/train_dual_encoder.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --output_dir data/experiments/v2/dual_encoder_results/
 
-# Model B Joint-Encoder Primary
-python scripts/train_model_b.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --code_truncation head_tail --pooling cls --checkpoint_metric macro_f1 --output_dir data/experiments/v2/joint_encoder_results/
+# Model B Joint-Encoder Primary (with Focal Loss & Category Loss Weighting)
+python scripts/training/train_model_b.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --code_truncation head_tail --pooling cls --checkpoint_metric macro_f1 --use_focal_loss --category_weighting --output_dir data/experiments/v2/joint_encoder_results/
 ```
 
 ### 5. Repository CLI Scanner (Inference)
@@ -175,7 +174,7 @@ python scripts/scan_repo.py . --output markdown --output_file drift_report.md
 ### 6. Generate IEEE Paper Artifacts & LaTeX Tables
 
 ```bash
-python scripts/generate_ieee_results.py --v2_dir data/experiments/v2 --output_dir data/experiments/v2
+python scripts/analysis/generate_ieee_results.py --v2_dir data/experiments/v2 --output_dir data/experiments/v2
 ```
 
 Outputs:
