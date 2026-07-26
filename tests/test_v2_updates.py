@@ -3,8 +3,9 @@ import unittest
 import torch
 from transformers import AutoTokenizer
 
-from scripts.extract_pairs import remove_docstring_from_function
-from scripts.train_model_b import make_collate_fn, calculate_metrics
+from scripts.data_pipeline.extract_pairs import remove_docstring_from_function
+from semdrift.models.joint_encoder import make_collate_fn
+from scripts.training.train_model_b import calculate_metrics
 
 
 class TestV2Updates(unittest.TestCase):
