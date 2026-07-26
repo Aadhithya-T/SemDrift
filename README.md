@@ -72,7 +72,7 @@ All models were evaluated on the clean, un-leaked V2 benchmark dataset (`data/ex
 ### 3. Model B Primary: Fine-Tuned Joint Encoder Classifier
 * **Script**: [`scripts/train_model_b.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/train_model_b.py)
 * **Workflow**: Concatenates docstring and code into a **single joint token sequence**:
-  $$\text{Input} = \text{[\texttt{CLS}]} \; \text{docstring\_tokens} \; \text{[\texttt{SEP}]} \; \text{[\texttt{SEP}]} \; \text{code\_tokens} \; \text{[\texttt{SEP}]}$$
+  $$\text{Input} = [\text{CLS}] \;\; \text{docstring\\_tokens} \;\; [\text{SEP}] \;\; [\text{SEP}] \;\; \text{code\\_tokens} \;\; [\text{SEP}]$$
   Employs a **`head_tail` truncation strategy** to preserve return statements at the end of functions. Executes a single forward pass through CodeBERT where self-attention enables **full cross-attention** between every docstring and code token. The `[CLS]` token representation is classified via `nn.Linear(768, 2)`, fine-tuned with AdamW and linear LR warmup, selected via validation `macro_f1`.
 
 ---
