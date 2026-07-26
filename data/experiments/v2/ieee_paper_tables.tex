@@ -9,9 +9,9 @@
 \hline
 \textbf{Model Architecture} & \textbf{Acc (\%)} & \textbf{Prec (\%)} & \textbf{Rec (\%)} & \textbf{F1 (\%)} & \textbf{Macro-F1 (\%)} & \textbf{Bal-Acc (\%)} \\
 \hline
-Model A (Baseline) & 52.62 & 51.22 & 38.04 & 43.66 & 51.39 & 52.13 \\
-Model B (Dual Encoder) & 79.02 & 86.11 & 67.39 & 75.61 & 78.60 & 78.63 \\
-Model B (Joint) & 82.34 & 91.87 & 69.57 & 79.18 & 81.92 & 81.91 \\
+Model A (Baseline) & 44.56 & 43.33 & 32.07 & 36.86 & 43.73 & 44.68 \\
+Model B (Dual Encoder) & 80.41 & 91.70 & 67.27 & 77.61 & 80.10 & 80.54 \\
+Model B (Joint) & 85.06 & 93.85 & 75.33 & 83.58 & 84.94 & 85.15 \\
 \hline
 \end{tabular}
 \end{table}
@@ -27,11 +27,11 @@ Model B (Joint) & 82.34 & 91.87 & 69.57 & 79.18 & 81.92 & 81.91 \\
 \hline
 \textbf{Mutation / Drift Type} & \textbf{Count} & \textbf{Model A (Base)} & \textbf{Model B (Dual)} & \textbf{Model B (Joint)} \\
 \hline
-aligned                   & 296   & 0.00\% & 0.00\% & \textbf{0.00\%} \\
-doc_negation              & 62    & 38.96\% & 20.29\% & \textbf{20.29\%} \\
-doc_sentence_delete       & 52    & 61.33\% & 83.15\% & \textbf{77.65\%} \\
-param_rename              & 101   & 60.69\% & 97.46\% & \textbf{97.98\%} \\
-return_value_change       & 61    & 54.76\% & 85.98\% & \textbf{94.83\%} \\
+aligned                   & 597   & 0.00\% & 0.00\% & \textbf{0.00\%} \\
+doc_negation              & 95    & 59.26\% & 11.88\% & \textbf{31.86\%} \\
+doc_sentence_delete       & 153   & 29.05\% & 78.57\% & \textbf{81.85\%} \\
+param_rename              & 221   & 54.61\% & 98.62\% & \textbf{97.92\%} \\
+return_value_change       & 139   & 49.73\% & 78.07\% & \textbf{93.49\%} \\
 \hline
 \end{tabular}
 \end{table}

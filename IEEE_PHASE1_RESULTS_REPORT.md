@@ -2,7 +2,7 @@
 
 **Target Publication**: IEEE Conference (Jan 2027)  
 **Dataset Version**: V2 Benchmark Dataset (Docstring AST-Stripped, Cleaned, MD5 Function-Split)  
-**Evaluated Sample Size**: $N = 572$ Test Set Examples  
+**Evaluated Sample Size**: $N = 1,205$ Test Set Examples (Across 10 Repositories)  
 
 ---
 
@@ -10,12 +10,12 @@
 
 This report evaluates **SemDrift Phase 1** architectures for detecting semantic drift between Python code and documentation comments (docstrings). We compare three core model configurations to isolate the effect of fine-tuning and cross-attention mechanisms:
 
-1. **Model A (Baseline)**: Pre-trained CodeBERT (`microsoft/codebert-base`) zero-shot Dual Encoder comparing mean-pooled representations via cosine similarity distance and an optimal threshold sweep ($\tau^* = 0.9975$).
+1. **Model A (Baseline)**: Pre-trained CodeBERT (`microsoft/codebert-base`) zero-shot Dual Encoder comparing mean-pooled representations via cosine similarity distance and an optimal threshold sweep ($\tau^* = 0.8825$).
 2. **Model B (Dual Encoder Ablation)**: Fine-tuned CodeBERT Dual Encoder combining separate mean-pooled vectors $[\mathbf{u} \,;\, \mathbf{v} \,;\, |\mathbf{u} - \mathbf{v}|]$ into a linear classification head (`nn.Linear(2304, 2)`).
 3. **Model B (Joint Encoder Primary)**: Fine-tuned CodeBERT Joint Encoder that tokenizes docstrings and code into a single concatenated sequence `[CLS] docstring [SEP] code [SEP]`, enabling full token-level self-attention/cross-attention across layers, classified via `nn.Linear(768, 2)`.
 
 ### Primary Finding
-The **Joint Encoder (Model B Primary)** achieves state-of-the-art performance with **82.34% Accuracy**, **79.18% F1-Score**, and **81.92% Macro-F1**, outperforming the baseline by **+35.52% F1** and outperforming the Dual Encoder ablation by **+3.57% F1** ($\chi^2 = 5.31, p = 0.0212$, statistically significant).
+The **Joint Encoder (Model B Primary)** achieves state-of-the-art performance with **85.06% Accuracy**, **83.58% F1-Score**, and **84.94% Macro-F1**, outperforming the baseline by **+46.72% F1** and outperforming the Dual Encoder ablation by **+5.97% F1** ($\chi^2 = 24.01, p = 9.59 \times 10^{-7}$, statistically significant).
 
 ---
 
@@ -25,21 +25,21 @@ The **Joint Encoder (Model B Primary)** achieves state-of-the-art performance wi
 
 | Model Architecture | Accuracy | Precision | Recall | F1-Score | Macro-F1 | Balanced Acc | 95% F1 Confidence Interval |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Model A (Baseline)** | 52.62% | 51.22% | 38.04% | 43.66% | 51.39% | 52.13% | `[38.09%, 48.98%]` |
-| **Model B (Dual Encoder Ablation)** | 79.02% | 86.11% | 67.39% | 75.61% | 78.60% | 78.63% | `[71.16%, 79.68%]` |
-| **Model B (Joint Encoder Primary)** | **82.34%** | **91.87%** | **69.57%** | **79.18%** | **81.92%** | **81.91%** | **`[75.05%, 82.93%]`** |
+| **Model A (Baseline)** | 44.56% | 43.33% | 32.07% | 36.86% | 43.73% | 44.68% | `[33.33%, 40.41%]` |
+| **Model B (Dual Encoder Ablation)** | 80.41% | 91.70% | 67.27% | 77.61% | 80.10% | 80.54% | `[74.61%, 80.30%]` |
+| **Model B (Joint Encoder Primary)** | **85.06%** | **93.85%** | **75.33%** | **83.58%** | **84.94%** | **85.15%** | **`[81.22%, 85.76%]`** |
 
 *Note: 95% Confidence Intervals calculated via 1,000 bootstrap iterations.*
 
 ### Statistical Significance Tests (McNemar's Test)
 
-We conducted paired binary McNemar's Tests with continuity correction across all 572 test samples:
+We conducted paired binary McNemar's Tests with continuity correction across all 1,205 test samples:
 
 * **Model A Baseline vs. Model B Joint Primary**:
-  * $\chi^2 = 116.10, \quad p = 4.52 \times 10^{-27}$ ($p < 0.001$)
+  * $\chi^2 = 372.91, \quad p = 4.36 \times 10^{-83}$ ($p < 0.001$)
   * **Conclusion**: Statistically Significant. Fine-tuning with joint encoding yields a massive, non-random performance jump over zero-shot distance thresholds.
 * **Model B Dual Encoder vs. Model B Joint Primary**:
-  * $\chi^2 = 5.31, \quad p = 0.0212$ ($p < 0.05$)
+  * $\chi^2 = 24.01, \quad p = 9.59 \times 10^{-7}$ ($p < 0.001$)
   * **Conclusion**: Statistically Significant. Cross-attention between code and docstring tokens provides a statistically significant advantage over dual encoding.
 
 ---
@@ -50,29 +50,34 @@ We conducted paired binary McNemar's Tests with continuity correction across all
 
 | Mutation / Drift Type | Sample Count ($N$) | Model A (Baseline) F1 | Model B (Dual Encoder) F1 | Model B (Joint Primary) F1 | Key Takeaway |
 |:---|:---:|:---:|:---:|:---:|:---|
-| **`param_rename`** | 101 | 60.69% | 97.46% | **97.98%** | Excellent alignment matching |
-| **`return_value_change`** | 61 | 54.76% | 85.98% | **94.83%** | **+8.85% gain** from `head_tail` return truncation |
-| **`doc_sentence_delete`** | 52 | 61.33% | **83.15%** | 77.65% | Strong detection of missing clauses |
-| **`doc_negation`** | 62 | **38.96%** | 20.29% | 20.29% | Challenging subtle doc negation |
-| **`aligned` (clean)** | 296 | 0.00% | 0.00% | 0.00% | Negative class baseline |
+| **`param_rename`** | 221 | 54.61% | **98.62%** | 97.92% | Near-perfect parameter mapping |
+| **`return_value_change`** | 139 | 49.73% | 78.07% | **93.49%** | **+15.42% gain** from cross-attention & `head_tail` truncation |
+| **`doc_sentence_delete`** | 153 | 29.05% | 78.57% | **81.85%** | Strong detection of missing clauses |
+| **`doc_negation`** | 95 | **59.26%** | 11.88% | 31.86% | Challenging semantic negation |
+| **`aligned` (clean)** | 597 | 0.00% | 0.00% | 0.00% | Negative class baseline |
 
 ### Table III: Breakdown by Mutation Severity
 
 | Severity Level | Sample Count ($N$) | Model A (Baseline) F1 | Model B (Dual Encoder) F1 | Model B (Joint Primary) F1 |
 |:---|:---:|:---:|:---:|:---:|
-| **`mild`** | 85 | 60.66% | **82.76%** | 81.94% |
-| **`moderate`** | 92 | 60.61% | 81.29% | **85.00%** |
-| **`severe`** | 99 | 44.09% | 77.78% | **79.27%** |
+| **`mild`** | 211 | 47.10% | 81.46% | **83.43%** |
+| **`moderate`** | 201 | 46.56% | 77.06% | **86.76%** |
+| **`severe`** | 196 | 52.08% | 82.63% | **87.68%** |
 
 ### Table IV: Breakdown by Source Codebase (Cross-Repository Transfer)
 
 | Repository | Sample Count ($N$) | Model A Accuracy | Model B Dual Accuracy | Model B Joint Accuracy |
 |:---|:---:|:---:|:---:|:---:|
-| **`scikit-learn`** | 205 | 46.34% | 79.51% | **85.37%** |
-| **`numpy`** | 88 | 52.27% | 81.82% | **84.09%** |
-| **`pandas`** | 249 | 57.83% | 77.91% | **79.52%** |
-| **`flask`** | 21 | 52.38% | **85.71%** | 80.95% |
-| **`requests`** | 9 | 55.56% | **88.89%** | 77.78% |
+| **`pandas`** | 283 | 47.00% | 77.74% | **84.10%** |
+| **`sqlalchemy`** | 229 | 47.16% | 84.72% | **87.34%** |
+| **`scikit-learn`** | 221 | 36.65% | 79.64% | **83.26%** |
+| **`django`** | 206 | 46.12% | 80.10% | **83.98%** |
+| **`numpy`** | 112 | 38.39% | 75.89% | **84.82%** |
+| **`pytest`** | 92 | 55.43% | **88.04%** | **88.04%** |
+| **`flask`** | 26 | 30.77% | 80.77% | **92.31%** |
+| **`click`** | 17 | 41.18% | **88.24%** | 82.35% |
+| **`requests`** | 12 | 50.00% | 66.67% | **75.00%** |
+| **`fastapi`** | 7 | 71.43% | 57.14% | **100.00%** |
 
 ---
 

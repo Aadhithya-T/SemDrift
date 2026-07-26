@@ -11,30 +11,30 @@
 
 ## 📊 Benchmark Results (IEEE Conference Paper — Phase 1)
 
-All models were evaluated on the clean, un-leaked V2 benchmark dataset (`data/experiments/v2/test.jsonl`, $N = 572$).
+All models were evaluated on the clean, un-leaked 10-repository V2 benchmark dataset (`data/experiments/v2/test.jsonl`, $N = 1,205$).
 
 ### Overall Model Performance & 95% Confidence Intervals
 
 | Model Architecture | Accuracy (%) | Precision (%) | Recall (%) | F1-Score (%) | Macro-F1 (%) | Balanced Acc (%) | 95% F1 Confidence Interval |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Model A (Baseline)** | 52.62% | 51.22% | 38.04% | 43.66% | 51.39% | 52.13% | `[38.09, 48.98]` |
-| **Model B (Dual Encoder)** | 79.02% | 86.11% | 67.39% | 75.61% | 78.60% | 78.63% | `[71.16, 79.68]` |
-| **Model B (Joint Primary)** | **82.34%** | **91.87%** | **69.57%** | **79.18%** | **81.92%** | **81.91%** | **`[75.05, 82.93]`** |
+| **Model A (Baseline)** | 44.56% | 43.33% | 32.07% | 36.86% | 43.73% | 44.68% | `[33.33, 40.41]` |
+| **Model B (Dual Encoder)** | 80.41% | 91.70% | 67.27% | 77.61% | 80.10% | 80.54% | `[74.61, 80.30]` |
+| **Model B (Joint Primary)** | **85.06%** | **93.85%** | **75.33%** | **83.58%** | **84.94%** | **85.15%** | **`[81.22, 85.76]`** |
 
 ### Statistical Significance (McNemar's Test)
 
-* **Model A (Base) vs. Model B (Joint Primary)**: $\chi^2 = 116.10$, $p = 4.52 \times 10^{-27}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
-* **Model B (Dual) vs. Model B (Joint Primary)**: $\chi^2 = 5.31$, $p = 0.0212$ $\rightarrow$ **Statistically Significant ($p < 0.05$)**
+* **Model A (Base) vs. Model B (Joint Primary)**: $\chi^2 = 372.91$, $p = 4.36 \times 10^{-83}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
+* **Model B (Dual) vs. Model B (Joint Primary)**: $\chi^2 = 24.01$, $p = 9.59 \times 10^{-7}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
 
 ### F1-Score Breakdown Across Semantic Drift Types
 
 | Drift Type / Mutation | Sample Count ($N$) | Model A (Base) | Model B (Dual Encoder) | Model B (Joint Primary) |
 |:---|:---:|:---:|:---:|:---:|
-| **`param_rename`** | 101 | 60.69% | 97.46% | **97.98%** |
-| **`return_value_change`** | 61 | 54.76% | 85.98% | **94.83%** |
-| **`doc_sentence_delete`** | 52 | 61.33% | **83.15%** | 77.65% |
-| **`doc_negation`** | 62 | **38.96%** | 20.29% | 20.29% |
-| **`aligned`** | 296 | 0.00% | 0.00% | 0.00% |
+| **`param_rename`** | 221 | 54.61% | **98.62%** | 97.92% |
+| **`return_value_change`** | 139 | 49.73% | 78.07% | **93.49%** |
+| **`doc_sentence_delete`** | 153 | 29.05% | 78.57% | **81.85%** |
+| **`doc_negation`** | 95 | **59.26%** | 11.88% | 31.86% |
+| **`aligned`** | 597 | 0.00% | 0.00% | 0.00% |
 
 ---
 
