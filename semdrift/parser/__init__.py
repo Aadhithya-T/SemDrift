@@ -26,6 +26,7 @@ from typing import Optional
 from semdrift.parser.ast_parser import ASTParser, FunctionInfo
 from semdrift.parser.doc_extractor import DocExtractor, DocInfo
 from semdrift.parser.formatter import ModelInputFormatter
+from semdrift.parser.universal_parser import UniversalParser
 
 
 def parse_codebase(
@@ -107,6 +108,7 @@ def parse_codebase(
 __all__ = [
     "ASTParser",
     "FunctionInfo",
+    "UniversalParser",
     "DocExtractor",
     "DocInfo",
     "ModelInputFormatter",
