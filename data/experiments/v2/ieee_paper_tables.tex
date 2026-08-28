@@ -9,9 +9,9 @@
 \hline
 \textbf{Model Architecture} & \textbf{Acc (\%)} & \textbf{Prec (\%)} & \textbf{Rec (\%)} & \textbf{F1 (\%)} & \textbf{Macro-F1 (\%)} & \textbf{Bal-Acc (\%)} \\
 \hline
-Model A (Baseline) & 44.56 & 43.33 & 32.07 & 36.86 & 43.73 & 44.68 \\
-Model B (Dual Encoder) & 80.41 & 91.70 & 67.27 & 77.61 & 80.10 & 80.54 \\
-Model B (Joint) & 85.06 & 93.85 & 75.33 & 83.58 & 84.94 & 85.15 \\
+Zero-Shot Baseline (Dual Encoder) & 44.56 & 43.33 & 32.07 & 36.86 & 43.73 & 44.68 \\
+Fine-Tuned Dual Encoder (Ablation) & 80.41 & 91.70 & 67.27 & 77.61 & 80.10 & 80.54 \\
+Fine-Tuned Joint Encoder (Primary) & 81.25 & 83.33 & 71.43 & 76.92 & 80.57 & 80.16 \\
 \hline
 \end{tabular}
 \end{table}
@@ -25,13 +25,13 @@ Model B (Joint) & 85.06 & 93.85 & 75.33 & 83.58 & 84.94 & 85.15 \\
 \centering
 \begin{tabular}{lccccc}
 \hline
-\textbf{Mutation / Drift Type} & \textbf{Count} & \textbf{Model A (Base)} & \textbf{Model B (Dual)} & \textbf{Model B (Joint)} \\
+\textbf{Mutation / Drift Type} & \textbf{Count} & \textbf{Zero-Shot Baseline} & \textbf{Fine-Tuned Dual} & \textbf{Fine-Tuned Joint} \\
 \hline
-aligned                   & 597   & 0.00\% & 0.00\% & \textbf{0.00\%} \\
-doc_negation              & 95    & 59.26\% & 11.88\% & \textbf{31.86\%} \\
-doc_sentence_delete       & 153   & 29.05\% & 78.57\% & \textbf{81.85\%} \\
-param_rename              & 221   & 54.61\% & 98.62\% & \textbf{97.92\%} \\
-return_value_change       & 139   & 49.73\% & 78.07\% & \textbf{93.49\%} \\
+aligned                   & 9     & 0.00\% & 0.00\% & \textbf{0.00\%} \\
+doc_negation              & 2     & 59.26\% & 11.88\% & \textbf{0.00\%} \\
+doc_sentence_delete       & 1     & 29.05\% & 78.57\% & \textbf{100.00\%} \\
+param_rename              & 3     & 54.61\% & 98.62\% & \textbf{100.00\%} \\
+return_value_change       & 1     & 49.73\% & 78.07\% & \textbf{100.00\%} \\
 \hline
 \end{tabular}
 \end{table}

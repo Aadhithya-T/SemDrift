@@ -75,8 +75,8 @@ from semdrift.parser.formatter import ModelInputFormatter
 from semdrift.models.joint_encoder import JointEncoderModel, make_collate_fn, extract_docstring_summary
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "data", "experiments", "v2", "model_b_checkpoint.pt")
-FALLBACK_CHECKPOINT = os.path.join(PROJECT_ROOT, "data", "labeled", "model_b_checkpoint.pt")
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "data", "experiments", "v2", "joint_encoder_checkpoint.pt")
+FALLBACK_CHECKPOINT = os.path.join(PROJECT_ROOT, "data", "labeled", "joint_encoder_checkpoint.pt")
 
 # Custom theme for subtle, unified cyan/slate aesthetics
 custom_theme = Theme({

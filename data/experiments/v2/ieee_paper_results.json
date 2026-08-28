@@ -1,6 +1,6 @@
 {
   "overall_performance": {
-    "Model A (Baseline)": {
+    "Zero-Shot Baseline (Dual Encoder)": {
       "accuracy": 44.56,
       "precision": 43.33,
       "recall": 32.07,
@@ -13,7 +13,7 @@
       "tp": 195,
       "count": 1205
     },
-    "Model B (Dual Encoder)": {
+    "Fine-Tuned Dual Encoder (Ablation)": {
       "accuracy": 80.41,
       "precision": 91.7,
       "recall": 67.27,
@@ -26,65 +26,65 @@
       "tp": 409,
       "count": 1205
     },
-    "Model B (Joint)": {
-      "accuracy": 85.06,
-      "precision": 93.85,
-      "recall": 75.33,
-      "f1": 83.58,
-      "macro_f1": 84.94,
-      "balanced_accuracy": 85.15,
-      "tn": 567,
-      "fp": 30,
-      "fn": 150,
-      "tp": 458,
-      "count": 1205
+    "Fine-Tuned Joint Encoder (Primary)": {
+      "accuracy": 81.25,
+      "precision": 83.33,
+      "recall": 71.43,
+      "f1": 76.92,
+      "macro_f1": 80.57,
+      "balanced_accuracy": 80.16,
+      "tn": 8,
+      "fp": 1,
+      "fn": 2,
+      "tp": 5,
+      "count": 16
     }
   },
   "bootstrap_confidence_intervals": {
-    "Model A (Baseline)": {
+    "Zero-Shot Baseline (Dual Encoder)": {
       "accuracy_ci": "[41.83, 47.30]",
       "f1_ci": "[33.33, 40.41]",
       "macro_f1_ci": "[41.01, 46.45]"
     },
-    "Model B (Dual Encoder)": {
+    "Fine-Tuned Dual Encoder (Ablation)": {
       "accuracy_ci": "[78.17, 82.66]",
       "f1_ci": "[74.61, 80.30]",
       "macro_f1_ci": "[77.76, 82.33]"
     },
-    "Model B (Joint)": {
-      "accuracy_ci": "[82.90, 86.97]",
-      "f1_ci": "[81.22, 85.76]",
-      "macro_f1_ci": "[82.82, 86.84]"
+    "Fine-Tuned Joint Encoder (Primary)": {
+      "accuracy_ci": "[62.50, 100.00]",
+      "f1_ci": "[44.44, 100.00]",
+      "macro_f1_ci": "[56.36, 100.00]"
     }
   },
   "mcnemar_significance_tests": {
-    "model_a_vs_joint": {
+    "baseline_vs_joint": {
       "contingency_table": {
-        "n00": 106,
-        "n01_m2_wins": 562,
-        "n10_m1_wins": 74,
-        "n11": 463
+        "n00": 0,
+        "n01_m2_wins": 7,
+        "n10_m1_wins": 3,
+        "n11": 6
       },
-      "statistic": 372.9072,
-      "p_value": 4.3571853399205846e-83,
-      "p_value_formatted": "4.3572e-83",
-      "is_statistically_significant": true
+      "statistic": 0.9,
+      "p_value": 0.34278171114790873,
+      "p_value_formatted": "0.3428",
+      "is_statistically_significant": false
     },
     "dual_vs_joint": {
       "contingency_table": {
-        "n00": 145,
-        "n01_m2_wins": 91,
-        "n10_m1_wins": 35,
-        "n11": 934
+        "n00": 2,
+        "n01_m2_wins": 2,
+        "n10_m1_wins": 1,
+        "n11": 11
       },
-      "statistic": 24.0079,
-      "p_value": 9.593942024706217e-07,
-      "p_value_formatted": "9.5939e-07",
-      "is_statistically_significant": true
+      "statistic": 0.0,
+      "p_value": 1.0,
+      "p_value_formatted": "1.0000",
+      "is_statistically_significant": false
     }
   },
   "breakdown_by_drift_type": {
-    "Model A (Baseline)": {
+    "Zero-Shot Baseline (Dual Encoder)": {
       "return_value_change": {
         "accuracy": 33.09,
         "precision": 100.0,
@@ -151,7 +151,7 @@
         "count": 153
       }
     },
-    "Model B (Dual Encoder)": {
+    "Fine-Tuned Dual Encoder (Ablation)": {
       "return_value_change": {
         "accuracy": 64.03,
         "precision": 100.0,
@@ -218,76 +218,76 @@
         "count": 153
       }
     },
-    "Model B (Joint)": {
+    "Fine-Tuned Joint Encoder (Primary)": {
       "return_value_change": {
-        "accuracy": 87.77,
+        "accuracy": 100.0,
         "precision": 100.0,
-        "recall": 87.77,
-        "f1": 93.49,
-        "macro_f1": 46.74,
-        "balanced_accuracy": 87.77,
+        "recall": 100.0,
+        "f1": 100.0,
+        "macro_f1": 100.0,
+        "balanced_accuracy": 100.0,
         "tn": 0,
         "fp": 0,
-        "fn": 17,
-        "tp": 122,
-        "count": 139
+        "fn": 0,
+        "tp": 0,
+        "count": 1
       },
       "aligned": {
-        "accuracy": 94.97,
+        "accuracy": 88.89,
         "precision": 0.0,
         "recall": 0.0,
         "f1": 0.0,
-        "macro_f1": 48.71,
-        "balanced_accuracy": 94.97,
-        "tn": 567,
-        "fp": 30,
+        "macro_f1": 47.06,
+        "balanced_accuracy": 88.89,
+        "tn": 8,
+        "fp": 1,
         "fn": 0,
         "tp": 0,
-        "count": 597
+        "count": 9
       },
       "param_rename": {
-        "accuracy": 95.93,
+        "accuracy": 100.0,
         "precision": 100.0,
-        "recall": 95.93,
-        "f1": 97.92,
-        "macro_f1": 48.96,
-        "balanced_accuracy": 95.93,
+        "recall": 100.0,
+        "f1": 100.0,
+        "macro_f1": 100.0,
+        "balanced_accuracy": 100.0,
         "tn": 0,
         "fp": 0,
-        "fn": 9,
-        "tp": 212,
-        "count": 221
+        "fn": 0,
+        "tp": 0,
+        "count": 3
       },
       "doc_negation": {
-        "accuracy": 18.95,
-        "precision": 100.0,
-        "recall": 18.95,
-        "f1": 31.86,
-        "macro_f1": 15.93,
-        "balanced_accuracy": 18.95,
+        "accuracy": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.0,
+        "balanced_accuracy": 0.0,
         "tn": 0,
         "fp": 0,
-        "fn": 77,
-        "tp": 18,
-        "count": 95
+        "fn": 2,
+        "tp": 0,
+        "count": 2
       },
       "doc_sentence_delete": {
-        "accuracy": 69.28,
+        "accuracy": 100.0,
         "precision": 100.0,
-        "recall": 69.28,
-        "f1": 81.85,
-        "macro_f1": 40.93,
-        "balanced_accuracy": 69.28,
+        "recall": 100.0,
+        "f1": 100.0,
+        "macro_f1": 100.0,
+        "balanced_accuracy": 100.0,
         "tn": 0,
         "fp": 0,
-        "fn": 47,
-        "tp": 106,
-        "count": 153
+        "fn": 0,
+        "tp": 0,
+        "count": 1
       }
     }
   },
   "breakdown_by_severity": {
-    "Model A (Baseline)": {
+    "Zero-Shot Baseline (Dual Encoder)": {
       "severe": {
         "accuracy": 35.2,
         "precision": 100.0,
@@ -341,7 +341,7 @@
         "count": 201
       }
     },
-    "Model B (Dual Encoder)": {
+    "Fine-Tuned Dual Encoder (Ablation)": {
       "severe": {
         "accuracy": 70.41,
         "precision": 100.0,
@@ -395,63 +395,63 @@
         "count": 201
       }
     },
-    "Model B (Joint)": {
+    "Fine-Tuned Joint Encoder (Primary)": {
       "severe": {
-        "accuracy": 78.06,
+        "accuracy": 100.0,
         "precision": 100.0,
-        "recall": 78.06,
-        "f1": 87.68,
-        "macro_f1": 43.84,
-        "balanced_accuracy": 78.06,
+        "recall": 100.0,
+        "f1": 100.0,
+        "macro_f1": 100.0,
+        "balanced_accuracy": 100.0,
         "tn": 0,
         "fp": 0,
-        "fn": 43,
-        "tp": 153,
-        "count": 196
+        "fn": 0,
+        "tp": 0,
+        "count": 1
       },
       "aligned": {
-        "accuracy": 94.97,
+        "accuracy": 88.89,
         "precision": 0.0,
         "recall": 0.0,
         "f1": 0.0,
-        "macro_f1": 48.71,
-        "balanced_accuracy": 94.97,
-        "tn": 567,
-        "fp": 30,
+        "macro_f1": 47.06,
+        "balanced_accuracy": 88.89,
+        "tn": 8,
+        "fp": 1,
         "fn": 0,
         "tp": 0,
-        "count": 597
+        "count": 9
       },
       "mild": {
-        "accuracy": 71.56,
+        "accuracy": 75.0,
         "precision": 100.0,
-        "recall": 71.56,
-        "f1": 83.43,
-        "macro_f1": 41.71,
-        "balanced_accuracy": 71.56,
+        "recall": 75.0,
+        "f1": 85.71,
+        "macro_f1": 42.86,
+        "balanced_accuracy": 75.0,
         "tn": 0,
         "fp": 0,
-        "fn": 60,
-        "tp": 151,
-        "count": 211
+        "fn": 1,
+        "tp": 3,
+        "count": 4
       },
       "moderate": {
-        "accuracy": 76.62,
+        "accuracy": 50.0,
         "precision": 100.0,
-        "recall": 76.62,
-        "f1": 86.76,
-        "macro_f1": 43.38,
-        "balanced_accuracy": 76.62,
+        "recall": 50.0,
+        "f1": 66.67,
+        "macro_f1": 33.33,
+        "balanced_accuracy": 50.0,
         "tn": 0,
         "fp": 0,
-        "fn": 47,
-        "tp": 154,
-        "count": 201
+        "fn": 1,
+        "tp": 1,
+        "count": 2
       }
     }
   },
   "breakdown_by_repository": {
-    "Model A (Baseline)": {
+    "Zero-Shot Baseline (Dual Encoder)": {
       "pandas": {
         "accuracy": 47.0,
         "precision": 43.8,
@@ -583,7 +583,7 @@
         "count": 92
       }
     },
-    "Model B (Dual Encoder)": {
+    "Fine-Tuned Dual Encoder (Ablation)": {
       "pandas": {
         "accuracy": 77.74,
         "precision": 88.04,
@@ -715,136 +715,58 @@
         "count": 92
       }
     },
-    "Model B (Joint)": {
+    "Fine-Tuned Joint Encoder (Primary)": {
       "pandas": {
-        "accuracy": 84.1,
-        "precision": 91.51,
-        "recall": 72.93,
-        "f1": 81.17,
-        "macro_f1": 83.71,
-        "balanced_accuracy": 83.47,
-        "tn": 141,
-        "fp": 9,
-        "fn": 36,
-        "tp": 97,
-        "count": 283
-      },
-      "numpy": {
-        "accuracy": 84.82,
-        "precision": 100.0,
-        "recall": 75.0,
-        "f1": 85.71,
-        "macro_f1": 84.76,
-        "balanced_accuracy": 87.5,
-        "tn": 44,
-        "fp": 0,
-        "fn": 17,
-        "tp": 51,
-        "count": 112
-      },
-      "requests": {
         "accuracy": 75.0,
-        "precision": 100.0,
-        "recall": 50.0,
+        "precision": 66.67,
+        "recall": 66.67,
         "f1": 66.67,
         "macro_f1": 73.33,
-        "balanced_accuracy": 75.0,
-        "tn": 6,
-        "fp": 0,
-        "fn": 3,
-        "tp": 3,
-        "count": 12
-      },
-      "scikit-learn": {
-        "accuracy": 83.26,
-        "precision": 91.49,
-        "recall": 74.78,
-        "f1": 82.3,
-        "macro_f1": 83.21,
-        "balanced_accuracy": 83.62,
-        "tn": 98,
-        "fp": 8,
-        "fn": 29,
-        "tp": 86,
-        "count": 221
-      },
-      "flask": {
-        "accuracy": 92.31,
-        "precision": 94.44,
-        "recall": 94.44,
-        "f1": 94.44,
-        "macro_f1": 90.97,
-        "balanced_accuracy": 90.97,
-        "tn": 7,
+        "balanced_accuracy": 73.33,
+        "tn": 4,
         "fp": 1,
         "fn": 1,
-        "tp": 17,
-        "count": 26
+        "tp": 2,
+        "count": 8
       },
-      "django": {
-        "accuracy": 83.98,
-        "precision": 92.31,
-        "recall": 72.73,
-        "f1": 81.36,
-        "macro_f1": 83.66,
-        "balanced_accuracy": 83.56,
-        "tn": 101,
-        "fp": 6,
-        "fn": 27,
-        "tp": 72,
-        "count": 206
-      },
-      "click": {
-        "accuracy": 82.35,
-        "precision": 87.5,
-        "recall": 77.78,
-        "f1": 82.35,
-        "macro_f1": 82.35,
-        "balanced_accuracy": 82.64,
-        "tn": 7,
-        "fp": 1,
-        "fn": 2,
-        "tp": 7,
-        "count": 17
-      },
-      "fastapi": {
+      "numpy": {
         "accuracy": 100.0,
         "precision": 100.0,
         "recall": 100.0,
         "f1": 100.0,
         "macro_f1": 100.0,
         "balanced_accuracy": 100.0,
-        "tn": 1,
+        "tn": 3,
         "fp": 0,
         "fn": 0,
-        "tp": 6,
-        "count": 7
+        "tp": 1,
+        "count": 4
       },
-      "sqlalchemy": {
-        "accuracy": 87.34,
-        "precision": 96.63,
-        "recall": 76.79,
-        "f1": 85.57,
-        "macro_f1": 87.14,
-        "balanced_accuracy": 87.11,
-        "tn": 114,
-        "fp": 3,
-        "fn": 26,
-        "tp": 86,
-        "count": 229
+      "requests": {
+        "accuracy": 100.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 100.0,
+        "balanced_accuracy": 100.0,
+        "tn": 0,
+        "fp": 0,
+        "fn": 0,
+        "tp": 0,
+        "count": 1
       },
-      "pytest": {
-        "accuracy": 88.04,
-        "precision": 94.29,
-        "recall": 78.57,
-        "f1": 85.71,
-        "macro_f1": 87.72,
-        "balanced_accuracy": 87.29,
-        "tn": 48,
-        "fp": 2,
-        "fn": 9,
-        "tp": 33,
-        "count": 92
+      "scikit-learn": {
+        "accuracy": 66.67,
+        "precision": 100.0,
+        "recall": 66.67,
+        "f1": 80.0,
+        "macro_f1": 40.0,
+        "balanced_accuracy": 66.67,
+        "tn": 0,
+        "fp": 0,
+        "fn": 1,
+        "tp": 2,
+        "count": 3
       }
     }
   }

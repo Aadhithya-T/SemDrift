@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/run_model_a.py — Run Model A (Baseline: Dual-Encoder + Cosine Similarity).
+scripts/training/run_zero_shot_baseline.py — Run Zero-Shot Baseline (Dual-Encoder + Cosine Similarity).
 
 Features:
   - GPU (CUDA) acceleration enabled by default (with CPU fallback).
@@ -222,7 +222,7 @@ def main():
     parser.add_argument("--normalize", action="store_true", default=True, help="Apply L2 normalization")
     parser.add_argument("--mean_center", action="store_true", default=True, help="Apply mean centering to mitigate CodeBERT anisotropy")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda/cpu)")
-    parser.add_argument("--output_dir", default="data/experiments/v2/model_a_results", help="Directory to write predictions and results")
+    parser.add_argument("--output_dir", default="data/experiments/v2/baseline_results", help="Directory to write predictions and results")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
 
@@ -232,7 +232,7 @@ def main():
     model_name = config.get("embedder", {}).get("model_name", "microsoft/codebert-base")
 
     print("======================================================================", flush=True)
-    print("Model A Baseline — Dual-Encoder Cosine Similarity Evaluation", flush=True)
+    print("Zero-Shot Baseline — Dual-Encoder Cosine Similarity Evaluation", flush=True)
     print("======================================================================", flush=True)
     print(f"Model Name       : {model_name}", flush=True)
     print(f"Device           : {args.device}", flush=True)
@@ -283,7 +283,7 @@ def main():
     breakdowns = evaluate_breakdowns(test_records, test_preds)
 
     print("\n======================================================================", flush=True)
-    print("FINAL MODEL A OPTIMIZED TEST RESULTS", flush=True)
+    print("FINAL ZERO-SHOT BASELINE OPTIMIZED TEST RESULTS", flush=True)
     print("======================================================================", flush=True)
     print(f"Optimal Threshold (tau*) : {best_tau:.4f}", flush=True)
     print(f"Accuracy                 : {test_overall['accuracy']:.4f}", flush=True)
@@ -306,8 +306,8 @@ def main():
 
     # 5. Save Outputs
     os.makedirs(args.output_dir, exist_ok=True)
-    pred_path = os.path.join(args.output_dir, "predictions_model_a.jsonl")
-    results_path = os.path.join(args.output_dir, "results_model_a.json")
+    pred_path = os.path.join(args.output_dir, "predictions_baseline.jsonl")
+    results_path = os.path.join(args.output_dir, "results_baseline.json")
 
     with open(pred_path, "w", encoding="utf-8") as f:
         for rec, div, pred in zip(test_records, test_divs, test_preds):
@@ -318,7 +318,7 @@ def main():
             f.write(json.dumps(output_rec) + "\n")
 
     full_results = {
-        "model": "Model A (CodeBERT Dual-Encoder Baseline)",
+        "model": "Zero-Shot Baseline (CodeBERT Dual-Encoder)",
         "model_name": model_name,
         "pooling": args.pooling,
         "clean_docstrings": args.clean_docstrings,
@@ -336,7 +336,7 @@ def main():
     print("\n----------------------------------------------------------------------", flush=True)
     print(f"Saved predictions to : {pred_path}", flush=True)
     print(f"Saved test results to: {results_path}", flush=True)
-    print("Model A Baseline execution complete!", flush=True)
+    print("Zero-Shot Baseline execution complete!", flush=True)
 
 
 if __name__ == "__main__":

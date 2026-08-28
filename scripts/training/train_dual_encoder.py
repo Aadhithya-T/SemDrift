@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/train_model_b.py — Fine-tune Model B (Dual-Encoder + Similarity / Classifier Head).
+scripts/training/train_dual_encoder.py — Fine-tune Dual-Encoder (Ablation Model).
 
 Supports:
   - Variant 2 (Default): Shared encoder + classifier head on [u; v; |u-v|]. Trained using CrossEntropyLoss.
@@ -345,10 +345,10 @@ def main():
     set_seed(args.seed)
 
     print("======================================================================", flush=True)
-    print("Fine-tuning Model B (Dual-Encoder Ablation Model)", flush=True)
+    print("Fine-tuning Dual-Encoder (Ablation Model)", flush=True)
     print("======================================================================", flush=True)
     print(f"Base Model Name  : {args.model_name}", flush=True)
-    print(f"Model B Variant  : {args.variant.upper()}", flush=True)
+    print(f"Variant          : {args.variant.upper()}", flush=True)
     print(f"Device           : {args.device}", flush=True)
     print(f"Epochs           : {args.epochs}", flush=True)
     print(f"Batch Size       : {args.batch_size}", flush=True)
@@ -397,7 +397,7 @@ def main():
     # 5. Training Loop
     print("\nStarting training loop...", flush=True)
     best_val_score = -1.0
-    best_checkpoint_path = os.path.join(args.output_dir, "model_b_checkpoint.pt")
+    best_checkpoint_path = os.path.join(args.output_dir, "dual_encoder_checkpoint.pt")
     os.makedirs(args.output_dir, exist_ok=True)
 
     for epoch in range(args.epochs):
@@ -419,7 +419,7 @@ def main():
             print(f" -> Saved new best model checkpoint to {best_checkpoint_path}", flush=True)
 
     # 6. Load Best Checkpoint and Run Final Test Set Evaluation
-    print("\nLoading best model checkpoint for final test evaluation...", flush=True)
+    print(f"\nLoading best checkpoint from {best_checkpoint_path} for final testing...", flush=True)
     model.load_state_dict(torch.load(best_checkpoint_path, map_location=args.device))
     
     # Validation step to compute the optimal threshold tau* using best weights
@@ -441,7 +441,7 @@ def main():
     )
 
     print("\n======================================================================", flush=True)
-    print("FINAL TEST RESULTS (MODEL B)", flush=True)
+    print("FINAL TEST RESULTS (Fine-Tuned Dual-Encoder)", flush=True)
     print("======================================================================", flush=True)
     print(f"Test Accuracy            : {test_overall['accuracy']:.4f}", flush=True)
     print(f"Test Precision           : {test_overall['precision']:.4f}", flush=True)
@@ -465,8 +465,8 @@ def main():
         print(f"  {repo:<22}: Acc={m['accuracy']:.4f} | F1={m['f1']:.4f} | Prec={m['precision']:.4f} | Rec={m['recall']:.4f} (N={m['count']})", flush=True)
 
     # 7. Write predictions and results
-    pred_path = os.path.join(args.output_dir, "predictions_model_b.jsonl")
-    results_path = os.path.join(args.output_dir, "results_model_b.json")
+    pred_path = os.path.join(args.output_dir, "predictions_dual_encoder.jsonl")
+    results_path = os.path.join(args.output_dir, "results_dual_encoder.json")
 
     with open(pred_path, "w", encoding="utf-8") as f:
         for rec, div, pred in zip(test_dataset.records, test_divs, test_y_pred):
@@ -477,7 +477,7 @@ def main():
             f.write(json.dumps(output_rec) + "\n")
 
     full_results = {
-        "model": "Model B (CodeBERT Dual-Encoder Ablation)",
+        "model": "Fine-Tuned Dual-Encoder (Ablation Model)",
         "model_name": args.model_name,
         "variant": args.variant,
         "clean_docstrings": args.clean_docstrings,
@@ -500,7 +500,7 @@ def main():
     print("\n----------------------------------------------------------------------", flush=True)
     print(f"Saved predictions to : {pred_path}", flush=True)
     print(f"Saved test results to: {results_path}", flush=True)
-    print("Model B Ablation execution complete!", flush=True)
+    print("Fine-Tuned Dual-Encoder execution complete!", flush=True)
 
 
 if __name__ == "__main__":

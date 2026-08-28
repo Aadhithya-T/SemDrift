@@ -10,7 +10,7 @@ if PROJECT_ROOT not in sys.path:
 if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
-from training.run_model_a import main
+from training.run_zero_shot_baseline import main
 
 if __name__ == "__main__":
     main()

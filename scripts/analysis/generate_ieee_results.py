@@ -220,15 +220,19 @@ def generate_latex_tables(overall_results: dict, type_breakdowns: dict, severity
     latex.append(r"\centering")
     latex.append(r"\begin{tabular}{lccccc}")
     latex.append(r"\hline")
-    latex.append(r"\textbf{Mutation / Drift Type} & \textbf{Count} & \textbf{Model A (Base)} & \textbf{Model B (Dual)} & \textbf{Model B (Joint)} \\")
+    latex.append(r"\textbf{Mutation / Drift Type} & \textbf{Count} & \textbf{Zero-Shot Baseline} & \textbf{Fine-Tuned Dual} & \textbf{Fine-Tuned Joint} \\")
     latex.append(r"\hline")
 
-    all_types = sorted(list(type_breakdowns["Model B (Joint)"].keys()))
+    joint_key = "Fine-Tuned Joint Encoder (Primary)"
+    baseline_key = "Zero-Shot Baseline (Dual Encoder)"
+    dual_key = "Fine-Tuned Dual Encoder (Ablation)"
+
+    all_types = sorted(list(type_breakdowns[joint_key].keys()))
     for dt in all_types:
-        cnt = type_breakdowns["Model B (Joint)"][dt]["count"]
-        m_a = type_breakdowns["Model A (Baseline)"][dt]["f1"]
-        m_dual = type_breakdowns["Model B (Dual Encoder)"][dt]["f1"]
-        m_joint = type_breakdowns["Model B (Joint)"][dt]["f1"]
+        cnt = type_breakdowns[joint_key][dt]["count"]
+        m_a = type_breakdowns[baseline_key][dt]["f1"]
+        m_dual = type_breakdowns[dual_key][dt]["f1"]
+        m_joint = type_breakdowns[joint_key][dt]["f1"]
         latex.append(f"{dt:<25} & {cnt:<5} & {m_a:.2f}\\% & {m_dual:.2f}\\% & \\textbf{{{m_joint:.2f}\\%}} \\\\")
 
     latex.append(r"\hline")
@@ -250,9 +254,9 @@ def main():
     args = parser.parse_args()
 
     model_paths = {
-        "Model A (Baseline)": os.path.join(args.v2_dir, "model_a_results", "predictions_model_a.jsonl"),
-        "Model B (Dual Encoder)": os.path.join(args.v2_dir, "dual_encoder_results", "predictions_model_b.jsonl"),
-        "Model B (Joint)": os.path.join(args.v2_dir, "joint_encoder_results", "predictions_model_b.jsonl"),
+        "Zero-Shot Baseline (Dual Encoder)": os.path.join(args.v2_dir, "baseline_results", "predictions_baseline.jsonl"),
+        "Fine-Tuned Dual Encoder (Ablation)": os.path.join(args.v2_dir, "dual_encoder_results", "predictions_dual_encoder.jsonl"),
+        "Fine-Tuned Joint Encoder (Primary)": os.path.join(args.v2_dir, "joint_encoder_results", "predictions_joint_encoder.jsonl"),
     }
 
     # Verify all files exist
@@ -285,8 +289,12 @@ def main():
         }
 
     # 2. Statistical Significance Testing (McNemar's Test)
-    mcnemar_a_vs_joint = run_mcnemar_test(y_true_master, preds_dict["Model A (Baseline)"], preds_dict["Model B (Joint)"])
-    mcnemar_dual_vs_joint = run_mcnemar_test(y_true_master, preds_dict["Model B (Dual Encoder)"], preds_dict["Model B (Joint)"])
+    mcnemar_base_vs_joint = run_mcnemar_test(
+        y_true_master, preds_dict["Zero-Shot Baseline (Dual Encoder)"], preds_dict["Fine-Tuned Joint Encoder (Primary)"]
+    )
+    mcnemar_dual_vs_joint = run_mcnemar_test(
+        y_true_master, preds_dict["Fine-Tuned Dual Encoder (Ablation)"], preds_dict["Fine-Tuned Joint Encoder (Primary)"]
+    )
 
     # 3. Fine-Grained Breakdowns
     def get_breakdowns(y_true, y_pred, metas):
@@ -321,39 +329,43 @@ def main():
 
     # 4. Console Summary Printing
     print("\n--- TABLE I: OVERALL MODEL PERFORMANCE & 95% CONFIDENCE INTERVALS ---")
-    print(f"{'Model Name':<25} | {'Acc (%)':<8} | {'F1 (%)':<8} | {'Macro F1':<8} | {'Bal Acc':<8} | {'95% F1 CI':<16}")
-    print("-" * 80)
+    print(f"{'Model Name':<36} | {'Acc (%)':<8} | {'F1 (%)':<8} | {'Macro F1':<8} | {'Bal Acc':<8} | {'95% F1 CI':<16}")
+    print("-" * 92)
     for name, res in overall_results.items():
         m = res["metrics"]
         ci = res["confidence_intervals_95"]["f1_ci"]
-        print(f"{name:<25} | {m['accuracy']:<8.2f} | {m['f1']:<8.2f} | {m['macro_f1']:<8.2f} | {m['balanced_accuracy']:<8.2f} | {ci:<16}")
+        print(f"{name:<36} | {m['accuracy']:<8.2f} | {m['f1']:<8.2f} | {m['macro_f1']:<8.2f} | {m['balanced_accuracy']:<8.2f} | {ci:<16}")
 
     print("\n--- STATISTICAL SIGNIFICANCE (McNemar's Test) ---")
-    print(f"Model A (Base) vs Model B (Joint) : chi2 = {mcnemar_a_vs_joint['statistic']}, p = {mcnemar_a_vs_joint['p_value_formatted']} "
-          f"-> Significant? {'YES (p < 0.05)' if mcnemar_a_vs_joint['is_statistically_significant'] else 'NO'}")
-    print(f"Model B (Dual) vs Model B (Joint) : chi2 = {mcnemar_dual_vs_joint['statistic']}, p = {mcnemar_dual_vs_joint['p_value_formatted']} "
+    print(f"Zero-Shot Baseline vs Joint Encoder : chi2 = {mcnemar_base_vs_joint['statistic']}, p = {mcnemar_base_vs_joint['p_value_formatted']} "
+          f"-> Significant? {'YES (p < 0.05)' if mcnemar_base_vs_joint['is_statistically_significant'] else 'NO'}")
+    print(f"Fine-Tuned Dual vs Joint Encoder    : chi2 = {mcnemar_dual_vs_joint['statistic']}, p = {mcnemar_dual_vs_joint['p_value_formatted']} "
           f"-> Significant? {'YES (p < 0.05)' if mcnemar_dual_vs_joint['is_statistically_significant'] else 'NO'}")
 
     print("\n--- TABLE II: F1 BREAKDOWN BY DRIFT TYPE ---")
-    print(f"{'Drift / Mutation Type':<25} | {'Count':<6} | {'Model A':<9} | {'Dual Encoder':<12} | {'Joint Encoder':<13}")
+    print(f"{'Drift / Mutation Type':<25} | {'Count':<6} | {'Baseline':<9} | {'Dual Encoder':<12} | {'Joint Encoder':<13}")
     print("-" * 75)
-    all_types = sorted(list(type_breakdowns["Model B (Joint)"].keys()))
+    joint_key = "Fine-Tuned Joint Encoder (Primary)"
+    baseline_key = "Zero-Shot Baseline (Dual Encoder)"
+    dual_key = "Fine-Tuned Dual Encoder (Ablation)"
+
+    all_types = sorted(list(type_breakdowns[joint_key].keys()))
     for dt in all_types:
-        cnt = type_breakdowns["Model B (Joint)"][dt]["count"]
-        fa = type_breakdowns["Model A (Baseline)"][dt]["f1"]
-        fd = type_breakdowns["Model B (Dual Encoder)"][dt]["f1"]
-        fj = type_breakdowns["Model B (Joint)"][dt]["f1"]
+        cnt = type_breakdowns[joint_key][dt]["count"]
+        fa = type_breakdowns[baseline_key][dt]["f1"]
+        fd = type_breakdowns[dual_key][dt]["f1"]
+        fj = type_breakdowns[joint_key][dt]["f1"]
         print(f"{dt:<25} | {cnt:<6} | {fa:<9.2f} | {fd:<12.2f} | {fj:<13.2f}")
 
     print("\n--- TABLE III: F1 BREAKDOWN BY SEVERITY ---")
-    print(f"{'Severity Level':<25} | {'Count':<6} | {'Model A':<9} | {'Dual Encoder':<12} | {'Joint Encoder':<13}")
+    print(f"{'Severity Level':<25} | {'Count':<6} | {'Baseline':<9} | {'Dual Encoder':<12} | {'Joint Encoder':<13}")
     print("-" * 75)
-    all_sevs = sorted(list(sev_breakdowns["Model B (Joint)"].keys()))
+    all_sevs = sorted(list(sev_breakdowns[joint_key].keys()))
     for sev in all_sevs:
-        cnt = sev_breakdowns["Model B (Joint)"][sev]["count"]
-        fa = sev_breakdowns["Model A (Baseline)"][sev]["f1"]
-        fd = sev_breakdowns["Model B (Dual Encoder)"][sev]["f1"]
-        fj = sev_breakdowns["Model B (Joint)"][sev]["f1"]
+        cnt = sev_breakdowns[joint_key][sev]["count"]
+        fa = sev_breakdowns[baseline_key][sev]["f1"]
+        fd = sev_breakdowns[dual_key][sev]["f1"]
+        fj = sev_breakdowns[joint_key][sev]["f1"]
         print(f"{sev:<25} | {cnt:<6} | {fa:<9.2f} | {fd:<12.2f} | {fj:<13.2f}")
 
     # 5. Save IEEE JSON and LaTeX files
@@ -365,7 +377,7 @@ def main():
         "overall_performance": {name: res["metrics"] for name, res in overall_results.items()},
         "bootstrap_confidence_intervals": {name: res["confidence_intervals_95"] for name, res in overall_results.items()},
         "mcnemar_significance_tests": {
-            "model_a_vs_joint": mcnemar_a_vs_joint,
+            "baseline_vs_joint": mcnemar_base_vs_joint,
             "dual_vs_joint": mcnemar_dual_vs_joint,
         },
         "breakdown_by_drift_type": type_breakdowns,

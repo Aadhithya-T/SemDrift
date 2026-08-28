@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/train_model_b.py — Fine-tune Model B (Joint Encoder: Primary Contribution).
+scripts/training/train_joint_encoder.py — Fine-tune Fine-Tuned Joint-Encoder (Primary Contribution).
 
 Architecture:
   CodeBERT receives docstring and code as a SINGLE concatenated input:
@@ -487,7 +487,7 @@ def main():
         args.max_length = 512
 
     print("=" * 70, flush=True)
-    print("Model B — Joint Encoder (Primary Contribution) — V2 Pipeline", flush=True)
+    print("Fine-Tuned Joint-Encoder (Primary Contribution) — V2 Pipeline", flush=True)
     print("=" * 70, flush=True)
     print(f"Base Model        : {args.model_name}", flush=True)
     print(f"Pooling Strategy  : {args.pooling.upper()}", flush=True)
@@ -575,7 +575,7 @@ def main():
 
     best_val_metric_val = -1.0
     best_epoch = -1
-    checkpoint_path = os.path.join(args.output_dir, "model_b_checkpoint.pt")
+    checkpoint_path = os.path.join(args.output_dir, "joint_encoder_checkpoint.pt")
     os.makedirs(args.output_dir, exist_ok=True)
 
     for epoch in range(args.epochs):
@@ -635,7 +635,7 @@ def main():
     )
 
     print("\n" + "=" * 70, flush=True)
-    print("FINAL TEST RESULTS — MODEL B (Joint Encoder) V2", flush=True)
+    print("FINAL TEST RESULTS — Fine-Tuned Joint-Encoder V2", flush=True)
     print("=" * 70, flush=True)
     print(f"Best Validation Epoch   : {best_epoch}", flush=True)
     print(f"Accuracy                : {test_overall['accuracy']:.4f}", flush=True)
@@ -669,8 +669,8 @@ def main():
     # ------------------------------------------------------------------
     # 7. Save outputs
     # ------------------------------------------------------------------
-    pred_path = os.path.join(args.output_dir, "predictions_model_b.jsonl")
-    results_path = os.path.join(args.output_dir, "results_model_b.json")
+    pred_path = os.path.join(args.output_dir, "predictions_joint_encoder.jsonl")
+    results_path = os.path.join(args.output_dir, "results_joint_encoder.json")
 
     with open(pred_path, "w", encoding="utf-8") as f:
         for rec, prob, pred in zip(test_dataset.records, test_probs, test_y_pred):
@@ -680,7 +680,7 @@ def main():
             f.write(json.dumps(out) + "\n")
 
     full_results = {
-        "model": "Model B (CodeBERT Joint Encoder — Primary) — V2",
+        "model": "Fine-Tuned Joint Encoder (CodeBERT Joint Cross-Attention) — V2",
         "model_name": args.model_name,
         "architecture": "joint_encoder",
         "pooling": args.pooling,
@@ -706,7 +706,7 @@ def main():
     print("\n" + "-" * 70, flush=True)
     print(f"Predictions : {pred_path}", flush=True)
     print(f"Results     : {results_path}", flush=True)
-    print("Model B (Joint Encoder) v2 execution complete!", flush=True)
+    print("Fine-Tuned Joint-Encoder v2 execution complete!", flush=True)
 
 
 if __name__ == "__main__":

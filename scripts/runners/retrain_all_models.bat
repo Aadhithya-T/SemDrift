@@ -3,15 +3,15 @@ REM ============================================================================
 REM SemDrift — Individual Retraining & Benchmark Script (Batch)
 REM ==============================================================================
 
-echo [1/4] Running Model A (Zero-Shot Dual Encoder Baseline)...
-python scripts/training/run_model_a.py ^
+echo [1/4] Running Zero-Shot Baseline (Dual Encoder + Cosine Similarity)...
+python scripts/training/run_zero_shot_baseline.py ^
     --val data/experiments/v2/val.jsonl ^
     --test data/experiments/v2/test.jsonl ^
-    --output_dir data/experiments/v2/model_a_results ^
+    --output_dir data/experiments/v2/baseline_results ^
     --device cuda
 
 echo.
-echo [2/4] Retraining Model B (Dual-Encoder Ablation)...
+echo [2/4] Retraining Fine-Tuned Dual-Encoder (Ablation Model)...
 python scripts/training/train_dual_encoder.py ^
     --train data/experiments/v2/train.jsonl ^
     --val data/experiments/v2/val.jsonl ^
@@ -22,8 +22,8 @@ python scripts/training/train_dual_encoder.py ^
     --output_dir data/experiments/v2/dual_encoder_results/
 
 echo.
-echo [3/4] Retraining Model B (Joint-Encoder Primary with Focal Loss & Category Weighting)...
-python scripts/training/train_model_b.py ^
+echo [3/4] Retraining Fine-Tuned Joint-Encoder (Primary Contribution with Focal Loss & Category Weighting)...
+python scripts/training/train_joint_encoder.py ^
     --train data/experiments/v2/train.jsonl ^
     --val data/experiments/v2/val.jsonl ^
     --test data/experiments/v2/test.jsonl ^

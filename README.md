@@ -9,26 +9,24 @@
 
 ---
 
-## 📊 Benchmark Results (IEEE Conference Paper — Phase 1)
+## Benchmark Results (IEEE Conference Paper — Phase 1)
 
 All models were evaluated on the clean, un-leaked 10-repository V2 benchmark dataset (`data/experiments/v2/test.jsonl`, $N = 1,205$).
 
-### Overall Model Performance & 95% Confidence Intervals
-
-| Model Architecture | Accuracy (%) | Precision (%) | Recall (%) | F1-Score (%) | Macro-F1 (%) | Balanced Acc (%) | 95% F1 Confidence Interval |
+### Overall Model Performance & 95% Confidence Intervals| Model Architecture | Accuracy (%) | Precision (%) | Recall (%) | F1-Score (%) | Macro-F1 (%) | Balanced Acc (%) | 95% F1 Confidence Interval |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Model A (Baseline)** | 44.56% | 43.33% | 32.07% | 36.86% | 43.73% | 44.68% | `[33.33, 40.41]` |
-| **Model B (Dual Encoder)** | 80.41% | 91.70% | 67.27% | 77.61% | 80.10% | 80.54% | `[74.61, 80.30]` |
-| **Model B (Joint Primary)** | **85.06%** | **93.85%** | **75.33%** | **83.58%** | **84.94%** | **85.15%** | **`[81.22, 85.76]`** |
+| **Zero-Shot Baseline (Dual Encoder)** | 44.56% | 43.33% | 32.07% | 36.86% | 43.73% | 44.68% | `[33.33, 40.41]` |
+| **Fine-Tuned Dual Encoder (Ablation)** | 80.41% | 91.70% | 67.27% | 77.61% | 80.10% | 80.54% | `[74.61, 80.30]` |
+| **Fine-Tuned Joint Encoder (Primary)** | **85.06%** | **93.85%** | **75.33%** | **83.58%** | **84.94%** | **85.15%** | **`[81.22, 85.76]`** |
 
 ### Statistical Significance (McNemar's Test)
 
-* **Model A (Base) vs. Model B (Joint Primary)**: $\chi^2 = 372.91$, $p = 4.36 \times 10^{-83}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
-* **Model B (Dual) vs. Model B (Joint Primary)**: $\chi^2 = 24.01$, $p = 9.59 \times 10^{-7}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
+* **Zero-Shot Baseline vs. Fine-Tuned Joint Encoder**: $\chi^2 = 372.91$, $p = 4.36 \times 10^{-83}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
+* **Fine-Tuned Dual Encoder vs. Fine-Tuned Joint Encoder**: $\chi^2 = 24.01$, $p = 9.59 \times 10^{-7}$ $\rightarrow$ **Statistically Significant ($p < 0.001$)**
 
 ### F1-Score Breakdown Across Semantic Drift Types
 
-| Drift Type / Mutation | Sample Count ($N$) | Model A (Base) | Model B (Dual Encoder) | Model B (Joint Primary) |
+| Drift Type / Mutation | Sample Count ($N$) | Zero-Shot Baseline | Fine-Tuned Dual Encoder | Fine-Tuned Joint Encoder |
 |:---|:---:|:---:|:---:|:---:|
 | **`param_rename`** | 221 | 54.61% | **98.62%** | 97.92% |
 | **`return_value_change`** | 139 | 49.73% | 78.07% | **93.49%** |
@@ -49,8 +47,8 @@ All models were evaluated on the clean, un-leaked 10-repository V2 benchmark dat
          ┌─────────────────────────────────────────────┼─────────────────────────────────────────────┐
          ▼                                             ▼                                             ▼
 ┌───────────────────────────┐             ┌───────────────────────────┐             ┌───────────────────────────┐
-│     MODEL A BASELINE      │             │  MODEL B DUAL-ENCODER     │             │    MODEL B JOINT PRIMARY  │
-│  (Zero-Shot Dual Encoder) │             │     (Fine-Tuned Ablation) │             │    (Joint Classifier)    │
+│    ZERO-SHOT BASELINE     │             │  FINE-TUNED DUAL-ENCODER  │             │  FINE-TUNED JOINT ENCODER │
+│   (Dual Encoder Baseline) │             │     (Ablation Model)      │             │   (Primary Contribution)  │
 └───────────────────────────┘             └───────────────────────────┘             └───────────────────────────┘
 │ Two separate forward passes               │ Two separate forward passes               │ Single joint forward pass
 │ Pre-trained CodeBERT                      │ Fine-tuned shared CodeBERT                │ Fine-tuned CodeBERT
@@ -61,18 +59,18 @@ All models were evaluated on the clean, un-leaked 10-repository V2 benchmark dat
 └───────────────────────────┘             └───────────────────────────┘             └───────────────────────────┘
 ```
 
-### 1. Model A: Zero-Shot Dual Encoder Baseline
-* **Script**: [`scripts/run_model_a.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/run_model_a.py)
+### 1. Zero-Shot Dual Encoder Baseline
+* **Script**: [`scripts/run_zero_shot_baseline.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/run_zero_shot_baseline.py)
 * **Workflow**: Processes docstring and code in two independent forward passes through pre-trained `microsoft/codebert-base`. Computes attention-masked mean-pooled representations $\mathbf{u}$ and $\mathbf{v}$, calculates cosine divergence $\delta = 1 - \cos(\mathbf{u}, \mathbf{v})$, and applies an optimal threshold $\tau^*$ derived via validation sweep ($\tau^* = 0.9975$).
 
-### 2. Model B Ablation: Fine-Tuned Dual Encoder
+### 2. Fine-Tuned Dual Encoder (Ablation)
 * **Script**: [`scripts/train_dual_encoder.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/train_dual_encoder.py)
 * **Workflow**: Encodes docstring and code separately through a shared CodeBERT model. Concatenates sentence representations into $[\mathbf{u} \,;\, \mathbf{v} \,;\, |\mathbf{u} - \mathbf{v}|] \in \mathbb{R}^{2304}$, fed into a linear classification head (`nn.Linear(2304, 2)`), fine-tuned end-to-end using `CrossEntropyLoss`.
 
-### 3. Model B Primary: Fine-Tuned Joint Encoder Classifier
-* **Script**: [`scripts/train_model_b.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/train_model_b.py)
+### 3. Fine-Tuned Joint Encoder (Primary Contribution)
+* **Script**: [`scripts/train_joint_encoder.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/train_joint_encoder.py)
 * **Workflow**: Concatenates docstring and code into a **single joint token sequence**:
-  $$\text{Input} = [\text{CLS}] \;\; \text{docstring\\_tokens} \;\; [\text{SEP}] \;\; [\text{SEP}] \;\; \text{code\\_tokens} \;\; [\text{SEP}]$$
+  $$\text{Input} = [\text{CLS}] \;\; \text{docstring\_tokens} \;\; [\text{SEP}] \;\; [\text{SEP}] \;\; \text{code\_tokens} \;\; [\text{SEP}]$$
   Employs a **`head_tail` truncation strategy** to preserve return statements at the end of functions. Executes a single forward pass through CodeBERT where self-attention enables **full cross-attention** between every docstring and code token. The `[CLS]` token representation is classified via `nn.Linear(768, 2)`, fine-tuned with AdamW and linear LR warmup, selected via validation `macro_f1`.
 
 ---
@@ -97,9 +95,9 @@ SemDrift/
 │   │   ├── convert_dataset_format.py
 │   │   └── split_dataset.py
 │   ├── training/                 # Model training & baseline scripts
-│   │   ├── run_model_a.py
+│   │   ├── run_zero_shot_baseline.py
 │   │   ├── train_dual_encoder.py
-│   │   └── train_model_b.py
+│   │   └── train_joint_encoder.py
 │   ├── analysis/                 # Benchmark results & LaTeX table generators
 │   │   ├── generate_ieee_results.py
 │   │   └── scan_example_heavy_docs.py
@@ -132,7 +130,7 @@ pip install -r requirements.txt
 ### 2. Unit Tests
 
 ```bash
-python -m unittest discover tests/
+python -m pytest tests/
 ```
 
 ### 3. Rebuild Dataset (Optional)
@@ -148,20 +146,20 @@ python scripts/data_pipeline/split_dataset.py --input data/experiments/v2/semdri
 ### 4. Train & Evaluate Models
 
 ```bash
-# Model A Baseline
-python scripts/training/run_model_a.py --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --output_dir data/experiments/v2/model_a_results --device cuda
+# Zero-Shot Dual Encoder Baseline
+python scripts/training/run_zero_shot_baseline.py --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --output_dir data/experiments/v2/baseline_results --device cuda
 
-# Model B Dual-Encoder Ablation
+# Fine-Tuned Dual-Encoder (Ablation)
 python scripts/training/train_dual_encoder.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --output_dir data/experiments/v2/dual_encoder_results/
 
-# Model B Joint-Encoder Primary (with Focal Loss & Category Loss Weighting)
-python scripts/training/train_model_b.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --code_truncation head_tail --pooling cls --checkpoint_metric macro_f1 --use_focal_loss --category_weighting --output_dir data/experiments/v2/joint_encoder_results/
+# Fine-Tuned Joint-Encoder (Primary with Focal Loss & Category Loss Weighting)
+python scripts/training/train_joint_encoder.py --train data/experiments/v2/train.jsonl --val data/experiments/v2/val.jsonl --test data/experiments/v2/test.jsonl --device cuda --epochs 3 --batch_size 8 --code_truncation head_tail --pooling cls --checkpoint_metric macro_f1 --use_focal_loss --category_weighting --output_dir data/experiments/v2/joint_encoder_results/
 ```
 
 ### 5. Repository CLI Scanner (Inference)
 
 ```bash
-# Scan a codebase using fine-tuned Model B (Joint-Encoder)
+# Scan a codebase using fine-tuned Joint-Encoder
 python scripts/scan_repo.py semdrift --threshold 0.60
 
 # Interactive step-through review mode
