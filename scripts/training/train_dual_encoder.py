@@ -121,10 +121,11 @@ def make_collate_fn(tokenizer: AutoTokenizer, max_length: int):
 
 
 class DualEncoderModel(nn.Module):
-    def __init__(self, model_name: str, variant: str = "variant_2", freeze_base: bool = False):
+    def __init__(self, model_name: str, variant: str = "variant_2", freeze_base: bool = False, dropout: float = 0.1):
         super().__init__()
         self.variant = variant
         self.encoder = AutoModel.from_pretrained(model_name)
+        self.dropout = nn.Dropout(dropout)
         
         if freeze_base:
             print("Freezing base model layers. Fine-tuning only the classifier head.")
@@ -158,6 +159,7 @@ class DualEncoderModel(nn.Module):
         if self.variant == "variant_2":
             # Concatenate u, v, and |u - v|
             feat = torch.cat([code_emb, doc_emb, torch.abs(code_emb - doc_emb)], dim=1)
+            feat = self.dropout(feat)
             logits = self.classifier(feat)
             return logits, code_emb, doc_emb
         else:
@@ -335,6 +337,8 @@ def main():
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup ratio for linear LR schedule")
     parser.add_argument("--max_length", type=int, default=512, help="Max token sequence length")
     parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false", default=True, help="Disable extracting summary from docstrings (train/eval on full docstrings)")
+    parser.add_argument("--dropout", type=float, default=0.1, help="Dropout before classifier head")
+    parser.add_argument("--checkpoint_metric", choices=["macro_f1", "f1", "accuracy", "balanced_accuracy"], default="macro_f1", help="Validation metric for checkpoint selection")
     parser.add_argument("--freeze_base", action="store_true", default=False, help="Freeze encoder parameters")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Execution device (cuda/cpu)")
     parser.add_argument("--output_dir", default="data/experiments/v2/dual_encoder_results", help="Output results directory")
@@ -353,6 +357,8 @@ def main():
     print(f"Epochs           : {args.epochs}", flush=True)
     print(f"Batch Size       : {args.batch_size}", flush=True)
     print(f"Learning Rate    : {args.lr}", flush=True)
+    print(f"Dropout          : {args.dropout}", flush=True)
+    print(f"Checkpoint Metric: {args.checkpoint_metric}", flush=True)
     print(f"Clean Docstrings : {args.clean_docstrings}", flush=True)
     print(f"Freeze Base      : {args.freeze_base}", flush=True)
     print(f"Dry Run Mode     : {args.dry_run}", flush=True)
@@ -381,7 +387,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
 
     # 3. Initialize Model
-    model = DualEncoderModel(args.model_name, variant=args.variant, freeze_base=args.freeze_base)
+    model = DualEncoderModel(args.model_name, variant=args.variant, freeze_base=args.freeze_base, dropout=args.dropout)
     model.to(args.device)
 
     # 4. Setup Optimization
@@ -411,12 +417,12 @@ def main():
         elapsed = time.time() - epoch_start
         print(f"Epoch {epoch+1}/{args.epochs} | Avg Loss: {avg_loss:.4f} | Val Acc: {val_metrics['accuracy']:.4f} | Val F1: {val_metrics['f1']:.4f} | Threshold (tau*): {val_tau:.4f} ({elapsed:.1f}s)", flush=True)
 
-        # Track best model using Validation F1 Score
-        val_score = val_metrics["f1"]
+        # Track best model using Validation Metric
+        val_score = val_metrics.get(args.checkpoint_metric, val_metrics["macro_f1"])
         if val_score > best_val_score:
             best_val_score = val_score
             torch.save(model.state_dict(), best_checkpoint_path)
-            print(f" -> Saved new best model checkpoint to {best_checkpoint_path}", flush=True)
+            print(f" -> Saved new best model checkpoint to {best_checkpoint_path} (Val {args.checkpoint_metric}={val_score:.4f})", flush=True)
 
     # 6. Load Best Checkpoint and Run Final Test Set Evaluation
     print(f"\nLoading best checkpoint from {best_checkpoint_path} for final testing...", flush=True)
@@ -482,6 +488,8 @@ def main():
         "variant": args.variant,
         "clean_docstrings": args.clean_docstrings,
         "freeze_base": args.freeze_base,
+        "dropout": args.dropout,
+        "checkpoint_metric": args.checkpoint_metric,
         "optimal_threshold": best_tau,
         "val_metrics": val_metrics,
         "test_overall": test_overall,

@@ -12,10 +12,11 @@ from transformers import AutoModel
 class DualEncoderModel(nn.Module):
     """Dual-encoder model that processes code and docstring in separate forward passes."""
 
-    def __init__(self, model_name: str, variant: str = "variant_2", freeze_base: bool = False):
+    def __init__(self, model_name: str, variant: str = "variant_2", freeze_base: bool = False, dropout: float = 0.1):
         super().__init__()
         self.variant = variant
         self.encoder = AutoModel.from_pretrained(model_name)
+        self.dropout = nn.Dropout(dropout)
         
         if freeze_base:
             for param in self.encoder.parameters():
@@ -41,6 +42,7 @@ class DualEncoderModel(nn.Module):
 
         if self.variant == "variant_2":
             feat = torch.cat([code_emb, doc_emb, torch.abs(code_emb - doc_emb)], dim=1)
+            feat = self.dropout(feat)
             logits = self.classifier(feat)
             return logits, code_emb, doc_emb
         else:

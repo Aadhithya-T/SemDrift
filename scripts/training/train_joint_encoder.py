@@ -456,16 +456,20 @@ def main():
     parser.add_argument("--weight_decay", type=float, default=0.01, help="L2 weight decay")
     parser.add_argument("--warmup_ratio", type=float, default=0.1,
                         help="Fraction of total steps for LR warmup")
-    parser.add_argument("--checkpoint_metric", choices=["macro_f1", "balanced_accuracy"], default="macro_f1",
+    parser.add_argument("--checkpoint_metric", choices=["macro_f1", "balanced_accuracy", "f1", "accuracy"], default="macro_f1",
                         help="Validation metric to pick the best checkpoint")
 
     # Loss & Class Weighting
-    parser.add_argument("--use_focal_loss", action="store_true", default=True,
+    parser.add_argument("--use_focal_loss", dest="use_focal_loss", action="store_true", default=True,
                         help="Use Focal Loss to focus on hard samples (e.g. doc_negation)")
+    parser.add_argument("--no_focal_loss", dest="use_focal_loss", action="store_false",
+                        help="Disable Focal Loss (use standard CrossEntropyLoss)")
     parser.add_argument("--focal_gamma", type=float, default=2.0, help="Gamma parameter for Focal Loss")
     parser.add_argument("--focal_alpha", type=float, default=0.5, help="Alpha parameter for Focal Loss")
-    parser.add_argument("--category_weighting", action="store_true", default=True,
+    parser.add_argument("--category_weighting", dest="category_weighting", action="store_true", default=True,
                         help="Enable sample loss weighting for underperforming categories (e.g., doc_negation)")
+    parser.add_argument("--no_category_weighting", dest="category_weighting", action="store_false",
+                        help="Disable sample loss weighting across categories")
 
     # Flags
     parser.add_argument("--no_clean_docstrings", dest="clean_docstrings",
@@ -687,6 +691,9 @@ def main():
         "code_truncation": args.code_truncation,
         "doc_max_tokens": args.doc_max_tokens,
         "max_length": args.max_length,
+        "dropout": args.dropout,
+        "use_focal_loss": args.use_focal_loss,
+        "category_weighting": args.category_weighting,
         "checkpoint_metric": args.checkpoint_metric,
         "best_epoch": best_epoch,
         "val_metrics": val_metrics,
