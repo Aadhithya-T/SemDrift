@@ -5,7 +5,7 @@ scripts/scan_repo.py — Claude-Code Style Terminal CLI for Semantic Drift Detec
 Features:
   - Rich interactive terminal UI with colored panels, spinners, and syntax highlighting.
   - Automatic detection of fine-tuned CodeBERT Joint Encoder (Model B).
-  - High-precision cross-attention drift scoring between code & docstrings.
+  - High-precision joint self-attention drift scoring between code & docstrings.
   - Interactive inspection mode (--interactive / -i) to step through flagged code.
   - Markdown & JSON export capabilities.
 
@@ -155,8 +155,8 @@ def render_banner():
     banner_text.append("CodeBERT Joint-Encoder  ", style="cyan")
     banner_text.append("Device: ", style="dim white")
     banner_text.append(f"{DEFAULT_DEVICE.upper()}  ", style="cyan")
-    banner_text.append("Cross-Attention: ", style="dim white")
-    banner_text.append("Enabled", style="cyan")
+    banner_text.append("Attention: ", style="dim white")
+    banner_text.append("Joint Self-Attention", style="cyan")
 
     console.print(Panel(banner_text, border_style="dim cyan", padding=(0, 2), box=box.ROUNDED))
 
@@ -246,7 +246,7 @@ def run_inference(
             )
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-            infer_task = progress.add_task("Analyzing cross-attention semantic drift...", total=len(dataloader))
+            infer_task = progress.add_task("Analyzing semantic drift via joint self-attention...", total=len(dataloader))
             results = []
 
             with torch.no_grad():
@@ -321,7 +321,7 @@ def render_dashboard(target_path: str, total_funcs: int, undoc_funcs: int, flagg
         table,
         title=f"[cyan bold] {status_msg} [/cyan bold]",
         border_style="dim cyan",
-        subtitle="[dim white]Cross-Attention Validation Engine[/dim white]",
+        subtitle="[dim white]Joint Self-Attention Validation Engine[/dim white]",
         box=box.ROUNDED,
     )
     console.print(panel)

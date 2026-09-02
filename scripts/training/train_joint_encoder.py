@@ -680,7 +680,7 @@ def main():
             f.write(json.dumps(out) + "\n")
 
     full_results = {
-        "model": "Fine-Tuned Joint Encoder (CodeBERT Joint Cross-Attention) — V2",
+        "model": "Fine-Tuned Joint Encoder (Joint Code–Documentation Self-Attention) — V2",
         "model_name": args.model_name,
         "architecture": "joint_encoder",
         "pooling": args.pooling,

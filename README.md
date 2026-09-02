@@ -52,7 +52,7 @@ All models were evaluated on the clean, un-leaked 10-repository V2 benchmark dat
 └───────────────────────────┘             └───────────────────────────┘             └───────────────────────────┘
 │ Two separate forward passes               │ Two separate forward passes               │ Single joint forward pass
 │ Pre-trained CodeBERT                      │ Fine-tuned shared CodeBERT                │ Fine-tuned CodeBERT
-│ No fine-tuning                            │ No token cross-attention                  │ Full token cross-attention
+│ No fine-tuning                            │ Independent encoding (isolated)           │ Joint self-attention
 │ Mean pooling → Vectors u, v               │ Mean pooling → Vectors u, v               │ [CLS] token representation
 │ Cosine distance 1 - cos(u,v)              │ Feature: [u; v; |u-v|]                    │ Linear head: [CLS] → 2
 │ Threshold sweep τ*                        │ Classifier head: 2304 → 2                 │ Classifier head: 768 → 2
@@ -71,7 +71,7 @@ All models were evaluated on the clean, un-leaked 10-repository V2 benchmark dat
 * **Script**: [`scripts/train_joint_encoder.py`](file:///c:/Users/aadhi/OneDrive/Desktop/SemDrift/scripts/train_joint_encoder.py)
 * **Workflow**: Concatenates docstring and code into a **single joint token sequence**:
   $$\text{Input} = [\text{CLS}] \;\; \text{docstring\_tokens} \;\; [\text{SEP}] \;\; [\text{SEP}] \;\; \text{code\_tokens} \;\; [\text{SEP}]$$
-  Employs a **`head_tail` truncation strategy** to preserve return statements at the end of functions. Executes a single forward pass through CodeBERT where self-attention enables **full cross-attention** between every docstring and code token. The `[CLS]` token representation is classified via `nn.Linear(768, 2)`, fine-tuned with AdamW and linear LR warmup, selected via validation `macro_f1`.
+  Employs a **`head_tail` truncation strategy** to preserve return statements at the end of functions. Executes a single forward pass through CodeBERT where bidirectional self-attention operates across the combined token sequence (**Joint Code–Documentation Self-Attention**), allowing every docstring token and code token to interact directly with one another across all transformer layers. The `[CLS]` token representation is classified via `nn.Linear(768, 2)`, fine-tuned with AdamW and linear LR warmup, selected via validation `macro_f1`.
 
 ---
 

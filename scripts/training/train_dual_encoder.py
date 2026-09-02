@@ -101,7 +101,7 @@ def make_collate_fn(tokenizer: AutoTokenizer, max_length: int):
         labels = torch.tensor([item[2] for item in batch], dtype=torch.long)
         metas = [item[3] for item in batch]
 
-        # Tokenize code and docstring separately to avoid cross-attention
+        # Tokenize code and docstring separately (isolated encoding without joint self-attention)
         code_inputs = tokenizer(
             codes,
             padding=True,

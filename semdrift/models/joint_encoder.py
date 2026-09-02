@@ -138,7 +138,13 @@ def make_collate_fn(tokenizer: AutoTokenizer, max_length: int, doc_max_tokens: i
 
 
 class JointEncoderModel(nn.Module):
-    """Joint encoder for semantic drift detection with customizable pooling."""
+    """Joint encoder for semantic drift detection using Joint Code–Documentation Self-Attention.
+
+    Concatenates docstring and code into a single sequence:
+        [CLS] docstring_tokens [SEP] [SEP] code_tokens [SEP]
+    and executes a single forward pass through CodeBERT where bidirectional self-attention
+    allows every token across both sequences to interact directly across all transformer layers.
+    """
 
     def __init__(self, model_name: str, pooling: str = "cls", num_labels: int = 2, dropout: float = 0.1):
         super().__init__()
