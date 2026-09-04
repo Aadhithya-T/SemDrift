@@ -1,0 +1,17 @@
+% --- Controlled Architectural Ablation: Dual vs Joint (Same CrossEntropy Objective) ---
+\begin{table}[htbp]
+\centering
+\caption{Controlled Architectural Ablation: Dual-Encoder vs. Joint-Encoder (Standard CrossEntropy Objective)}
+\label{tab:controlled_ablation}
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Architecture} & \textbf{Objective} & \textbf{Acc (\%)} & \textbf{Prec (\%)} & \textbf{Rec (\%)} & \textbf{F1 (\%)} & \textbf{Macro-F1 (\%)} \\
+\hline
+Dual-Encoder (Ablation) & CrossEntropy & 80.91 & 91.63 & 68.42 & 78.34 & 80.64 \\
+Joint-Encoder & CrossEntropy & \textbf{85.06} & \textbf{93.32} & \textbf{75.82} & \textbf{83.67} & \textbf{84.95} \\
+\hline
+\Delta\text{ (Architectural Gain)} & --- & +4.15 & +1.69 & +7.40 & \textbf{+5.33} & \textbf{+4.31} \\
+\hline
+\end{tabular}
+% McNemar's chi2 = 18.7578, p = 1.4841e-05
+\end{table}

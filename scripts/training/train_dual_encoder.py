@@ -23,7 +23,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, balanced_accuracy_score
 from transformers import AutoModel, AutoTokenizer, get_linear_schedule_with_warmup
 
 # Ensure project root is in sys.path
@@ -31,7 +31,12 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from semdrift.models.dual_encoder import DualEncoderModel
+from semdrift.models.dual_encoder import (
+    DualEncoderModel,
+    SemDriftDataset,
+    make_collate_fn,
+    extract_docstring_summary,
+)
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -43,126 +48,6 @@ def set_seed(seed: int = 42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-
-def extract_docstring_summary(docstring: str) -> str:
-    """Extract clean natural language summary from docstrings."""
-    if not docstring:
-        return ""
-    lines = docstring.strip().split("\n")
-    summary_lines = []
-    for line in lines:
-        l = line.strip()
-        if not l or l.startswith(">>>") or l.startswith("...") or l.startswith("Parameters") or l.startswith("Returns") or l.startswith("Examples") or l.startswith("See Also"):
-            break
-        summary_lines.append(l)
-
-    cleaned = " ".join(summary_lines).strip()
-    if len(cleaned) >= 10:
-        return cleaned
-    return lines[0].strip()
-
-
-class SemDriftDataset(Dataset):
-    def __init__(self, filepath: str, clean_docs: bool = True):
-        self.records = []
-        with open(filepath, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    rec = json.loads(line)
-                    if clean_docs:
-                        rec["docstring"] = extract_docstring_summary(rec.get("docstring", ""))
-                    self.records.append(rec)
-
-    def __len__(self):
-        return len(self.records)
-
-    def __getitem__(self, idx):
-        rec = self.records[idx]
-        code = rec.get("code", "")
-        docstring = rec.get("docstring", "")
-        label_str = rec.get("label", "aligned")
-        label = 1 if label_str == "drifted" else 0
-        
-        # Meta dictionary for evaluating breakdowns later
-        meta = {
-            "repo": rec.get("repo", "unknown"),
-            "drift_type": rec.get("drift_type") or "aligned",
-            "severity": rec.get("severity") or "aligned",
-            "label_str": label_str
-        }
-        return code, docstring, label, meta
-
-
-def make_collate_fn(tokenizer: AutoTokenizer, max_length: int):
-    def collate_fn(batch):
-        codes = [item[0] for item in batch]
-        docstrings = [item[1] for item in batch]
-        labels = torch.tensor([item[2] for item in batch], dtype=torch.long)
-        metas = [item[3] for item in batch]
-
-        # Tokenize code and docstring separately (isolated encoding without joint self-attention)
-        code_inputs = tokenizer(
-            codes,
-            padding=True,
-            truncation=True,
-            max_length=max_length,
-            return_tensors="pt"
-        )
-        doc_inputs = tokenizer(
-            docstrings,
-            padding=True,
-            truncation=True,
-            max_length=max_length,
-            return_tensors="pt"
-        )
-        return code_inputs, doc_inputs, labels, metas
-    return collate_fn
-
-
-class DualEncoderModel(nn.Module):
-    def __init__(self, model_name: str, variant: str = "variant_2", freeze_base: bool = False):
-        super().__init__()
-        self.variant = variant
-        self.encoder = AutoModel.from_pretrained(model_name)
-        
-        if freeze_base:
-            print("Freezing base model layers. Fine-tuning only the classifier head.")
-            for param in self.encoder.parameters():
-                param.requires_grad = False
-        else:
-            print("Fine-tuning base model + classification/projection layers end-to-end.")
-
-        if self.variant == "variant_2":
-            # Classifier head on top of [u; v; |u-v|]
-            # u and v are mean-pooled representations (dimension: 768)
-            hidden_size = self.encoder.config.hidden_size
-            self.classifier = nn.Linear(3 * hidden_size, 2)
-
-    def mean_pooling(self, last_hidden_state, attention_mask):
-        token_embeddings = last_hidden_state
-        mask = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-        summed = torch.sum(token_embeddings * mask, dim=1)
-        counts = torch.clamp(mask.sum(dim=1), min=1e-9)
-        return summed / counts
-
-    def forward(self, code_inputs, doc_inputs):
-        # Step 1: Independently encode code and docstrings
-        code_outputs = self.encoder(**code_inputs)
-        doc_outputs = self.encoder(**doc_inputs)
-
-        # Step 2: Mean-pool over all token representations (excluding padding tokens)
-        code_emb = self.mean_pooling(code_outputs.last_hidden_state, code_inputs["attention_mask"])
-        doc_emb = self.mean_pooling(doc_outputs.last_hidden_state, doc_inputs["attention_mask"])
-
-        if self.variant == "variant_2":
-            # Concatenate u, v, and |u - v|
-            feat = torch.cat([code_emb, doc_emb, torch.abs(code_emb - doc_emb)], dim=1)
-            logits = self.classifier(feat)
-            return logits, code_emb, doc_emb
-        else:
-            # Variant 1: return representations directly for distance/similarity training
-            return code_emb, doc_emb
 
 
 def train_epoch(model, dataloader, optimizer, scheduler, loss_fn_v1, loss_fn_v2, device, variant):
@@ -263,9 +148,7 @@ def sweep_threshold(y_true: list[int], divergences: list[float], metric: str = "
         if metric == "accuracy":
             score = acc
         elif metric == "balanced_accuracy":
-            sensitivity = recall
-            specificity = accuracy_score(y_binary[y_binary == 0], preds[y_binary == 0]) if np.sum(y_binary == 0) > 0 else 0
-            score = (sensitivity + specificity) / 2.0
+            score = float(balanced_accuracy_score(y_binary, preds))
         elif metric == "macro_f1":
             _, _, macro_f1, _ = precision_recall_fscore_support(y_binary, preds, average="macro", zero_division=0)
             score = macro_f1
@@ -279,12 +162,35 @@ def sweep_threshold(y_true: list[int], divergences: list[float], metric: str = "
 
 
 def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
+    """Compute overall metrics including balanced accuracy, confusion matrix, and prediction balance."""
     y_b_true = [1 if label == "drifted" else 0 for label in y_true]
     y_b_pred = [1 if label == "drifted" else 0 for label in y_pred]
 
     acc = float(accuracy_score(y_b_true, y_b_pred))
-    p, r, f1, _ = precision_recall_fscore_support(y_b_true, y_b_pred, average="binary", zero_division=0)
-    _, _, macro_f1, _ = precision_recall_fscore_support(y_b_true, y_b_pred, average="macro", zero_division=0)
+    p, r, f1, _ = precision_recall_fscore_support(
+        y_b_true, y_b_pred, average="binary", zero_division=0
+    )
+    _, _, macro_f1, _ = precision_recall_fscore_support(
+        y_b_true, y_b_pred, average="macro", zero_division=0
+    )
+    balanced_acc = float(balanced_accuracy_score(y_b_true, y_b_pred))
+
+    # Confusion matrix extraction
+    cm = confusion_matrix(y_b_true, y_b_pred)
+    tn, fp, fn, tp = 0, 0, 0, 0
+    if cm.shape == (2, 2):
+        tn, fp, fn, tp = cm.ravel()
+    else:
+        # Handle dry runs or subsets where only one label is present
+        if len(set(y_b_true)) == 1:
+            val = list(set(y_b_true))[0]
+            if val == 0:
+                tn = len(y_b_true)
+            else:
+                tp = len(y_b_true)
+
+    pred_aligned = sum(1 for p in y_b_pred if p == 0)
+    pred_drifted = sum(1 for p in y_b_pred if p == 1)
 
     return {
         "accuracy": round(acc, 4),
@@ -292,8 +198,17 @@ def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
         "recall": round(float(r), 4),
         "f1": round(float(f1), 4),
         "macro_f1": round(float(macro_f1), 4),
+        "balanced_accuracy": round(balanced_acc, 4),
+        "confusion_matrix": f"TN={tn}, FP={fp}, FN={fn}, TP={tp}",
+        "tn": int(tn),
+        "fp": int(fp),
+        "fn": int(fn),
+        "tp": int(tp),
+        "pred_aligned": pred_aligned,
+        "pred_drifted": pred_drifted,
         "count": len(y_true),
     }
+
 
 
 def evaluate_breakdowns(y_true: list[str], y_pred: list[str], metas: list[dict]) -> dict:
@@ -335,6 +250,8 @@ def main():
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup ratio for linear LR schedule")
     parser.add_argument("--max_length", type=int, default=512, help="Max token sequence length")
     parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false", default=True, help="Disable extracting summary from docstrings (train/eval on full docstrings)")
+    parser.add_argument("--dropout", type=float, default=0.1, help="Dropout before classifier head")
+    parser.add_argument("--checkpoint_metric", choices=["macro_f1", "f1", "accuracy", "balanced_accuracy"], default="macro_f1", help="Validation metric for checkpoint selection")
     parser.add_argument("--freeze_base", action="store_true", default=False, help="Freeze encoder parameters")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Execution device (cuda/cpu)")
     parser.add_argument("--output_dir", default="data/experiments/v2/dual_encoder_results", help="Output results directory")
@@ -353,6 +270,8 @@ def main():
     print(f"Epochs           : {args.epochs}", flush=True)
     print(f"Batch Size       : {args.batch_size}", flush=True)
     print(f"Learning Rate    : {args.lr}", flush=True)
+    print(f"Dropout          : {args.dropout}", flush=True)
+    print(f"Checkpoint Metric: {args.checkpoint_metric}", flush=True)
     print(f"Clean Docstrings : {args.clean_docstrings}", flush=True)
     print(f"Freeze Base      : {args.freeze_base}", flush=True)
     print(f"Dry Run Mode     : {args.dry_run}", flush=True)
@@ -381,7 +300,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
 
     # 3. Initialize Model
-    model = DualEncoderModel(args.model_name, variant=args.variant, freeze_base=args.freeze_base)
+    model = DualEncoderModel(args.model_name, variant=args.variant, freeze_base=args.freeze_base, dropout=args.dropout)
     model.to(args.device)
 
     # 4. Setup Optimization
@@ -397,6 +316,7 @@ def main():
     # 5. Training Loop
     print("\nStarting training loop...", flush=True)
     best_val_score = -1.0
+    best_epoch = 1
     best_checkpoint_path = os.path.join(args.output_dir, "dual_encoder_checkpoint.pt")
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -409,23 +329,35 @@ def main():
         val_metrics = calculate_metrics(val_y_true, val_y_pred)
         
         elapsed = time.time() - epoch_start
-        print(f"Epoch {epoch+1}/{args.epochs} | Avg Loss: {avg_loss:.4f} | Val Acc: {val_metrics['accuracy']:.4f} | Val F1: {val_metrics['f1']:.4f} | Threshold (tau*): {val_tau:.4f} ({elapsed:.1f}s)", flush=True)
+        print(f"Epoch {epoch+1}/{args.epochs} | Avg Loss: {avg_loss:.4f} | ({elapsed:.1f}s)", flush=True)
+        print(f"  Accuracy: {val_metrics['accuracy']:.4f} | F1: {val_metrics['f1']:.4f} | Macro-F1: {val_metrics['macro_f1']:.4f} | Balanced Acc: {val_metrics['balanced_accuracy']:.4f}", flush=True)
+        print(f"  Confusion Matrix: {val_metrics['confusion_matrix']}", flush=True)
+        print(f"  Prediction Balance: Aligned={val_metrics['pred_aligned']} | Drifted={val_metrics['pred_drifted']}", flush=True)
 
-        # Track best model using Validation F1 Score
-        val_score = val_metrics["f1"]
-        if val_score > best_val_score:
-            best_val_score = val_score
+        # Checkpoint selection with Bias Collapse Guard
+        current_metric_val = val_metrics[args.checkpoint_metric]
+        drifted_ratio = val_metrics['pred_drifted'] / max(val_metrics['count'], 1)
+        aligned_ratio = val_metrics['pred_aligned'] / max(val_metrics['count'], 1)
+
+        is_collapsed = (drifted_ratio > 0.88) or (aligned_ratio > 0.88)
+
+        if is_collapsed:
+            print(f"  -> [WARNING] Bias collapse detected! (Drifted ratio: {drifted_ratio:.1%}, Aligned ratio: {aligned_ratio:.1%}). Skipping checkpoint save.", flush=True)
+        elif current_metric_val > best_val_score:
+            best_val_score = current_metric_val
+            best_epoch = epoch + 1
             torch.save(model.state_dict(), best_checkpoint_path)
-            print(f" -> Saved new best model checkpoint to {best_checkpoint_path}", flush=True)
+            print(f"  -> Saved new best model checkpoint to {best_checkpoint_path} (Val {args.checkpoint_metric}={best_val_score:.4f})", flush=True)
+        print("-" * 50, flush=True)
 
     # 6. Load Best Checkpoint and Run Final Test Set Evaluation
-    print(f"\nLoading best checkpoint from {best_checkpoint_path} for final testing...", flush=True)
+    print(f"\nLoading best checkpoint from Epoch {best_epoch} for final testing...", flush=True)
     model.load_state_dict(torch.load(best_checkpoint_path, map_location=args.device))
     
     # Validation step to compute the optimal threshold tau* using best weights
     val_y_true, val_y_pred, val_divs, best_tau, _ = evaluate(model, val_loader, args.device, args.variant)
     val_metrics = calculate_metrics(val_y_true, val_y_pred)
-    print(f"Loaded validation metrics using best weights: F1={val_metrics['f1']:.4f} | Optimal Threshold (tau*): {best_tau:.4f}")
+    print(f"Loaded validation metrics using best weights: F1={val_metrics['f1']:.4f} | Macro-F1={val_metrics['macro_f1']:.4f} | Balanced Acc={val_metrics['balanced_accuracy']:.4f} | Optimal Threshold (tau*): {best_tau:.4f}")
 
     # Evaluate on the Test set
     test_y_true, test_y_pred, test_divs, _, test_metas = evaluate(
@@ -434,23 +366,19 @@ def main():
     test_overall = calculate_metrics(test_y_true, test_y_pred)
     breakdowns = evaluate_breakdowns(test_y_true, test_y_pred, test_metas)
 
-    # Compute confusion matrix
-    cm = confusion_matrix(
-        [1 if l == "drifted" else 0 for l in test_y_true],
-        [1 if p == "drifted" else 0 for p in test_y_pred]
-    )
-
     print("\n======================================================================", flush=True)
     print("FINAL TEST RESULTS (Fine-Tuned Dual-Encoder)", flush=True)
     print("======================================================================", flush=True)
+    print(f"Best Validation Epoch   : {best_epoch}", flush=True)
     print(f"Test Accuracy            : {test_overall['accuracy']:.4f}", flush=True)
     print(f"Test Precision           : {test_overall['precision']:.4f}", flush=True)
     print(f"Test Recall              : {test_overall['recall']:.4f}", flush=True)
     print(f"Test F1 Score (Binary)   : {test_overall['f1']:.4f}", flush=True)
     print(f"Test Macro F1 Score      : {test_overall['macro_f1']:.4f}", flush=True)
+    print(f"Balanced Accuracy        : {test_overall['balanced_accuracy']:.4f}", flush=True)
     print("Confusion Matrix:", flush=True)
-    print(f"  True Negatives (TN): {cm[0, 0]} | False Positives (FP): {cm[0, 1]}", flush=True)
-    print(f"  False Negatives (FN): {cm[1, 0]} | True Positives (TP): {cm[1, 1]}", flush=True)
+    print(f"  True Negatives (TN): {test_overall['tn']} | False Positives (FP): {test_overall['fp']}", flush=True)
+    print(f"  False Negatives (FN): {test_overall['fn']} | True Positives (TP): {test_overall['tp']}", flush=True)
 
     print("\n--- Breakdown by Drift Type ---", flush=True)
     for dt, m in sorted(breakdowns["by_drift_type"].items()):
@@ -482,17 +410,21 @@ def main():
         "variant": args.variant,
         "clean_docstrings": args.clean_docstrings,
         "freeze_base": args.freeze_base,
+        "dropout": args.dropout,
+        "checkpoint_metric": args.checkpoint_metric,
+        "best_epoch": best_epoch,
         "optimal_threshold": best_tau,
         "val_metrics": val_metrics,
         "test_overall": test_overall,
         "confusion_matrix": {
-            "tn": int(cm[0, 0]),
-            "fp": int(cm[0, 1]),
-            "fn": int(cm[1, 0]),
-            "tp": int(cm[1, 1])
+            "tn": test_overall["tn"],
+            "fp": test_overall["fp"],
+            "fn": test_overall["fn"],
+            "tp": test_overall["tp"],
         },
         "breakdowns": breakdowns,
     }
+
 
     with open(results_path, "w", encoding="utf-8") as f:
         json.dump(full_results, f, indent=2)
