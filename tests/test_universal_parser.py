@@ -283,6 +283,14 @@ PY_NESTED_FUNCTION = textwrap.dedent('''\
         return inner()
 ''')
 
+PY_SYNTAX_ERROR = textwrap.dedent('''\
+    def broken_func(x, y):
+        """A function with syntax errors."""
+        if x > 0
+            return x
+        return y
+''')
+
 # ======================================================================
 # Java source fixtures
 # ======================================================================
@@ -356,6 +364,16 @@ JAVA_CONSTRUCTOR = textwrap.dedent('''\
     }
 ''')
 
+JAVA_SYNTAX_ERROR = textwrap.dedent('''\
+    public class BrokenService {
+        public void process(String input) {
+            if (input != null
+                System.out.println(input);
+            }
+        }
+    }
+''')
+
 
 # ======================================================================
 # Test Classes
@@ -411,13 +429,21 @@ class TestUniversalParserPython:
     # ---- Parameter kinds ----
 
     def test_positional_only_params(self):
-        """Red flag #1: posonlyargs must be extracted."""
+        """Red flag #1: posonlyargs must be extracted as POSITIONAL_ONLY."""
         contracts = self._parse(PY_POSITIONAL_ONLY)
         assert len(contracts) == 1
         c = contracts[0]
         param_names = [p.name for p in c.parameters]
         assert "data" in param_names
         assert "threshold" in param_names
+
+        # data is before "/" so it MUST be POSITIONAL_ONLY
+        data_param = next(p for p in c.parameters if p.name == "data")
+        assert data_param.kind == ParameterKind.POSITIONAL_ONLY
+
+        # threshold is after "/" so it should be POSITIONAL_OR_KEYWORD
+        threshold_param = next(p for p in c.parameters if p.name == "threshold")
+        assert threshold_param.kind == ParameterKind.POSITIONAL_OR_KEYWORD
 
     def test_keyword_only_params(self):
         contracts = self._parse(PY_KEYWORD_ONLY)
@@ -686,6 +712,15 @@ class TestUniversalParserPython:
         assert "_internal" not in names
         assert "public" in names
 
+    def test_syntax_error_detection(self):
+        """Tree-sitter syntax errors must set parse_status=PARTIAL."""
+        contracts = self._parse(PY_SYNTAX_ERROR)
+        # Tree-sitter is error-tolerant so it still extracts the function
+        assert len(contracts) >= 1
+        c = contracts[0]
+        assert c.parse_status == ParseStatus.PARTIAL
+        assert any("syntax_error" in e for e in c.parse_errors)
+
 
 class TestUniversalParserJava:
     """Tests for Java extraction via the UniversalParser."""
@@ -747,6 +782,9 @@ class TestUniversalParserJava:
         assert process_func is not None
         assert any("Override" in d for d in process_func.decorators)
         assert any("Deprecated" in d for d in process_func.decorators)
+        # @Override must map to is_override, NOT is_overload
+        assert process_func.is_override is True
+        assert process_func.is_overload is False
 
     def test_java_constructor(self):
         contracts = self._parse(JAVA_CONSTRUCTOR)
@@ -762,6 +800,15 @@ class TestUniversalParserJava:
         add_func = next((c for c in contracts if c.name == "add"), None)
         assert add_func is not None
         assert add_func.return_annotation == "int"
+
+    def test_java_syntax_error(self):
+        """Tree-sitter syntax errors in Java must set parse_status=PARTIAL."""
+        contracts = self._parse(JAVA_SYNTAX_ERROR)
+        # Tree-sitter is error-tolerant so it may still extract the method
+        if contracts:
+            c = contracts[0]
+            assert c.parse_status == ParseStatus.PARTIAL
+            assert any("syntax_error" in e for e in c.parse_errors)
 
 
 class TestDocstringParser:

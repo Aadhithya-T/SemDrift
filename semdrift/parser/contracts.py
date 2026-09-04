@@ -215,6 +215,8 @@ class FunctionContract:
         Whether the function is decorated with ``@abstractmethod``.
     is_overload : bool
         Whether the function is decorated with ``@overload``.
+    is_override : bool
+        Whether the method overrides a superclass method (Java ``@Override``).
     docstring_raw : str
         Raw docstring text as written in source.
     doc_contract : DocContract
@@ -265,6 +267,7 @@ class FunctionContract:
     is_classmethod: bool = False
     is_abstract: bool = False
     is_overload: bool = False
+    is_override: bool = False
 
     # --- Documentation ---
     docstring_raw: str = ""

@@ -302,6 +302,13 @@ class UniversalParser:
         """Build a FunctionContract from a Python function_definition node."""
         parse_errors: List[str] = []
 
+        # --- Tree-sitter syntax error detection ---
+        if node.has_error:
+            parse_errors.append(
+                "syntax_error: tree-sitter detected syntax errors or missing "
+                "tokens inside this function"
+            )
+
         # --- Name ---
         func_name = self._get_child_text(node, "name", source_bytes)
         if not func_name:
@@ -441,7 +448,18 @@ class UniversalParser:
         if params_node is None:
             return params
 
-        # Track position for positional-only delimiter
+        # --- Pass 1: Pre-scan for positional_separator (/) ---
+        # We need to know whether "/" exists AND which child index it sits at,
+        # so that parameters before it can be classified POSITIONAL_ONLY.
+        has_posonly_sep = False
+        posonly_sep_index = -1
+        for idx, child in enumerate(params_node.children):
+            if child.type == "positional_separator":
+                has_posonly_sep = True
+                posonly_sep_index = idx
+                break
+
+        # --- Pass 2: Extract parameters with correct classification ---
         seen_posonly_sep = False
         seen_kwonly_sep = False
 
@@ -465,7 +483,8 @@ class UniversalParser:
                 if name in ("self", "cls"):
                     continue
                 kind = self._determine_python_param_kind(
-                    seen_posonly_sep, seen_kwonly_sep, is_vararg=False, is_kwarg=False
+                    has_posonly_sep, seen_posonly_sep, seen_kwonly_sep,
+                    is_vararg=False, is_kwarg=False,
                 )
                 params.append(Parameter(name=name, kind=kind))
 
@@ -492,7 +511,8 @@ class UniversalParser:
                         default = self._node_text(sub, source_bytes)
 
                 kind = self._determine_python_param_kind(
-                    seen_posonly_sep, seen_kwonly_sep, is_vararg=False, is_kwarg=False
+                    has_posonly_sep, seen_posonly_sep, seen_kwonly_sep,
+                    is_vararg=False, is_kwarg=False,
                 )
                 params.append(Parameter(name=name, kind=kind, annotation=annotation, default=default))
 
@@ -508,7 +528,8 @@ class UniversalParser:
                     annotation = self._node_text(type_node, source_bytes)
 
                 kind = self._determine_python_param_kind(
-                    seen_posonly_sep, seen_kwonly_sep, is_vararg=False, is_kwarg=False
+                    has_posonly_sep, seen_posonly_sep, seen_kwonly_sep,
+                    is_vararg=False, is_kwarg=False,
                 )
                 params.append(Parameter(name=name, kind=kind, annotation=annotation))
 
@@ -527,23 +548,38 @@ class UniversalParser:
 
     @staticmethod
     def _determine_python_param_kind(
+        has_posonly_sep: bool,
         seen_posonly_sep: bool,
         seen_kwonly_sep: bool,
         is_vararg: bool,
         is_kwarg: bool,
     ) -> ParameterKind:
-        """Determine parameter kind based on position relative to separators."""
+        """Determine parameter kind based on position relative to separators.
+
+        Parameters
+        ----------
+        has_posonly_sep : bool
+            Whether the parameter list contains a ``/`` separator at all.
+        seen_posonly_sep : bool
+            Whether we have already walked past the ``/`` separator.
+        seen_kwonly_sep : bool
+            Whether we have already walked past ``*`` or ``*args``.
+        is_vararg : bool
+            Whether this is a ``*args`` parameter.
+        is_kwarg : bool
+            Whether this is a ``**kwargs`` parameter.
+        """
         if is_vararg:
             return ParameterKind.VAR_POSITIONAL
         if is_kwarg:
             return ParameterKind.VAR_KEYWORD
         if seen_kwonly_sep:
             return ParameterKind.KEYWORD_ONLY
-        if not seen_posonly_sep:
-            # Before any separator → could be positional-only if "/" comes later
-            # But we haven't seen "/" yet, so it's positional_or_keyword for now
-            return ParameterKind.POSITIONAL_OR_KEYWORD
-        # After "/" but before "*"
+        if has_posonly_sep and not seen_posonly_sep:
+            # "/" exists in the parameter list but we haven't reached it yet
+            # → this parameter is before "/" → POSITIONAL_ONLY
+            return ParameterKind.POSITIONAL_ONLY
+        # Either no "/" exists (regular param) or we're after "/" but before "*"
         return ParameterKind.POSITIONAL_OR_KEYWORD
 
     # ------------------------------------------------------------------
@@ -859,6 +895,13 @@ class UniversalParser:
         """Build a FunctionContract from a Java method_declaration node."""
         parse_errors: List[str] = []
 
+        # --- Tree-sitter syntax error detection ---
+        if node.has_error:
+            parse_errors.append(
+                "syntax_error: tree-sitter detected syntax errors or missing "
+                "tokens inside this method"
+            )
+
         # --- Name ---
         func_name = self._get_child_text(node, "name", source_bytes)
         if not func_name:
@@ -970,7 +1013,8 @@ class UniversalParser:
             is_staticmethod=is_static,
             is_classmethod=False,
             is_abstract=is_abstract,
-            is_overload=any("Override" in d for d in decorators),
+            is_overload=False,
+            is_override=any("Override" in d for d in decorators),
             docstring_raw=docstring_raw,
             doc_contract=doc_contract,
             source_code=source_code,
