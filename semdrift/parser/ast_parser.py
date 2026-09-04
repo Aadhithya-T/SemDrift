@@ -1,5 +1,16 @@
 """
-semdrift.parser.ast_parser — Python AST-based function extractor.
+[LEGACY] semdrift.parser.ast_parser — Python AST-based function extractor.
+
+╔══════════════════════════════════════════════════════════════════════╗
+║  LEGACY MODULE — Retained for Phase 1 reproducibility.             ║
+║                                                                    ║
+║  This module is superseded by ``semdrift.parser.universal_parser``  ║
+║  (UniversalParser V2) which provides multi-language support via     ║
+║  tree-sitter and outputs the richer ``FunctionContract`` IR.        ║
+║                                                                    ║
+║  DO NOT MODIFY this file. It must remain byte-identical to the     ║
+║  version used to produce Phase 1 benchmark results.                ║
+╚══════════════════════════════════════════════════════════════════════╝
 
 Parses Python source files using the built-in ``ast`` module and extracts
 a structured representation of every function and method, including the

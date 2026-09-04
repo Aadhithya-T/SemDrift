@@ -27,6 +27,7 @@ pytest-cov>=4.1
 # Parsers
 tree-sitter>=0.21.3
 tree-sitter-python>=0.21.0
+tree-sitter-java>=0.21.0
 
 # Utilities
 tqdm>=4.66
