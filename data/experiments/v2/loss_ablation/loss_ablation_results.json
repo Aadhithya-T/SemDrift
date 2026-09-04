@@ -1,0 +1,120 @@
+{
+  "joint_ce_metrics": {
+    "accuracy": 85.06,
+    "precision": 93.32,
+    "recall": 75.82,
+    "f1": 83.67,
+    "macro_f1": 84.95,
+    "balanced_accuracy": 85.15,
+    "tn": 564,
+    "fp": 33,
+    "fn": 147,
+    "tp": 461,
+    "count": 1205
+  },
+  "joint_focal_metrics": {
+    "accuracy": 85.81,
+    "precision": 96.0,
+    "recall": 75.0,
+    "f1": 84.21,
+    "macro_f1": 85.66,
+    "balanced_accuracy": 85.91,
+    "tn": 578,
+    "fp": 19,
+    "fn": 152,
+    "tp": 456,
+    "count": 1205
+  },
+  "delta": {
+    "accuracy": 0.75,
+    "precision": 2.68,
+    "recall": -0.82,
+    "f1": 0.54,
+    "macro_f1": 0.71,
+    "balanced_accuracy": 0.76
+  },
+  "mcnemar": {
+    "n00": 150,
+    "n01_focal_wins": 30,
+    "n10_ce_wins": 21,
+    "n11": 1004,
+    "statistic": 1.2549,
+    "p_value": 0.2626182904425174,
+    "p_value_formatted": "0.2626",
+    "is_statistically_significant": false
+  },
+  "ce_breakdown": {
+    "aligned": {
+      "count": 597,
+      "accuracy": 94.47,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    "doc_negation": {
+      "count": 95,
+      "accuracy": 23.16,
+      "f1": 37.61,
+      "precision": 100.0,
+      "recall": 23.16
+    },
+    "doc_sentence_delete": {
+      "count": 153,
+      "accuracy": 68.63,
+      "f1": 81.4,
+      "precision": 100.0,
+      "recall": 68.63
+    },
+    "param_rename": {
+      "count": 221,
+      "accuracy": 95.93,
+      "f1": 97.92,
+      "precision": 100.0,
+      "recall": 95.93
+    },
+    "return_value_change": {
+      "count": 139,
+      "accuracy": 87.77,
+      "f1": 93.49,
+      "precision": 100.0,
+      "recall": 87.77
+    }
+  },
+  "focal_breakdown": {
+    "aligned": {
+      "count": 597,
+      "accuracy": 96.82,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    "doc_negation": {
+      "count": 95,
+      "accuracy": 18.95,
+      "f1": 31.86,
+      "precision": 100.0,
+      "recall": 18.95
+    },
+    "doc_sentence_delete": {
+      "count": 153,
+      "accuracy": 69.28,
+      "f1": 81.85,
+      "precision": 100.0,
+      "recall": 69.28
+    },
+    "param_rename": {
+      "count": 221,
+      "accuracy": 96.38,
+      "f1": 98.16,
+      "precision": 100.0,
+      "recall": 96.38
+    },
+    "return_value_change": {
+      "count": 139,
+      "accuracy": 85.61,
+      "f1": 92.25,
+      "precision": 100.0,
+      "recall": 85.61
+    }
+  }
+}
