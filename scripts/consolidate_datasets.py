@@ -102,7 +102,7 @@ def consolidate_filtered_dataset() -> None:
     # Import from generate_filtered_dataset / contract checks
     from generate_filtered_dataset import compute_silver_probability
 
-    repos = ["click", "fastapi", "django"]
+    repos = ["click", "fastapi", "django", "pytest", "sqlalchemy", "tornado", "celery"]
     all_candidates = []
     positives = []
     negatives = []
@@ -113,6 +113,8 @@ def consolidate_filtered_dataset() -> None:
         path = CANDIDATES_DIR / f"{repo}_contract_checked.jsonl"
         if not path.is_file():
             path = CANDIDATES_DIR / f"{repo}_scored.jsonl"
+        if not path.is_file():
+            path = CANDIDATES_DIR / f"{repo}_filtered.jsonl"
         if not path.is_file():
             continue
 
@@ -155,19 +157,56 @@ def consolidate_filtered_dataset() -> None:
     positives.sort(key=lambda c: c["filtered_drift_probability"], reverse=True)
     negatives.sort(key=lambda c: c["filtered_drift_probability"])
 
+    # Stratified selection for 15,000 sample target (includes ALL positives)
+    TARGET_TOTAL = 15000
+    target_negatives = TARGET_TOTAL - len(positives)
+    
+    # Stratified sampling of negatives across repos proportional to size
+    sampled_negatives = []
+    neg_by_repo = {r: [c for c in negatives if c["repo"] == r] for r in repos}
+    for r in repos:
+        repo_negs = neg_by_repo[r]
+        if not repo_negs:
+            continue
+        share = len(repo_negs) / len(negatives)
+        n_take = min(len(repo_negs), int(round(share * target_negatives)))
+        sampled_negatives.extend(repo_negs[:n_take])
+    
+    # Fill any remainder up to target_negatives
+    if len(sampled_negatives) < target_negatives:
+        remaining = [c for c in negatives if c not in set(sampled_negatives)]
+        sampled_negatives.extend(remaining[:target_negatives - len(sampled_negatives)])
+    elif len(sampled_negatives) > target_negatives:
+        sampled_negatives = sampled_negatives[:target_negatives]
+
+    final_15k_dataset = positives + sampled_negatives
+    # Shuffle deterministically
+    import random
+    rng = random.Random(42)
+    rng.shuffle(final_15k_dataset)
+
     # Export consolidated files
-    write_jsonl(FILTERED_DATASET_DIR / "filtered_dataset.jsonl", all_candidates)
+    write_jsonl(FILTERED_DATASET_DIR / "filtered_dataset.jsonl", final_15k_dataset)
     write_jsonl(FILTERED_DATASET_DIR / "filtered_drift_positives.jsonl", positives)
-    write_jsonl(FILTERED_DATASET_DIR / "filtered_clean_negatives.jsonl", negatives)
+    write_jsonl(FILTERED_DATASET_DIR / "filtered_clean_negatives.jsonl", sampled_negatives)
     write_jsonl(FILTERED_DATASET_DIR / "filtered_ambiguous.jsonl", ambiguous)
 
     summary = {
-        "dataset_name": "SemDrift Filtered Real-World Dataset",
-        "total_instances": len(all_candidates),
+        "dataset_name": "SemDrift Filtered Real-World Dataset (15k Benchmark)",
+        "total_instances": len(final_15k_dataset),
+        "total_mined_pool": len(all_candidates),
         "filtered_positives_count": len(positives),
-        "filtered_negatives_count": len(negatives),
+        "filtered_negatives_count": len(sampled_negatives),
         "ambiguous_filtered_count": len(ambiguous),
-        "repo_breakdown": repo_stats,
+        "repo_breakdown_15k": {
+            r: {
+                "total": sum(1 for c in final_15k_dataset if c["repo"] == r),
+                "positives": sum(1 for c in positives if c["repo"] == r),
+                "negatives": sum(1 for c in sampled_negatives if c["repo"] == r),
+            }
+            for r in repos
+        },
+        "full_mined_pool_stats": repo_stats,
     }
 
     with (FILTERED_DATASET_DIR / "filtered_dataset_summary.json").open("w", encoding="utf-8") as f:
