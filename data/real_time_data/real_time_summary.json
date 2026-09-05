@@ -1,0 +1,89 @@
+{
+  "dataset_name": "SemDrift Filtered Real-World Dataset (15k Benchmark)",
+  "total_instances": 15000,
+  "total_mined_pool": 33525,
+  "filtered_positives_count": 571,
+  "filtered_negatives_count": 14429,
+  "ambiguous_filtered_count": 0,
+  "repo_breakdown_15k": {
+    "click": {
+      "total": 306,
+      "positives": 21,
+      "negatives": 285
+    },
+    "fastapi": {
+      "total": 76,
+      "positives": 0,
+      "negatives": 76
+    },
+    "django": {
+      "total": 7355,
+      "positives": 5,
+      "negatives": 7350
+    },
+    "pytest": {
+      "total": 1591,
+      "positives": 79,
+      "negatives": 1512
+    },
+    "sqlalchemy": {
+      "total": 4104,
+      "positives": 381,
+      "negatives": 3723
+    },
+    "tornado": {
+      "total": 729,
+      "positives": 76,
+      "negatives": 653
+    },
+    "celery": {
+      "total": 839,
+      "positives": 9,
+      "negatives": 830
+    }
+  },
+  "full_mined_pool_stats": {
+    "click": {
+      "total": 671,
+      "positives": 21,
+      "negatives": 650,
+      "ambiguous": 0
+    },
+    "fastapi": {
+      "total": 173,
+      "positives": 0,
+      "negatives": 173,
+      "ambiguous": 0
+    },
+    "django": {
+      "total": 16792,
+      "positives": 5,
+      "negatives": 16787,
+      "ambiguous": 0
+    },
+    "pytest": {
+      "total": 3533,
+      "positives": 79,
+      "negatives": 3454,
+      "ambiguous": 0
+    },
+    "sqlalchemy": {
+      "total": 8883,
+      "positives": 381,
+      "negatives": 8502,
+      "ambiguous": 0
+    },
+    "tornado": {
+      "total": 1567,
+      "positives": 76,
+      "negatives": 1491,
+      "ambiguous": 0
+    },
+    "celery": {
+      "total": 1906,
+      "positives": 9,
+      "negatives": 1897,
+      "ambiguous": 0
+    }
+  }
+}
