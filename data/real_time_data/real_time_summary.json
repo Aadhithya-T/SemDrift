@@ -1,0 +1,69 @@
+{
+  "dataset_name": "SemDrift Real-Time 15k Balanced Dataset (50/50 Drift / Non-Drift)",
+  "total_instances": 15000,
+  "drift_positives_count": 7500,
+  "clean_negatives_count": 7500,
+  "drift_rate": 0.5,
+  "repo_breakdown": {
+    "celery": {
+      "total": 9,
+      "drift_positives": 9,
+      "clean_negatives": 0
+    },
+    "click": {
+      "total": 319,
+      "drift_positives": 169,
+      "clean_negatives": 150
+    },
+    "django": {
+      "total": 5083,
+      "drift_positives": 2659,
+      "clean_negatives": 2424
+    },
+    "fastapi": {
+      "total": 76,
+      "drift_positives": 39,
+      "clean_negatives": 37
+    },
+    "flask": {
+      "total": 161,
+      "drift_positives": 65,
+      "clean_negatives": 96
+    },
+    "numpy": {
+      "total": 1150,
+      "drift_positives": 557,
+      "clean_negatives": 593
+    },
+    "pandas": {
+      "total": 2648,
+      "drift_positives": 1262,
+      "clean_negatives": 1386
+    },
+    "pytest": {
+      "total": 1285,
+      "drift_positives": 596,
+      "clean_negatives": 689
+    },
+    "requests": {
+      "total": 127,
+      "drift_positives": 59,
+      "clean_negatives": 68
+    },
+    "scikit-learn": {
+      "total": 1681,
+      "drift_positives": 860,
+      "clean_negatives": 821
+    },
+    "sqlalchemy": {
+      "total": 2385,
+      "drift_positives": 1149,
+      "clean_negatives": 1236
+    },
+    "tornado": {
+      "total": 76,
+      "drift_positives": 76,
+      "clean_negatives": 0
+    }
+  }
+}

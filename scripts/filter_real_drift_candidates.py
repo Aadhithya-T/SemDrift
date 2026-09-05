@@ -174,7 +174,13 @@ def filter_candidates(candidates: list[dict]) -> tuple[list[dict], dict[str, int
 
     largest_by_function = {}
     for candidate in current:
-        key = (candidate.get("file_path", ""), candidate.get("function_name", ""))
+        commit_id = (
+            candidate.get("commit_hash")
+            or candidate.get("commit_sha")
+            or candidate.get("commit_after")
+            or ""
+        )
+        key = (candidate.get("file_path", ""), candidate.get("function_name", ""), commit_id)
         previous = largest_by_function.get(key)
         if previous is None or candidate["_diff_size"] > previous["_diff_size"]:
             largest_by_function[key] = candidate
