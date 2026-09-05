@@ -1,0 +1,27 @@
+{
+  "dataset_name": "SemDrift Filtered Real-World Dataset",
+  "total_instances": 4997,
+  "filtered_positives_count": 13,
+  "filtered_negatives_count": 4984,
+  "ambiguous_filtered_count": 0,
+  "repo_breakdown": {
+    "click": {
+      "total": 188,
+      "positives": 9,
+      "negatives": 179,
+      "ambiguous": 0
+    },
+    "fastapi": {
+      "total": 67,
+      "positives": 0,
+      "negatives": 67,
+      "ambiguous": 0
+    },
+    "django": {
+      "total": 4742,
+      "positives": 4,
+      "negatives": 4738,
+      "ambiguous": 0
+    }
+  }
+}

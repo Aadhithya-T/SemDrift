@@ -37,6 +37,9 @@ data/labeled/*.json
 data/labeled/*.csv
 data/synthetic/*.json
 data/synthetic/*.csv
+data/experiments/
+data/real_world/mined_candidates/*_candidates.jsonl
+data/extracted_pairs.jsonl
 
 # ── Model artefacts ──────────────────────────────────
 *.pt
