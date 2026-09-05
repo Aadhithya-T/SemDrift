@@ -1,89 +1,69 @@
 {
-  "dataset_name": "SemDrift Filtered Real-World Dataset (15k Benchmark)",
+  "dataset_name": "SemDrift Real-Time 15k Balanced Dataset (50/50 Drift / Non-Drift)",
   "total_instances": 15000,
-  "total_mined_pool": 33525,
-  "filtered_positives_count": 571,
-  "filtered_negatives_count": 14429,
-  "ambiguous_filtered_count": 0,
-  "repo_breakdown_15k": {
+  "drift_positives_count": 7500,
+  "clean_negatives_count": 7500,
+  "drift_rate": 0.5,
+  "repo_breakdown": {
+    "celery": {
+      "total": 9,
+      "drift_positives": 9,
+      "clean_negatives": 0
+    },
     "click": {
-      "total": 306,
-      "positives": 21,
-      "negatives": 285
+      "total": 319,
+      "drift_positives": 169,
+      "clean_negatives": 150
+    },
+    "django": {
+      "total": 5083,
+      "drift_positives": 2659,
+      "clean_negatives": 2424
     },
     "fastapi": {
       "total": 76,
-      "positives": 0,
-      "negatives": 76
+      "drift_positives": 39,
+      "clean_negatives": 37
     },
-    "django": {
-      "total": 7355,
-      "positives": 5,
-      "negatives": 7350
+    "flask": {
+      "total": 161,
+      "drift_positives": 65,
+      "clean_negatives": 96
     },
-    "pytest": {
-      "total": 1591,
-      "positives": 79,
-      "negatives": 1512
+    "numpy": {
+      "total": 1150,
+      "drift_positives": 557,
+      "clean_negatives": 593
     },
-    "sqlalchemy": {
-      "total": 4104,
-      "positives": 381,
-      "negatives": 3723
-    },
-    "tornado": {
-      "total": 729,
-      "positives": 76,
-      "negatives": 653
-    },
-    "celery": {
-      "total": 839,
-      "positives": 9,
-      "negatives": 830
-    }
-  },
-  "full_mined_pool_stats": {
-    "click": {
-      "total": 671,
-      "positives": 21,
-      "negatives": 650,
-      "ambiguous": 0
-    },
-    "fastapi": {
-      "total": 173,
-      "positives": 0,
-      "negatives": 173,
-      "ambiguous": 0
-    },
-    "django": {
-      "total": 16792,
-      "positives": 5,
-      "negatives": 16787,
-      "ambiguous": 0
+    "pandas": {
+      "total": 2648,
+      "drift_positives": 1262,
+      "clean_negatives": 1386
     },
     "pytest": {
-      "total": 3533,
-      "positives": 79,
-      "negatives": 3454,
-      "ambiguous": 0
+      "total": 1285,
+      "drift_positives": 596,
+      "clean_negatives": 689
+    },
+    "requests": {
+      "total": 127,
+      "drift_positives": 59,
+      "clean_negatives": 68
+    },
+    "scikit-learn": {
+      "total": 1681,
+      "drift_positives": 860,
+      "clean_negatives": 821
     },
     "sqlalchemy": {
-      "total": 8883,
-      "positives": 381,
-      "negatives": 8502,
-      "ambiguous": 0
+      "total": 2385,
+      "drift_positives": 1149,
+      "clean_negatives": 1236
     },
     "tornado": {
-      "total": 1567,
-      "positives": 76,
-      "negatives": 1491,
-      "ambiguous": 0
-    },
-    "celery": {
-      "total": 1906,
-      "positives": 9,
-      "negatives": 1897,
-      "ambiguous": 0
+      "total": 76,
+      "drift_positives": 76,
+      "clean_negatives": 0
     }
   }
 }
