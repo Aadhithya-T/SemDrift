@@ -102,29 +102,27 @@ SemDrift structures dataset curation into **two clearly separated generations**,
                     SEMDRIFT
                        │
              ┌─────────┴─────────┐
-             │                   │
-             ▼                   ▼
-       V1 — SYNTHETIC      V2 — REAL-WORLD-
-          1,205               GROUNDED
-             │                 ~14,796
-             │                   │
-       Baseline/ablation    ┌────┴────┐
-                            │         │
-                          TRAIN      VAL
-                         13,366     1,430
-                            │         │
-                            └────┬────┘
-                                 ▼
-                           TRAIN MODEL
-                                 │
-                                 ▼
-                            FINAL MODEL
-                                 │
-                                 ▼
-                         ┌───────────────┐
-                         │ 101 VERIFIED  │
-                         │   TEST ONLY   │
-                         └───────────────┘
+            V1 — SYNTHETIC      V2 — REAL-WORLD-
+           1,205               GROUNDED
+              │                 ~14,799
+              │                   │
+        Baseline/ablation    ┌────┴─────────┐
+                             │              │
+                           TRAIN           VAL
+                          13,350          1,449
+                             │              │
+                             └────┬─────────┘
+                                  ▼
+                            TRAIN MODEL
+                                  │
+                                  ▼
+                             FINAL MODEL
+                                  │
+                                  ▼
+                          ┌───────────────┐
+                          │ 101 VERIFIED  │
+                          │   TEST ONLY   │
+                          └───────────────┘
 ```
 
 ### Dataset Roles & Research Objectives
@@ -133,22 +131,22 @@ SemDrift structures dataset curation into **two clearly separated generations**,
 |:---|:---:|:---|:---|
 | **V1 Benchmark** | 1,205 | Controlled Baseline Evaluation | *"Can the model learn semantic code-documentation consistency under controlled conditions?"* |
 | **V1 Ablation Pool** | 12,102 | Controlled Model Selection & Ablation | Training (9,638), Validation (1,259), Test (1,205) for Dual vs. Joint architecture comparison |
-| **V2 Main Train** | 13,366 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* |
-| **V2 Validation** | 1,430 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by function lineage; 0% train overlap) |
+| **V2 Main Train** | 13,350 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* |
+| **V2 Validation** | 1,449 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by qualified function lineage; 0% train overlap) |
 | **V2 Verified Test** | 101 | **Final Real-World Ground Truth Evaluation** | *"Does the learned model actually generalize to independently human-verified real-world drift?"* |
 
 > [!IMPORTANT]
 > **Strict Evaluation Isolation Guarantee (Zero Leakage)**:
 > The 101 human-verified instances (`14 drift`, `87 clean`) from [`data/v2_real_world/evaluation/verified_test.jsonl`](data/v2_real_world/evaluation/verified_test.jsonl) are held out strictly for final evaluation.
-> All 101 function lineages (`repo::file_path::function_name`) are purged from V2 prior to training/validation construction (eliminating 204 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
+> All 101 function lineages (`repo::normalized_file_path::qualified_function_name`, e.g. `ClassName.method` or `outer.inner`) are purged from V2 prior to training/validation construction (eliminating 201 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
 
 ### V2 Provenance Breakdown
 
 SemDrift explicitly distinguishes authentic historical git commits from contract-grounded AST mutations:
 * **Authentic Historical Mined Drift**: **2,222** samples mined directly from Git commit diffs across mature open-source repositories.
 * **AST Contract-Grounded Generated Drift**: **5,122** samples synthesized directly on top of authentic repository code via deterministic AST contract mutations (parameter removal, default change, return divergence, exception mismatch).
-* **Historical Clean Negatives**: **7,452** confirmed clean code-docstring pairs.
-* **Total Usable Pool**: **14,796** samples (50.36% clean / 49.64% drift).
+* **Historical Clean Negatives**: **7,455** confirmed clean code-docstring pairs.
+* **Total Usable Pool**: **14,799** samples (50.37% clean / 49.63% drift).
 
 ---
 
@@ -258,10 +256,10 @@ SemDrift/
 │   │   ├── raw/                      # repositories/ junction & historical_candidates.jsonl (2,367)
 │   │   ├── mined/                    # filtered_candidates.jsonl
 │   │   ├── generated/                # contract_grounded_drift.jsonl (5,133)
-│   │   ├── training/                 # train.jsonl (13,366) & val.jsonl (1,430)
+│   │   ├── training/                 # train.jsonl (13,350) & val.jsonl (1,449)
 │   │   ├── evaluation/               # verified_test.jsonl (101 human-verified ground truth, 0% leakage)
 │   │   └── metadata/                 # dataset_summary.json, drift_distribution.json, repo distribution
-│   └── experiments/v2/               # Historical experiment outputs & ablation checkpoints
+│   └── experiments/v2/               # Historical V1 / Phase-1 benchmark artifacts & ablation checkpoints
 ├── Results - Thunder.md              # Controlled Ablation Experiment Report
 ├── config.yaml                       # Global pipeline configuration
 ├── requirements.txt                  # Python dependencies
@@ -323,34 +321,58 @@ Retrains the zero-shot baseline, fine-tuned dual encoder, fine-tuned joint encod
 
 ### 4. Individual Training & Baseline Execution
 
+#### Current Main Experiment (V2 Real-World-Grounded Architecture)
+The production training scripts default to the V2 Real-World-Grounded architecture (`data/v2_real_world/`):
+
 ```bash
 # 1. Lexical Baseline (TF-IDF + Logistic Regression) & Negation Diagnosis
 python scripts/analysis/diagnose_negation_and_lexical.py
 
-# 2. Zero-Shot Dual Encoder Baseline (Threshold Sweep)
+# 2. Zero-Shot Dual Encoder Baseline (Threshold Sweep on Verified Test)
 python scripts/training/run_zero_shot_baseline.py \
-    --val data/experiments/v2/val.jsonl \
-    --test data/experiments/v2/test.jsonl \
-    --output_dir data/experiments/v2/baseline_results \
+    --val data/v2_real_world/training/val.jsonl \
+    --test data/v2_real_world/evaluation/verified_test.jsonl \
+    --output_dir data/v2_real_world/baseline_results \
     --device cuda
 
-# 3. Fine-Tuned Dual-Encoder (Ablation Model)
+# 3. Fine-Tuned Dual-Encoder (Ablation Model on V2)
 python scripts/training/train_dual_encoder.py \
-    --train data/experiments/v2/train.jsonl \
-    --val data/experiments/v2/val.jsonl \
-    --test data/experiments/v2/test.jsonl \
+    --train data/v2_real_world/training/train.jsonl \
+    --val data/v2_real_world/training/val.jsonl \
+    --test data/v2_real_world/evaluation/verified_test.jsonl \
     --device cuda --epochs 3 --batch_size 8 \
-    --output_dir data/experiments/v2/dual_encoder_results/
+    --output_dir data/v2_real_world/dual_encoder_results/
 
-# 4. Fine-Tuned Joint-Encoder (Primary Contribution)
+# 4. Fine-Tuned Joint-Encoder (Primary Contribution on V2)
 python scripts/training/train_joint_encoder.py \
-    --train data/experiments/v2/train.jsonl \
-    --val data/experiments/v2/val.jsonl \
-    --test data/experiments/v2/test.jsonl \
+    --train data/v2_real_world/training/train.jsonl \
+    --val data/v2_real_world/training/val.jsonl \
+    --test data/v2_real_world/evaluation/verified_test.jsonl \
     --device cuda --epochs 3 --batch_size 8 \
     --code_truncation head_tail --pooling cls \
     --checkpoint_metric macro_f1 \
     --use_focal_loss --category_weighting \
+    --output_dir data/v2_real_world/joint_encoder_results/
+```
+
+#### Historical V1 / Phase-1 Benchmark Artifacts (Controlled Synthetic Ablation)
+To reproduce the controlled synthetic benchmark and Phase-1 architectural ablation reported in `Results - Thunder.md`, use the historical dataset paths in `data/experiments/v2/` (or `data/v1_synthetic/ablation/`):
+
+```bash
+# Dual-Encoder on Historical Controlled Benchmark
+python scripts/training/train_dual_encoder.py \
+    --dataset_generation v1 \
+    --train data/experiments/v2/train.jsonl \
+    --val data/experiments/v2/val.jsonl \
+    --test data/experiments/v2/test.jsonl \
+    --output_dir data/experiments/v2/dual_encoder_results/
+
+# Joint-Encoder on Historical Controlled Benchmark
+python scripts/training/train_joint_encoder.py \
+    --dataset_generation v1 \
+    --train data/experiments/v2/train.jsonl \
+    --val data/experiments/v2/val.jsonl \
+    --test data/experiments/v2/test.jsonl \
     --output_dir data/experiments/v2/joint_encoder_results/
 ```
 

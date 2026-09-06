@@ -43,7 +43,7 @@ def remove_docstring_from_function(node):
 
 
 def extract_pairs_from_file(filepath, repo_name):
-    """Extract (function, docstring) pairs from a single .py file."""
+    """Extract (function, docstring) pairs from a single .py file with qualified names."""
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             source = f.read()
@@ -51,16 +51,25 @@ def extract_pairs_from_file(filepath, repo_name):
     except (SyntaxError, UnicodeDecodeError):
         return []
     
-    # Walk tree to gather target function nodes first (prevents mutation issues during walk)
+    # Walk tree tracking class and function scopes
     func_nodes = []
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            docstring = ast.get_docstring(node)
-            if docstring and not is_dev_tooling_function(node):
-                func_nodes.append((node, docstring))
+
+    def visit_nodes(node, scope_stack):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                visit_nodes(child, scope_stack + [child.name])
+            elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                qual_name = ".".join(scope_stack + [child.name]) if scope_stack else child.name
+                docstring = ast.get_docstring(child)
+                if docstring and not is_dev_tooling_function(child):
+                    func_nodes.append((child, docstring, qual_name))
+                # Continue recursion to support nested/inner functions
+                visit_nodes(child, scope_stack + [child.name])
+
+    visit_nodes(tree, [])
 
     pairs = []
-    for node, docstring in func_nodes:
+    for node, docstring, qual_name in func_nodes:
         # Strip docstring from AST in-place before unparsing to code
         remove_docstring_from_function(node)
         try:
@@ -72,6 +81,8 @@ def extract_pairs_from_file(filepath, repo_name):
             "repo": repo_name,
             "file": filepath,
             "function_name": node.name,
+            "qualified_name": qual_name,
+            "qualified_function_name": qual_name,
             "code": code,
             "docstring": docstring,
             "lineno": node.lineno,

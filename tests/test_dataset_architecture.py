@@ -103,18 +103,23 @@ class TestDatasetArchitecture(unittest.TestCase):
         eval_rows = load_jsonl(eval_file)
 
         # Exact counts
-        self.assertEqual(len(train_rows), 13366)
-        self.assertEqual(len(val_rows), 1430)
-        self.assertEqual(len(train_rows) + len(val_rows), 14796)
+        self.assertEqual(len(train_rows), 13350)
+        self.assertEqual(len(val_rows), 1449)
+        self.assertEqual(len(train_rows) + len(val_rows), 14799)
+
+        # Ensure qualified_name is present and class methods are properly qualified
+        self.assertTrue(all("qualified_name" in r for r in eval_rows))
+        self.assertTrue(all("qualified_name" in r for r in train_rows))
+        self.assertTrue(any("." in r["qualified_name"] for r in eval_rows), "Class methods must be qualified with ClassName.method")
 
         # Label balance checks (~50/50)
         train_labels = Counter(r.get("pseudo_label", r.get("label")) for r in train_rows)
         val_labels = Counter(r.get("pseudo_label", r.get("label")) for r in val_rows)
 
-        self.assertEqual(train_labels[0], 6725)
-        self.assertEqual(train_labels[1], 6641)
-        self.assertEqual(val_labels[0], 727)
-        self.assertEqual(val_labels[1], 703)
+        self.assertEqual(train_labels[0], 6739)
+        self.assertEqual(train_labels[1], 6611)
+        self.assertEqual(val_labels[0], 716)
+        self.assertEqual(val_labels[1], 733)
 
         # Zero-leakage mathematical assertions
         test_lineages = {get_function_lineage(r) for r in eval_rows}
@@ -164,14 +169,14 @@ class TestDatasetArchitecture(unittest.TestCase):
         with meta_file.open("r", encoding="utf-8") as f:
             summary = json.load(f)
 
-        self.assertEqual(summary["total_instances"], 14796)
-        self.assertEqual(summary["partitions"]["train"], 13366)
-        self.assertEqual(summary["partitions"]["val"], 1430)
+        self.assertEqual(summary["total_instances"], 14799)
+        self.assertEqual(summary["partitions"]["train"], 13350)
+        self.assertEqual(summary["partitions"]["val"], 1449)
         self.assertEqual(summary["partitions"]["verified_test"], 101)
         self.assertEqual(summary["drift"]["authentic_historical_mined"], 2222)
         self.assertEqual(summary["drift"]["contract_grounded_generated"], 5122)
-        self.assertEqual(summary["clean"]["total"], 7452)
-        self.assertEqual(summary["zero_leakage_guarantee"]["candidates_purged_for_leakage"], 204)
+        self.assertEqual(summary["clean"]["total"], 7455)
+        self.assertEqual(summary["zero_leakage_guarantee"]["candidates_purged_for_leakage"], 201)
         self.assertEqual(summary["zero_leakage_guarantee"]["train_val_overlap"], 0)
         self.assertEqual(summary["zero_leakage_guarantee"]["train_test_overlap"], 0)
         self.assertEqual(summary["zero_leakage_guarantee"]["val_test_overlap"], 0)

@@ -27,8 +27,8 @@ Implements the official SemDrift Two-Generation Dataset Architecture:
      ├── generated/
      │   └── contract_grounded_drift.jsonl (N = 5,133 realistic AST contract drift)
      ├── training/
-     │   ├── train.jsonl                   (N = 13,314 function-lineage grouped, balanced)
-     │   └── val.jsonl                     (N = 1,500 function-lineage grouped, balanced)
+     │   ├── train.jsonl                   (N = 13,350 function-lineage grouped, balanced)
+     │   └── val.jsonl                     (N = 1,449 function-lineage grouped, balanced)
      ├── evaluation/
      │   └── verified_test.jsonl           (N = 101 human-verified test set, strictly isolated)
      └── metadata/
@@ -39,12 +39,13 @@ Implements the official SemDrift Two-Generation Dataset Architecture:
 Crucial Invariants & Guarantees:
   - Idempotent and assertion-heavy: fails immediately if source counts deviate.
   - Zero-Leakage: All 101 verified test lineages are purged from V2 BEFORE train/val partitioning.
-  - Function Lineage Grouping: Hash of `repo::normalized_file::function_name` guarantees
-    no function family is split between train and val.
+  - Function Lineage Grouping: Hash of `repo::normalized_file::qualified_function_name` guarantees
+    no function family (e.g. ClassName.method or outer.inner) is split between train and val.
   - Provenance: Authentic mined git examples vs contract-grounded generated examples are explicitly tracked.
 """
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -55,6 +56,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+_AST_CACHE: Dict[Tuple[str, str], Dict[str, List[Dict[str, Any]]]] = {}
 
 
 def norm_repo(r: Any) -> str:
@@ -81,15 +84,105 @@ def norm_file_path(f: Any) -> str:
     return f_str
 
 
+def get_file_ast_info(repo: str, file_path: str) -> Dict[str, List[Dict[str, Any]]]:
+    """Extract functions with qualified names from repo source files."""
+    key = (repo, file_path)
+    if key in _AST_CACHE:
+        return _AST_CACHE[key]
+    
+    cand1 = PROJECT_ROOT / "data" / "raw_repos" / repo / file_path
+    cand2 = PROJECT_ROOT / "data" / "raw_repos" / repo.replace("_", "-") / file_path
+    target = cand1 if cand1.is_file() else (cand2 if cand2.is_file() else None)
+    if not target:
+        _AST_CACHE[key] = {}
+        return {}
+    
+    try:
+        source = target.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+    except Exception:
+        _AST_CACHE[key] = {}
+        return {}
+        
+    funcs = defaultdict(list)
+
+    def walk(node, stack):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                walk(child, stack + [child.name])
+            elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                qname = ".".join(stack + [child.name]) if stack else child.name
+                doc = ast.get_docstring(child) or ""
+                funcs[child.name].append({
+                    "qual_name": qname,
+                    "docstring": doc.strip(),
+                    "lineno": child.lineno,
+                    "arg_names": [a.arg for a in child.args.args]
+                })
+                walk(child, stack + [child.name])
+
+    walk(tree, [])
+    _AST_CACHE[key] = funcs
+    return funcs
+
+
+def resolve_qualified_name(row: Dict[str, Any]) -> str:
+    """Resolve true qualified function name (e.g., ClassName.method or outer.inner)."""
+    if row.get("qualified_name"):
+        return str(row["qualified_name"]).strip()
+    if row.get("qualified_function_name"):
+        return str(row["qualified_function_name"]).strip()
+    if row.get("class_name"):
+        c_name = row["class_name"]
+        f_name = row.get("function_name", "")
+        return f"{c_name}.{f_name}".strip()
+
+    fn = str(row.get("function_name", "")).strip()
+    if not fn:
+        return ""
+
+    repo = norm_repo(row.get("repo") or row.get("repo_name"))
+    fp = norm_file_path(row.get("file_path") or row.get("file"))
+
+    funcs = get_file_ast_info(repo, fp)
+    cands = funcs.get(fn, [])
+    if not cands:
+        return fn
+    if len(cands) == 1:
+        return cands[0]["qual_name"]
+    
+    doc_target = (row.get("docstring_before") or row.get("docstring") or row.get("docstring_after") or "").strip()
+    if doc_target:
+        for c in cands:
+            if c["docstring"] and (c["docstring"] in doc_target or doc_target in c["docstring"]):
+                return c["qual_name"]
+                
+    code_target = row.get("code_before") or row.get("code") or row.get("code_after") or ""
+    if code_target:
+        try:
+            node = ast.parse(code_target).body[0]
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                target_args = [a.arg for a in node.args.args]
+                for c in cands:
+                    if c["arg_names"] == target_args:
+                        return c["qual_name"]
+        except Exception:
+            pass
+
+    return cands[0]["qual_name"]
+
+
 def get_function_lineage(row: Dict[str, Any]) -> str:
     """Stable lineage key: repo + normalized file + qualified function name.
     
     Immune to line-number shifts across commits.
+    Format: repo::normalized_file_path::qualified_function_name
+    (e.g., click::src/click/core.py::Parameter.consume_value)
     """
     r = norm_repo(row.get("repo") or row.get("repo_name"))
     fp = norm_file_path(row.get("file_path") or row.get("file"))
-    fn = str(row.get("function_name", "")).strip()
-    return f"{r}::{fp}::{fn}"
+    qfn = resolve_qualified_name(row)
+    return f"{r}::{fp}::{qfn}"
 
 
 def load_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -231,6 +324,10 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
     assert verified_labels[1] == 14, f"Expected 14 drift positives in verified test, got {verified_labels[1]}"
     assert verified_labels[0] == 87, f"Expected 87 clean negatives in verified test, got {verified_labels[0]}"
 
+    for s in verified_samples:
+        s["qualified_name"] = resolve_qualified_name(s)
+        s["qualified_function_name"] = s["qualified_name"]
+
     # Write evaluation/verified_test.jsonl
     write_jsonl(eval_dir / "verified_test.jsonl", verified_samples)
     print(f"  [OK] evaluation/verified_test.jsonl: {len(verified_samples)} human-verified samples (14 drift, 87 clean)")
@@ -292,6 +389,8 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
     purged_labels = Counter()
 
     for r in full_pool:
+        r["qualified_name"] = resolve_qualified_name(r)
+        r["qualified_function_name"] = r["qualified_name"]
         lin = get_function_lineage(r)
         if lin in test_lineages:
             purged_count += 1
@@ -302,13 +401,13 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
                 r["parent_commit"] = r.get("parent_hash") or None
             clean_v2_pool.append(r)
 
-    assert purged_count == 204, f"Expected exactly 204 leaked test lineages purged, got {purged_count}"
-    assert len(clean_v2_pool) == 14796, f"Expected 14,796 clean non-leaking samples, got {len(clean_v2_pool)}"
+    assert purged_count == 201, f"Expected exactly 201 leaked test lineages purged, got {purged_count}"
+    assert len(clean_v2_pool) == 14799, f"Expected 14,799 clean non-leaking samples, got {len(clean_v2_pool)}"
 
     pool_labels = Counter(r.get("pseudo_label", r.get("label")) for r in clean_v2_pool)
-    assert pool_labels[0] == 7452, f"Expected 7,452 clean negatives, got {pool_labels[0]}"
+    assert pool_labels[0] == 7455, f"Expected 7,455 clean negatives, got {pool_labels[0]}"
     assert pool_labels[1] == 7344, f"Expected 7,344 drift positives, got {pool_labels[1]}"
-    print(f"  [OK] Zero-Leakage Purge: Removed {purged_count} leaking instances. Clean pool = {len(clean_v2_pool)} (7,452 clean, 7,344 drift)")
+    print(f"  [OK] Zero-Leakage Purge: Removed {purged_count} leaking instances. Clean pool = {len(clean_v2_pool)} (7,455 clean, 7,344 drift)")
 
     # 5. Partition by Function-Lineage Grouping (90% Train / 10% Val)
     lineage_groups = defaultdict(list)
@@ -326,7 +425,9 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
         else:
             val_rows.extend(rows)
 
-    assert len(train_rows) + len(val_rows) == 14796
+    assert len(train_rows) + len(val_rows) == 14799
+    assert len(train_rows) == 13350, f"Expected 13,350 train rows, got {len(train_rows)}"
+    assert len(val_rows) == 1449, f"Expected 1,449 val rows, got {len(val_rows)}"
     train_labels = Counter(r.get("pseudo_label", r.get("label")) for r in train_rows)
     val_labels = Counter(r.get("pseudo_label", r.get("label")) for r in val_rows)
 
