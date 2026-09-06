@@ -157,18 +157,8 @@ def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
     balanced_acc = float(balanced_accuracy_score(y_b_true, y_b_pred))
 
     # Confusion matrix extraction
-    cm = confusion_matrix(y_b_true, y_b_pred)
-    tn, fp, fn, tp = 0, 0, 0, 0
-    if cm.shape == (2, 2):
-        tn, fp, fn, tp = cm.ravel()
-    else:
-        # Handle dry runs or subsets where only one label is present
-        if len(set(y_b_true)) == 1:
-            val = list(set(y_b_true))[0]
-            if val == 0:
-                tn = len(y_b_true)
-            else:
-                tp = len(y_b_true)
+    cm = confusion_matrix(y_b_true, y_b_pred, labels=[0, 1])
+    tn, fp, fn, tp = cm.ravel()
 
     pred_aligned = sum(1 for p in y_b_pred if p == 0)
     pred_drifted = sum(1 for p in y_b_pred if p == 1)
@@ -269,16 +259,15 @@ def main():
     parser.add_argument("--no_category_weighting", dest="category_weighting", action="store_false",
                         help="Disable sample loss weighting across categories")
 
-    # Flags
     parser.add_argument("--clean_docstrings", dest="clean_docstrings",
                         action="store_true", default=None,
                         help="Extract summary line from docstrings (default: True for V1, False for V2)")
     parser.add_argument("--no_clean_docstrings", dest="clean_docstrings",
                         action="store_false",
-                        help="Train/evaluate on full docstrings (default for V2)")
+                        help="Disable extracting summary from docstrings (train/eval on full docstrings)")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda / cpu)")
-    parser.add_argument("--output_dir", default="data/experiments/v2/joint_encoder_results",
-                        help="Directory to write predictions and results")
+    parser.add_argument("--output_dir", default=None,
+                        help="Directory to write predictions and results (defaults to data/v2_real_world/joint_encoder_results/ for V2)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--dry_run", action="store_true", default=False,
                         help="Quick run on 16-sample subset to verify shapes/gradients")
@@ -289,6 +278,14 @@ def main():
     # V2 must train on full docstrings by default; V1 uses summary docstrings
     if args.clean_docstrings is None:
         args.clean_docstrings = (args.dataset_generation != "v2")
+
+    # Resolve output directory based on generation if not specified
+    if args.output_dir is None:
+        args.output_dir = (
+            "data/v2_real_world/joint_encoder_results"
+            if args.dataset_generation == "v2"
+            else "data/experiments/v2/joint_encoder_results"
+        )
 
     # Resolve dataset paths based on generation
     if args.dataset_generation == "v2":
@@ -441,8 +438,11 @@ def main():
     # ------------------------------------------------------------------
     # 6. Load Best Checkpoint & Run Test Evaluation
     # ------------------------------------------------------------------
-    print(f"\nLoading best checkpoint from Epoch {best_epoch} for final test evaluation...", flush=True)
-    model.load_state_dict(torch.load(checkpoint_path, map_location=args.device))
+    if os.path.exists(checkpoint_path):
+        print(f"\nLoading best checkpoint from Epoch {best_epoch} for final test evaluation...", flush=True)
+        model.load_state_dict(torch.load(checkpoint_path, map_location=args.device))
+    else:
+        print(f"\nNo saved checkpoint found at {checkpoint_path} (best_epoch={best_epoch}). Using current in-memory model weights for evaluation...", flush=True)
 
     # Evaluate validation metrics with best checkpoint
     val_y_true, val_y_pred, _, _ = evaluate(model, val_loader, args.device)
@@ -455,12 +455,6 @@ def main():
     test_overall = calculate_metrics(test_y_true, test_y_pred)
     breakdowns = evaluate_breakdowns(test_y_true, test_y_pred, test_metas)
 
-    # Confusion matrix test set
-    cm = confusion_matrix(
-        [1 if l == "drifted" else 0 for l in test_y_true],
-        [1 if p == "drifted" else 0 for p in test_y_pred],
-    )
-
     print("\n" + "=" * 70, flush=True)
     print("FINAL TEST RESULTS — Fine-Tuned Joint-Encoder V2", flush=True)
     print("=" * 70, flush=True)
@@ -472,8 +466,8 @@ def main():
     print(f"Macro F1 Score          : {test_overall['macro_f1']:.4f}", flush=True)
     print(f"Balanced Accuracy       : {test_overall['balanced_accuracy']:.4f}", flush=True)
     print("Confusion Matrix:", flush=True)
-    print(f"  TN: {cm[0, 0]}  |  FP: {cm[0, 1]}", flush=True)
-    print(f"  FN: {cm[1, 0]}  |  TP: {cm[1, 1]}", flush=True)
+    print(f"  TN: {test_overall['tn']}  |  FP: {test_overall['fp']}", flush=True)
+    print(f"  FN: {test_overall['fn']}  |  TP: {test_overall['tp']}", flush=True)
 
     print("\n--- Breakdown by Drift Type ---", flush=True)
     for dt, m in sorted(breakdowns["by_drift_type"].items()):
@@ -522,10 +516,10 @@ def main():
         "val_metrics": val_metrics,
         "test_overall": test_overall,
         "confusion_matrix": {
-            "tn": int(cm[0, 0]),
-            "fp": int(cm[0, 1]),
-            "fn": int(cm[1, 0]),
-            "tp": int(cm[1, 1]),
+            "tn": test_overall["tn"],
+            "fp": test_overall["fp"],
+            "fn": test_overall["fn"],
+            "tp": test_overall["tp"],
         },
         "breakdowns": breakdowns,
     }

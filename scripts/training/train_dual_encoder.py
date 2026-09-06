@@ -259,7 +259,8 @@ def main():
     parser.add_argument("--checkpoint_metric", choices=["macro_f1", "f1", "accuracy", "balanced_accuracy"], default="macro_f1", help="Validation metric for checkpoint selection")
     parser.add_argument("--freeze_base", action="store_true", default=False, help="Freeze encoder parameters")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Execution device (cuda/cpu)")
-    parser.add_argument("--output_dir", default="data/experiments/v2/dual_encoder_results", help="Output results directory")
+    parser.add_argument("--output_dir", default=None,
+                        help="Output results directory (defaults to data/v2_real_world/dual_encoder_results/ for V2)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--dry_run", action="store_true", default=False, help="Dry run on subset to verify shapes/gradients")
     args = parser.parse_args()
@@ -269,6 +270,14 @@ def main():
     # V2 must train on full docstrings by default; V1 uses summary docstrings
     if args.clean_docstrings is None:
         args.clean_docstrings = (args.dataset_generation != "v2")
+
+    # Resolve output directory based on generation if not specified
+    if args.output_dir is None:
+        args.output_dir = (
+            "data/v2_real_world/dual_encoder_results"
+            if args.dataset_generation == "v2"
+            else "data/experiments/v2/dual_encoder_results"
+        )
 
     # Resolve default dataset paths based on dataset generation
     if args.dataset_generation == "v2":
@@ -378,8 +387,11 @@ def main():
         print("-" * 50, flush=True)
 
     # 6. Load Best Checkpoint and Run Final Test Set Evaluation
-    print(f"\nLoading best checkpoint from Epoch {best_epoch} for final testing...", flush=True)
-    model.load_state_dict(torch.load(best_checkpoint_path, map_location=args.device))
+    if os.path.exists(best_checkpoint_path):
+        print(f"\nLoading best checkpoint from Epoch {best_epoch} for final testing...", flush=True)
+        model.load_state_dict(torch.load(best_checkpoint_path, map_location=args.device))
+    else:
+        print(f"\nNo saved checkpoint found at {best_checkpoint_path} (best_epoch={best_epoch}). Using current in-memory model weights for final testing...", flush=True)
     
     # Validation step to compute the optimal threshold tau* using best weights
     val_y_true, val_y_pred, val_divs, best_tau, _ = evaluate(model, val_loader, args.device, args.variant)

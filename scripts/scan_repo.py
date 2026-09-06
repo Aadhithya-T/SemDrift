@@ -494,7 +494,10 @@ def main():
     parser.add_argument("--output_file", default=None, help="Optional file path to save output report")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Target device (cuda or cpu)")
     parser.add_argument("--include_test_files", action="store_true", default=False, help="Include test files during parsing")
-    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false", default=True, help="Disable docstring cleaning")
+    parser.add_argument("--clean_docstrings", dest="clean_docstrings", action="store_true", default=False,
+                        help="Extract summary line from docstrings (default: False)")
+    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false",
+                        help="Disable extracting summary from docstrings (evaluate on full docstrings)")
 
     args = parser.parse_args()
 

@@ -13,7 +13,7 @@
 
 ## 📊 Benchmark Results (IEEE Conference Benchmark — Phase 1)
 
-All models are evaluated on the clean, zero-leakage 10-repository V2 benchmark dataset (`data/experiments/v2/test.jsonl`, $N = 1,205$). The test repositories are strictly partitioned from training and validation sets to ensure cross-repository generalization.
+All models are evaluated on the clean, zero-leakage 10-repository V1 controlled benchmark dataset (`data/v1_synthetic/benchmark/synthetic_dataset.jsonl` / historical `data/experiments/v2/test.jsonl`, $N = 1,205$). The test repositories are strictly partitioned from training and validation sets to ensure cross-repository generalization.
 
 ### 1. Overall Performance Comparison
 
@@ -356,23 +356,23 @@ python scripts/training/train_joint_encoder.py \
 ```
 
 #### Historical V1 / Phase-1 Benchmark Artifacts (Controlled Synthetic Ablation)
-To reproduce the controlled synthetic benchmark and Phase-1 architectural ablation reported in `Results - Thunder.md`, use the historical dataset paths in `data/experiments/v2/` (or `data/v1_synthetic/ablation/`):
+To reproduce the controlled synthetic benchmark and Phase-1 architectural ablation reported in `Results - Thunder.md`, use the V1 synthetic ablation splits in `data/v1_synthetic/ablation/` (historically archived at `data/experiments/v2/`):
 
 ```bash
 # Dual-Encoder on Historical Controlled Benchmark
 python scripts/training/train_dual_encoder.py \
     --dataset_generation v1 \
-    --train data/experiments/v2/train.jsonl \
-    --val data/experiments/v2/val.jsonl \
-    --test data/experiments/v2/test.jsonl \
+    --train data/v1_synthetic/ablation/train.jsonl \
+    --val data/v1_synthetic/ablation/val.jsonl \
+    --test data/v1_synthetic/benchmark/synthetic_dataset.jsonl \
     --output_dir data/experiments/v2/dual_encoder_results/
 
 # Joint-Encoder on Historical Controlled Benchmark
 python scripts/training/train_joint_encoder.py \
     --dataset_generation v1 \
-    --train data/experiments/v2/train.jsonl \
-    --val data/experiments/v2/val.jsonl \
-    --test data/experiments/v2/test.jsonl \
+    --train data/v1_synthetic/ablation/train.jsonl \
+    --val data/v1_synthetic/ablation/val.jsonl \
+    --test data/v1_synthetic/benchmark/synthetic_dataset.jsonl \
     --output_dir data/experiments/v2/joint_encoder_results/
 ```
 
@@ -402,12 +402,12 @@ python scripts/scan_repo.py . --top_k 10 --threshold 0.50
 ### 6. Generate IEEE Paper Artifacts & LaTeX Tables
 
 ```bash
-# Generate LaTeX tables and JSON summaries for paper submission
+# Generate LaTeX tables and JSON summaries for V2 real-world experiments
 python scripts/analysis/generate_ieee_results.py \
-    --v2_dir data/experiments/v2 \
-    --output_dir data/experiments/v2
+    --v2_dir data/v2_real_world \
+    --output_dir data/v2_real_world
 
-# Analyze controlled architectural ablation
+# Historical Phase-1 controlled architectural ablation analysis
 python scripts/analysis/analyze_controlled_experiment.py \
     --dual_preds data/experiments/v2/controlled_ablation/dual_ce/predictions_dual_encoder.jsonl \
     --joint_preds data/experiments/v2/controlled_ablation/joint_ce/predictions_joint_encoder.jsonl \
@@ -421,24 +421,20 @@ Outputs:
 
 ---
 
-### 7. Rebuild Synthetic Benchmark Dataset (Optional)
+### 7. Build Two-Generation Dataset Architecture (V1 Synthetic & V2 Real-World-Grounded)
+
+To construct, verify, and partition the complete two-generation dataset architecture:
 
 ```bash
-# Extract function-docstring pairs from raw repositories
-python scripts/data_pipeline/extract_pairs.py --repos_dir data/raw_repos --output data/experiments/v2/extracted_pairs.jsonl
-
-# Filter invalid, trivial, or oversized pairs
-python scripts/data_pipeline/filter_pairs.py --input data/experiments/v2/extracted_pairs.jsonl --output data/experiments/v2/filtered_pairs.jsonl
-
-# Inject synthetic mutations (param rename, return type change, doc deletion, negation)
-python scripts/data_pipeline/build_dataset.py --input data/experiments/v2/filtered_pairs.jsonl --output data/experiments/v2/mutated_dataset.jsonl
-
-# Convert to standard labeled schema
-python scripts/data_pipeline/convert_dataset_format.py --input data/experiments/v2/mutated_dataset.jsonl --output data/experiments/v2/semdrift_labeled.jsonl
-
-# Partition by repository into disjoint train, val, and test splits
-python scripts/data_pipeline/split_dataset.py --input data/experiments/v2/semdrift_labeled.jsonl --output_dir data/experiments/v2/
+# Run the canonical idempotent dataset architecture setup script
+python scripts/data_pipeline/setup_dataset_architecture.py
 ```
+
+This enforces all invariants:
+* **Zero-Leakage Guarantee**: Automatically purges all 101 human-verified test function lineages from candidate pools before train/val partitioning.
+* **Function-Lineage Partitioning**: Uses `repo::file_path::function_name` hashing to ensure no function family is split between train and val.
+* **V1 Synthetic Benchmark**: Isolates 1,205 controlled synthetic pairs in `data/v1_synthetic/benchmark/synthetic_dataset.jsonl`.
+* **V2 Real-World Pool**: Constructs 13,366 train, 1,430 val, and 101 verified test samples in `data/v2_real_world/`.
 
 ---
 

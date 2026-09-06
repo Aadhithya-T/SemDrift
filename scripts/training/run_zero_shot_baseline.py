@@ -226,8 +226,8 @@ def main():
                         help="Disable extracting summary from docstrings (use full docstrings)")
     parser.add_argument("--normalize", action="store_true", default=True, help="Apply L2 normalization")
     parser.add_argument("--mean_center", action="store_true", default=True, help="Apply mean centering to mitigate CodeBERT anisotropy")
-    parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda/cpu)")
-    parser.add_argument("--output_dir", default="data/experiments/v2/baseline_results", help="Directory to write predictions and results")
+    parser.add_argument("--output_dir", default=None,
+                        help="Directory to write predictions and results (defaults to data/v2_real_world/baseline_results/ for V2)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
 
@@ -236,6 +236,14 @@ def main():
     # V2 must evaluate on full docstrings by default; V1 uses summary docstrings
     if args.clean_docstrings is None:
         args.clean_docstrings = (args.dataset_generation != "v2")
+
+    # Resolve output directory based on generation if not specified
+    if args.output_dir is None:
+        args.output_dir = (
+            "data/v2_real_world/baseline_results"
+            if args.dataset_generation == "v2"
+            else "data/experiments/v2/baseline_results"
+        )
 
     # Resolve dataset paths based on generation
     if args.dataset_generation == "v2":
