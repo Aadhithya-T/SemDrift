@@ -21,14 +21,14 @@ Implements the official SemDrift Two-Generation Dataset Architecture:
      data/v2_real_world/
      ├── raw/
      │   ├── repositories/                 (Junction/link to data/raw_repos/)
-     │   └── historical_candidates.jsonl   (N = 2,367 raw mined git candidates)
+     │   └── historical_candidates.jsonl   (N = 2,367 raw mined git candidates; 2,222 usable after purge)
      ├── mined/
      │   └── filtered_candidates.jsonl     (Filtered mined candidate pool)
      ├── generated/
-     │   └── contract_grounded_drift.jsonl (N = 5,133 realistic AST contract drift)
+     │   └── contract_grounded_drift.jsonl (N = 5,133 generated raw candidates; 5,122 usable after leakage purge)
      ├── training/
-     │   ├── train.jsonl                   (N = 13,350 function-lineage grouped, balanced)
-     │   └── val.jsonl                     (N = 1,449 function-lineage grouped, balanced)
+     │   ├── train.jsonl                   (N = 13,366 function-lineage grouped, balanced)
+     │   └── val.jsonl                     (N = 1,430 function-lineage grouped, balanced)
      ├── evaluation/
      │   └── verified_test.jsonl           (N = 101 human-verified test set, strictly isolated)
      └── metadata/
@@ -39,9 +39,10 @@ Implements the official SemDrift Two-Generation Dataset Architecture:
 Crucial Invariants & Guarantees:
   - Idempotent and assertion-heavy: fails immediately if source counts deviate.
   - Zero-Leakage: All 101 verified test lineages are purged from V2 BEFORE train/val partitioning.
-  - Function Lineage Grouping: Hash of `repo::normalized_file::qualified_function_name` guarantees
-    no function family (e.g. ClassName.method or outer.inner) is split between train and val.
-  - Provenance: Authentic mined git examples vs contract-grounded generated examples are explicitly tracked.
+  - Function Lineage Grouping: Hash of `repo::normalized_file::function_name` guarantees
+    no function family is split between train and val.
+  - Provenance: 5,133 generated raw candidates -> 5,122 usable after leakage purge;
+    2,367 mined raw candidates -> 2,222 usable after leakage purge.
 """
 
 import argparse
@@ -173,16 +174,15 @@ def resolve_qualified_name(row: Dict[str, Any]) -> str:
 
 
 def get_function_lineage(row: Dict[str, Any]) -> str:
-    """Stable lineage key: repo + normalized file + qualified function name.
+    """Stable lineage key: repo + normalized file + function name.
     
     Immune to line-number shifts across commits.
-    Format: repo::normalized_file_path::qualified_function_name
-    (e.g., click::src/click/core.py::Parameter.consume_value)
+    Format: repo::normalized_file_path::function_name
     """
     r = norm_repo(row.get("repo") or row.get("repo_name"))
     fp = norm_file_path(row.get("file_path") or row.get("file"))
-    qfn = resolve_qualified_name(row)
-    return f"{r}::{fp}::{qfn}"
+    fn = str(row.get("function_name", "")).strip()
+    return f"{r}::{fp}::{fn}"
 
 
 def load_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -401,13 +401,13 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
                 r["parent_commit"] = r.get("parent_hash") or None
             clean_v2_pool.append(r)
 
-    assert purged_count == 201, f"Expected exactly 201 leaked test lineages purged, got {purged_count}"
-    assert len(clean_v2_pool) == 14799, f"Expected 14,799 clean non-leaking samples, got {len(clean_v2_pool)}"
+    assert purged_count == 204, f"Expected exactly 204 leaked test lineages purged, got {purged_count}"
+    assert len(clean_v2_pool) == 14796, f"Expected 14,796 clean non-leaking samples, got {len(clean_v2_pool)}"
 
     pool_labels = Counter(r.get("pseudo_label", r.get("label")) for r in clean_v2_pool)
-    assert pool_labels[0] == 7455, f"Expected 7,455 clean negatives, got {pool_labels[0]}"
+    assert pool_labels[0] == 7452, f"Expected 7,452 clean negatives, got {pool_labels[0]}"
     assert pool_labels[1] == 7344, f"Expected 7,344 drift positives, got {pool_labels[1]}"
-    print(f"  [OK] Zero-Leakage Purge: Removed {purged_count} leaking instances. Clean pool = {len(clean_v2_pool)} (7,455 clean, 7,344 drift)")
+    print(f"  [OK] Zero-Leakage Purge: Removed {purged_count} leaking instances. Clean pool = {len(clean_v2_pool)} (7,452 clean, 7,344 drift)")
 
     # 5. Partition by Function-Lineage Grouping (90% Train / 10% Val)
     lineage_groups = defaultdict(list)
@@ -425,9 +425,9 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
         else:
             val_rows.extend(rows)
 
-    assert len(train_rows) + len(val_rows) == 14799
-    assert len(train_rows) == 13350, f"Expected 13,350 train rows, got {len(train_rows)}"
-    assert len(val_rows) == 1449, f"Expected 1,449 val rows, got {len(val_rows)}"
+    assert len(train_rows) + len(val_rows) == 14796
+    assert len(train_rows) == 13366, f"Expected 13,366 train rows, got {len(train_rows)}"
+    assert len(val_rows) == 1430, f"Expected 1,430 val rows, got {len(val_rows)}"
     train_labels = Counter(r.get("pseudo_label", r.get("label")) for r in train_rows)
     val_labels = Counter(r.get("pseudo_label", r.get("label")) for r in val_rows)
 
@@ -463,6 +463,15 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
         "drift_total": len(pos_rows) - purged_labels[1],
         "authentic_historical_mined": mined_in_pool,
         "contract_grounded_generated": gen_in_pool,
+        "raw_counts": {
+            "raw_mined_candidates": len(historical_candidates),
+            "mined_candidates_purged": len(historical_candidates) - mined_in_pool,
+            "usable_mined_drift": mined_in_pool,
+            "raw_generated_candidates": len(contract_grounded_drift),
+            "generated_candidates_purged": len(contract_grounded_drift) - gen_in_pool,
+            "usable_generated_drift": gen_in_pool,
+        },
+        "clarification": "5,133 generated raw candidates -> 5,122 usable after leakage purge (11 purged); 2,367 mined raw candidates -> 2,222 usable after leakage purge (145 purged)",
         "contract_violations": {
             "parameter_contract_violation": sum(1 for r in clean_v2_pool if r.get("parameter_contract_violation")),
             "return_contract_violation": sum(1 for r in clean_v2_pool if r.get("return_contract_violation")),
@@ -489,7 +498,10 @@ def setup_v2_real_world(base_dir: Path) -> Dict[str, Any]:
         "drift": {
             "total": pool_labels[1],
             "authentic_historical_mined": mined_in_pool,
-            "contract_grounded_generated": gen_in_pool
+            "contract_grounded_generated": gen_in_pool,
+            "raw_generated_candidates": len(contract_grounded_drift),
+            "raw_mined_candidates": len(historical_candidates),
+            "clarification": "5,133 generated raw candidates -> 5,122 usable after leakage purge (11 purged); 2,367 mined raw candidates -> 2,222 usable after leakage purge (145 purged)"
         },
         "clean": {
             "total": pool_labels[0],

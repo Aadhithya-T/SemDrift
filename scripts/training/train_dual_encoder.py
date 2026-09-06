@@ -238,9 +238,11 @@ def evaluate_breakdowns(y_true: list[str], y_pred: list[str], metas: list[dict])
 
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune Model B (Dual-Encoder ablation model)")
-    parser.add_argument("--train", default="data/experiments/v2/train.jsonl", help="Train dataset path")
-    parser.add_argument("--val", default="data/experiments/v2/val.jsonl", help="Validation dataset path")
-    parser.add_argument("--test", default="data/experiments/v2/test.jsonl", help="Test dataset path")
+    parser.add_argument("--dataset_generation", choices=["v1", "v2"], default="v2",
+                        help="Dataset generation architecture: v2 (Real-World-Grounded) or v1 (Synthetic Controlled)")
+    parser.add_argument("--train", default=None, help="Train dataset path")
+    parser.add_argument("--val", default=None, help="Validation dataset path")
+    parser.add_argument("--test", default=None, help="Test dataset path")
     parser.add_argument("--variant", choices=["variant_1", "variant_2"], default="variant_2", help="Model B Architecture variant")
     parser.add_argument("--model_name", default="microsoft/codebert-base", help="Hugging Face model checkpoint")
     parser.add_argument("--epochs", type=int, default=3, help="Number of epochs to train")
@@ -249,7 +251,10 @@ def main():
     parser.add_argument("--weight_decay", type=float, default=0.01, help="L2 weight decay")
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup ratio for linear LR schedule")
     parser.add_argument("--max_length", type=int, default=512, help="Max token sequence length")
-    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false", default=True, help="Disable extracting summary from docstrings (train/eval on full docstrings)")
+    parser.add_argument("--clean_docstrings", dest="clean_docstrings", action="store_true", default=None,
+                        help="Extract summary line from docstrings (default: True for V1, False for V2)")
+    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false",
+                        help="Disable extracting summary from docstrings (train/eval on full docstrings)")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout before classifier head")
     parser.add_argument("--checkpoint_metric", choices=["macro_f1", "f1", "accuracy", "balanced_accuracy"], default="macro_f1", help="Validation metric for checkpoint selection")
     parser.add_argument("--freeze_base", action="store_true", default=False, help="Freeze encoder parameters")
@@ -261,10 +266,31 @@ def main():
 
     set_seed(args.seed)
 
+    # V2 must train on full docstrings by default; V1 uses summary docstrings
+    if args.clean_docstrings is None:
+        args.clean_docstrings = (args.dataset_generation != "v2")
+
+    # Resolve default dataset paths based on dataset generation
+    if args.dataset_generation == "v2":
+        if args.train is None:
+            args.train = "data/v2_real_world/training/train.jsonl"
+        if args.val is None:
+            args.val = "data/v2_real_world/training/val.jsonl"
+        if args.test is None:
+            args.test = "data/v2_real_world/evaluation/verified_test.jsonl"
+    else:  # v1
+        if args.train is None:
+            args.train = "data/v1_synthetic/ablation/train.jsonl"
+        if args.val is None:
+            args.val = "data/v1_synthetic/ablation/val.jsonl"
+        if args.test is None:
+            args.test = "data/v1_synthetic/benchmark/synthetic_dataset.jsonl"
+
     print("======================================================================", flush=True)
     print("Fine-tuning Dual-Encoder (Ablation Model)", flush=True)
     print("======================================================================", flush=True)
     print(f"Base Model Name  : {args.model_name}", flush=True)
+    print(f"Dataset Gen      : {args.dataset_generation.upper()}", flush=True)
     print(f"Variant          : {args.variant.upper()}", flush=True)
     print(f"Device           : {args.device}", flush=True)
     print(f"Epochs           : {args.epochs}", flush=True)
@@ -272,7 +298,8 @@ def main():
     print(f"Learning Rate    : {args.lr}", flush=True)
     print(f"Dropout          : {args.dropout}", flush=True)
     print(f"Checkpoint Metric: {args.checkpoint_metric}", flush=True)
-    print(f"Clean Docstrings : {args.clean_docstrings}", flush=True)
+    doc_mode_str = "Summary Only (First Sentence)" if args.clean_docstrings else "Full Documentation"
+    print(f"Docstring Mode   : {doc_mode_str} (clean_docstrings={args.clean_docstrings})", flush=True)
     print(f"Freeze Base      : {args.freeze_base}", flush=True)
     print(f"Dry Run Mode     : {args.dry_run}", flush=True)
     print("----------------------------------------------------------------------", flush=True)

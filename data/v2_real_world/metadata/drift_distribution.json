@@ -2,6 +2,15 @@
   "drift_total": 7344,
   "authentic_historical_mined": 2222,
   "contract_grounded_generated": 5122,
+  "raw_counts": {
+    "raw_mined_candidates": 2367,
+    "mined_candidates_purged": 145,
+    "usable_mined_drift": 2222,
+    "raw_generated_candidates": 5133,
+    "generated_candidates_purged": 11,
+    "usable_generated_drift": 5122
+  },
+  "clarification": "5,133 generated raw candidates -> 5,122 usable after leakage purge (11 purged); 2,367 mined raw candidates -> 2,222 usable after leakage purge (145 purged)",
   "contract_violations": {
     "parameter_contract_violation": 1451,
     "return_contract_violation": 1900,

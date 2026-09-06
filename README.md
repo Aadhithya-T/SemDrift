@@ -104,12 +104,12 @@ SemDrift structures dataset curation into **two clearly separated generations**,
              ┌─────────┴─────────┐
             V1 — SYNTHETIC      V2 — REAL-WORLD-
            1,205               GROUNDED
-              │                 ~14,799
+              │                 ~14,796
               │                   │
         Baseline/ablation    ┌────┴─────────┐
                              │              │
                            TRAIN           VAL
-                          13,350          1,449
+                          13,366          1,430
                              │              │
                              └────┬─────────┘
                                   ▼
@@ -131,22 +131,22 @@ SemDrift structures dataset curation into **two clearly separated generations**,
 |:---|:---:|:---|:---|
 | **V1 Benchmark** | 1,205 | Controlled Baseline Evaluation | *"Can the model learn semantic code-documentation consistency under controlled conditions?"* |
 | **V1 Ablation Pool** | 12,102 | Controlled Model Selection & Ablation | Training (9,638), Validation (1,259), Test (1,205) for Dual vs. Joint architecture comparison |
-| **V2 Main Train** | 13,350 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* |
-| **V2 Validation** | 1,449 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by qualified function lineage; 0% train overlap) |
+| **V2 Main Train** | 13,366 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* |
+| **V2 Validation** | 1,430 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by function lineage; 0% train overlap) |
 | **V2 Verified Test** | 101 | **Final Real-World Ground Truth Evaluation** | *"Does the learned model actually generalize to independently human-verified real-world drift?"* |
 
 > [!IMPORTANT]
 > **Strict Evaluation Isolation Guarantee (Zero Leakage)**:
 > The 101 human-verified instances (`14 drift`, `87 clean`) from [`data/v2_real_world/evaluation/verified_test.jsonl`](data/v2_real_world/evaluation/verified_test.jsonl) are held out strictly for final evaluation.
-> All 101 function lineages (`repo::normalized_file_path::qualified_function_name`, e.g. `ClassName.method` or `outer.inner`) are purged from V2 prior to training/validation construction (eliminating 201 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
+> All 101 function lineages (`repo::normalized_file_path::function_name`) are purged from V2 prior to training/validation construction (eliminating 204 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
 
 ### V2 Provenance Breakdown
 
 SemDrift explicitly distinguishes authentic historical git commits from contract-grounded AST mutations:
-* **Authentic Historical Mined Drift**: **2,222** samples mined directly from Git commit diffs across mature open-source repositories.
-* **AST Contract-Grounded Generated Drift**: **5,122** samples synthesized directly on top of authentic repository code via deterministic AST contract mutations (parameter removal, default change, return divergence, exception mismatch).
-* **Historical Clean Negatives**: **7,455** confirmed clean code-docstring pairs.
-* **Total Usable Pool**: **14,799** samples (50.37% clean / 49.63% drift).
+* **Authentic Historical Mined Drift**: **2,222** samples (mined from 2,367 raw historical candidates; 145 purged for zero leakage).
+* **AST Contract-Grounded Generated Drift**: **5,122** samples usable after leakage purge (synthesized from 5,133 generated raw candidates; 11 purged for zero leakage).
+* **Historical Clean Negatives**: **7,452** confirmed clean code-docstring pairs (from 7,500 raw clean candidates; 48 purged for zero leakage).
+* **Total Usable Pool**: **14,796** samples (50.36% clean / 49.64% drift).
 
 ---
 
@@ -255,8 +255,8 @@ SemDrift/
 │   ├── v2_real_world/                # V2 — Real-World-Grounded Dataset
 │   │   ├── raw/                      # repositories/ junction & historical_candidates.jsonl (2,367)
 │   │   ├── mined/                    # filtered_candidates.jsonl
-│   │   ├── generated/                # contract_grounded_drift.jsonl (5,133)
-│   │   ├── training/                 # train.jsonl (13,350) & val.jsonl (1,449)
+│   │   ├── generated/                # contract_grounded_drift.jsonl (5,133 raw; 5,122 usable after purge)
+│   │   ├── training/                 # train.jsonl (13,366) & val.jsonl (1,430)
 │   │   ├── evaluation/               # verified_test.jsonl (101 human-verified ground truth, 0% leakage)
 │   │   └── metadata/                 # dataset_summary.json, drift_distribution.json, repo distribution
 │   └── experiments/v2/               # Historical V1 / Phase-1 benchmark artifacts & ablation checkpoints

@@ -26,13 +26,13 @@ The dataset architecture is organized into two clearly separated generations:
      - Reported joint-vs-dual McNemar result: chi-square 18.76, p = 1.48e-05 (statistically significant).
 
 2. **V2 — Real-World-Grounded Dataset (`data/v2_real_world/`)**:
-   - Main training pool of **14,799** samples partitioned into `training/train.jsonl` (13,350) and `training/val.jsonl` (1,449) using qualified function-lineage grouping (`repo::file_path::qualified_function_name`, e.g. `ClassName.method`).
+   - Main training pool of **14,796** samples partitioned into `training/train.jsonl` (13,366) and `training/val.jsonl` (1,430) using function-lineage grouping (`repo::file_path::function_name`).
    - Provenance explicitly distinguished:
-     - **2,222** authentic mined Git evolution commits (`drift_source: "authentic_historical_mined"`).
-     - **5,122** realistic AST contract-grounded drift mutations (`drift_source: "contract_grounded_generated"`).
-     - **7,455** confirmed clean negative samples.
+     - **2,222** authentic mined Git evolution commits (from 2,367 raw candidates; 145 purged for zero leakage).
+     - **5,122** realistic AST contract-grounded drift mutations (from 5,133 generated raw candidates; 11 purged for zero leakage).
+     - **7,452** confirmed clean negative samples (from 7,500 raw candidates; 48 purged for zero leakage).
    - Final evaluation test set: `evaluation/verified_test.jsonl` with **101** 100% human-verified samples (14 drift, 87 clean).
-   - Zero-leakage guarantee: All 101 test function lineages were purged from V2 prior to training/validation generation (eliminating 201 candidate rows). Overlap between train/val and test is mathematically 0.
+   - Zero-leakage guarantee: All 101 test function lineages were purged from V2 prior to training/validation generation (eliminating 204 candidate rows). Overlap between train/val and test is mathematically 0.
 
 Datasets and metadata are managed via `scripts/data_pipeline/setup_dataset_architecture.py` and validated by `tests/test_dataset_architecture.py`.
 

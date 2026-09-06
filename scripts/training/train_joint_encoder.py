@@ -270,9 +270,12 @@ def main():
                         help="Disable sample loss weighting across categories")
 
     # Flags
+    parser.add_argument("--clean_docstrings", dest="clean_docstrings",
+                        action="store_true", default=None,
+                        help="Extract summary line from docstrings (default: True for V1, False for V2)")
     parser.add_argument("--no_clean_docstrings", dest="clean_docstrings",
-                        action="store_false", default=True,
-                        help="Disable docstring summary extraction (use full docstrings)")
+                        action="store_false",
+                        help="Train/evaluate on full docstrings (default for V2)")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda / cpu)")
     parser.add_argument("--output_dir", default="data/experiments/v2/joint_encoder_results",
                         help="Directory to write predictions and results")
@@ -282,6 +285,10 @@ def main():
 
     args = parser.parse_args()
     set_seed(args.seed)
+
+    # V2 must train on full docstrings by default; V1 uses summary docstrings
+    if args.clean_docstrings is None:
+        args.clean_docstrings = (args.dataset_generation != "v2")
 
     # Resolve dataset paths based on generation
     if args.dataset_generation == "v2":
@@ -308,6 +315,7 @@ def main():
     print("Fine-Tuned Joint-Encoder (Primary Contribution) — V2 Pipeline", flush=True)
     print("=" * 70, flush=True)
     print(f"Base Model        : {args.model_name}", flush=True)
+    print(f"Dataset Gen       : {args.dataset_generation.upper()}", flush=True)
     print(f"Pooling Strategy  : {args.pooling.upper()}", flush=True)
     print(f"Code Truncation   : {args.code_truncation}", flush=True)
     print(f"Doc Max Tokens    : {args.doc_max_tokens}", flush=True)
@@ -319,7 +327,8 @@ def main():
     print(f"Epochs            : {args.epochs}", flush=True)
     print(f"Batch Size        : {args.batch_size}", flush=True)
     print(f"Learning Rate     : {args.lr}", flush=True)
-    print(f"Clean Docstrings  : {args.clean_docstrings}", flush=True)
+    doc_mode_str = "Summary Only (First Sentence)" if args.clean_docstrings else "Full Documentation"
+    print(f"Docstring Mode    : {doc_mode_str} (clean_docstrings={args.clean_docstrings})", flush=True)
     print(f"Dry Run Mode      : {args.dry_run}", flush=True)
     print("-" * 70, flush=True)
 

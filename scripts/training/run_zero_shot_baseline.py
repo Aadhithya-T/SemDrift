@@ -220,7 +220,10 @@ def main():
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for embedding")
     parser.add_argument("--pooling", choices=["mean", "cls"], default="mean", help="Pooling strategy")
     parser.add_argument("--metric", choices=["accuracy", "balanced_accuracy", "macro_f1", "f1"], default="balanced_accuracy", help="Sweep target metric")
-    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false", default=True, help="Disable extracting summary from docstrings (use full docstrings)")
+    parser.add_argument("--clean_docstrings", dest="clean_docstrings", action="store_true", default=None,
+                        help="Extract summary line from docstrings (default: True for V1, False for V2)")
+    parser.add_argument("--no_clean_docstrings", dest="clean_docstrings", action="store_false",
+                        help="Disable extracting summary from docstrings (use full docstrings)")
     parser.add_argument("--normalize", action="store_true", default=True, help="Apply L2 normalization")
     parser.add_argument("--mean_center", action="store_true", default=True, help="Apply mean centering to mitigate CodeBERT anisotropy")
     parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device (cuda/cpu)")
@@ -229,6 +232,10 @@ def main():
     args = parser.parse_args()
 
     set_seed(args.seed)
+
+    # V2 must evaluate on full docstrings by default; V1 uses summary docstrings
+    if args.clean_docstrings is None:
+        args.clean_docstrings = (args.dataset_generation != "v2")
 
     # Resolve dataset paths based on generation
     if args.dataset_generation == "v2":
@@ -249,10 +256,12 @@ def main():
     print("Zero-Shot Baseline — Dual-Encoder Cosine Similarity Evaluation", flush=True)
     print("======================================================================", flush=True)
     print(f"Model Name       : {model_name}", flush=True)
+    print(f"Dataset Gen      : {args.dataset_generation.upper()}", flush=True)
     print(f"Device           : {args.device}", flush=True)
     print(f"Pooling          : {args.pooling}", flush=True)
     print(f"Batch Size       : {args.batch_size}", flush=True)
-    print(f"Clean Docstrings : {args.clean_docstrings}", flush=True)
+    doc_mode_str = "Summary Only (First Sentence)" if args.clean_docstrings else "Full Documentation"
+    print(f"Docstring Mode   : {doc_mode_str} (clean_docstrings={args.clean_docstrings})", flush=True)
     print(f"L2 Normalization : {args.normalize}", flush=True)
     print(f"Mean Centering   : {args.mean_center}", flush=True)
     print(f"Sweep Metric     : {args.metric}", flush=True)

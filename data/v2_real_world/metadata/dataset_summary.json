@@ -1,24 +1,27 @@
 {
   "dataset_name": "SemDrift V2 Real-World-Grounded Dataset",
   "description": "Main training, validation, and evaluation pool combining authentic mined git evolution and AST contract-grounded drift.",
-  "total_instances": 14799,
+  "total_instances": 14796,
   "partitions": {
-    "train": 13350,
-    "val": 1449,
+    "train": 13366,
+    "val": 1430,
     "verified_test": 101
   },
   "drift": {
     "total": 7344,
     "authentic_historical_mined": 2222,
-    "contract_grounded_generated": 5122
+    "contract_grounded_generated": 5122,
+    "raw_generated_candidates": 5133,
+    "raw_mined_candidates": 2367,
+    "clarification": "5,133 generated raw candidates -> 5,122 usable after leakage purge (11 purged); 2,367 mined raw candidates -> 2,222 usable after leakage purge (145 purged)"
   },
   "clean": {
-    "total": 7455,
-    "historical_clean": 7455
+    "total": 7452,
+    "historical_clean": 7452
   },
   "zero_leakage_guarantee": {
     "verified_test_lineages": 101,
-    "candidates_purged_for_leakage": 201,
+    "candidates_purged_for_leakage": 204,
     "train_val_overlap": 0,
     "train_test_overlap": 0,
     "val_test_overlap": 0

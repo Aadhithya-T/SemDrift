@@ -14,12 +14,12 @@
              ▼                   ▼
        V1 — SYNTHETIC      V2 — REAL-WORLD-
           1,205               GROUNDED
-             │                 ~14,799
+             │                 ~14,796
              │                   │
        Baseline/ablation    ┌────┴─────────┐
                             │              │
                           TRAIN           VAL
-                         13,350          1,449
+                         13,366          1,430
                             │              │
                             └────┬─────────┘
                                  ▼
@@ -48,14 +48,14 @@
 data/v2_real_world/
 ├── raw/
 │   ├── repositories/                 # Directory junction / link to data/raw_repos/
-│   └── historical_candidates.jsonl   # N = 2,367 authentic mined git evolution diffs
+│   └── historical_candidates.jsonl   # N = 2,367 raw mined git evolution diffs (2,222 usable)
 ├── mined/
 │   └── filtered_candidates.jsonl     # Filtered mined candidate pool
 ├── generated/
-│   └── contract_grounded_drift.jsonl # N = 5,133 realistic AST contract-grounded drift samples
+│   └── contract_grounded_drift.jsonl # N = 5,133 generated raw candidates (5,122 usable after leakage purge)
 ├── training/
-│   ├── train.jsonl                   # N = 13,350 samples (function-lineage grouped, balanced)
-│   └── val.jsonl                     # N = 1,449 samples (function-lineage grouped, balanced)
+│   ├── train.jsonl                   # N = 13,366 samples (function-lineage grouped, balanced)
+│   └── val.jsonl                     # N = 1,430 samples (function-lineage grouped, balanced)
 ├── evaluation/
 │   └── verified_test.jsonl           # N = 101 human-verified test samples (100% held out)
 └── metadata/
@@ -72,11 +72,11 @@ SemDrift explicitly distinguishes authentic historical git commits from contract
 
 | Component | Count ($N$) | Percentage of Drift | Description |
 |:---|:---:|:---:|:---|
-| **Authentic Historical Mined Drift** | **2,222** | 30.25% | Mined directly from Git commit history where code changed and docstrings fell out of sync |
-| **AST Contract-Grounded Generated Drift** | **5,122** | 69.75% | Realistic synthetic mutations applied to authentic code using deterministic AST contract rules |
+| **Authentic Historical Mined Drift** | **2,222** | 30.25% | Mined directly from Git commit history (from 2,367 raw candidates; 145 purged for zero leakage) |
+| **AST Contract-Grounded Generated Drift** | **5,122** | 69.75% | Realistic synthetic mutations on authentic code (from 5,133 generated raw candidates; 11 purged for zero leakage) |
 | **Total Usable Drift Positives** | **7,344** | 100.0% | Complete drift positive training/validation pool |
-| **Historical Clean Negatives** | **7,455** | — | Clean code-docstring pairs (refactorings, optimizations, typing) |
-| **Total Usable V2 Pool** | **14,799** | — | **50.37% Clean / 49.63% Drift** |
+| **Historical Clean Negatives** | **7,452** | — | Clean code-docstring pairs (from 7,500 raw candidates; 48 purged for zero leakage) |
+| **Total Usable V2 Pool** | **14,796** | — | **50.36% Clean / 49.64% Drift** |
 
 ### AST Contract Violation Rules:
 1. `parameter_contract_violation` ($N = 1,451$): Parameter dropped or renamed in signature while preserved in docstring.
@@ -90,12 +90,12 @@ SemDrift explicitly distinguishes authentic historical git commits from contract
 
 1. **Robust Function Lineage Identity**:
    ```python
-   lineage_key = f"{normalized_repo}::{normalized_file_path}::{qualified_function_name}"
+   lineage_key = f"{normalized_repo}::{normalized_file_path}::{function_name}"
    ```
-   Uses AST-level qualified function naming (`ClassName.method` or `outer.inner`) and normalizes paths. Omitting `lineno` ensures functions that move across lines between commits share the exact same identity without collapsing unrelated functions sharing generic names.
+   Omitting `lineno` ensures functions that move across lines between commits share the exact same identity.
 
 2. **Pre-Generation Exclusion of the 101 Test Set**:
-   Before generating V2 train/val splits, all 101 verified test lineages were extracted into an exclusion set. **201 candidate rows** matching these lineages were completely purged from the 15k pool.
+   Before generating V2 train/val splits, all 101 verified test lineages were extracted into an exclusion set. **204 candidate rows** matching these lineages were completely purged from the 15k pool (156 drift + 48 clean).
 
 3. **Mathematical Invariant Verification**:
    - $\text{Lineages}(\text{Train}) \cap \text{Lineages}(\text{Val}) = \emptyset$ (0 overlapping lineages)
