@@ -13,15 +13,28 @@ SemDrift detects semantic drift between Python function code and its docstrings:
 5. Analysis scripts calculate standard metrics, drift-type/severity/repository breakdowns, bootstrap confidence intervals, McNemar tests, and IEEE LaTeX tables.
 
 ## Data and reported results
-The V2 benchmark is documented as a clean 10-repository test set with **1,205** examples. Main drift categories are `param_rename`, `return_value_change`, `doc_sentence_delete`, and `doc_negation`, with `aligned` negatives. The README reports:
+The dataset architecture is organized into two clearly separated generations:
 
-- Zero-shot dual encoder: accuracy 44.56%, F1 36.86%.
-- Fine-tuned dual encoder: accuracy 80.41%, F1 77.61%.
-- Fine-tuned joint encoder: accuracy 85.06%, F1 83.58%, macro-F1 84.94%.
-- Reported joint-vs-zero-shot McNemar result: chi-square 372.91, p = 4.36e-83.
-- `doc_negation` is the weakest reported joint category (F1 31.86%), so it remains a key robustness concern.
+1. **V1 — Synthetic Dataset (`data/v1_synthetic/`)**:
+   - Controlled evaluation benchmark of **1,205** examples (597 aligned, 608 synthetic drift across `param_rename`, `return_value_change`, `doc_sentence_delete`, and `doc_negation`).
+   - Reference aligned functions: `raw/original_aligned.jsonl` (597 functions).
+   - Controlled ablation training splits: `ablation/train.jsonl` (9,638), `ablation/val.jsonl` (1,259), and `ablation/test.jsonl` (1,205).
+   - Controlled ablation results on V1 (CE objective, seed=42):
+     - Zero-shot dual encoder: accuracy 44.56%, F1 36.86%.
+     - Fine-tuned dual encoder (CE): accuracy 80.91%, F1 78.34%.
+     - Fine-tuned joint encoder (CE): accuracy 85.06%, F1 83.67%, macro-F1 84.95%.
+     - Reported joint-vs-dual McNemar result: chi-square 18.76, p = 1.48e-05 (statistically significant).
 
-Datasets, predictions, checkpoints/results, JSON benchmark data, and LaTeX tables are stored under `data/`, especially `data/experiments/v2/`. Raw Python and Java repositories are also present. The checked-in README and actual workspace layout differ in places: current workflow scripts are directly under `scripts/`, while the README describes subdirectories such as `scripts/training` and `scripts/data_pipeline`.
+2. **V2 — Real-World-Grounded Dataset (`data/v2_real_world/`)**:
+   - Main training pool of **14,796** samples partitioned into `training/train.jsonl` (13,366) and `training/val.jsonl` (1,430) using function-lineage grouping (`repo::file_path::function_name`).
+   - Provenance explicitly distinguished:
+     - **2,222** authentic mined Git evolution commits (`drift_source: "authentic_historical_mined"`).
+     - **5,122** realistic AST contract-grounded drift mutations (`drift_source: "contract_grounded_generated"`).
+     - **7,452** confirmed clean negative samples.
+   - Final evaluation test set: `evaluation/verified_test.jsonl` with **101** 100% human-verified samples (14 drift, 87 clean).
+   - Zero-leakage guarantee: All 101 test function lineages were purged from V2 prior to training/validation generation (eliminating 204 candidate rows). Overlap between train/val and test is mathematically 0.
+
+Datasets and metadata are managed via `scripts/data_pipeline/setup_dataset_architecture.py` and validated by `tests/test_dataset_architecture.py`.
 
 ## Current implementation status
 The parser and model utility modules contain substantial implementation and are the strongest usable parts of the project. Training and evaluation scripts exist at the top level of `scripts/`, including Java extraction/parser test utilities. However, `semdrift.pipeline.Pipeline` is only a skeleton: `_parse`, `_embed`, and `_compare` raise `NotImplementedError`, and the comparator package has no visible concrete scoring implementation in its package initializer. The documented end-to-end `Pipeline` API therefore is not operational as written; practical execution currently goes through the scripts and direct parser/model APIs.

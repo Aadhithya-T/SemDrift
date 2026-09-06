@@ -2,7 +2,7 @@
 
 **SemDrift Research Benchmark — Phase 1 Controlled Experiment**  
 *Evaluation Timestamp: September 2, 2026*  
-*Dataset: 10-Repository Zero-Leakage Benchmark (`data/experiments/v2/test.jsonl`, $N = 1,205$)*
+*Dataset: V1 Synthetic Controlled Benchmark (`data/v1_synthetic/benchmark/synthetic_dataset.jsonl` / `data/v1_synthetic/ablation/test.jsonl`, $N = 1,205$)*
 
 ---
 
@@ -28,7 +28,7 @@ Every variable between the two models was strictly held constant:
 | Experimental Parameter | Dual-Encoder (Ablation) | Joint-Encoder (Controlled) | Status |
 | :--- | :---: | :---: | :---: |
 | **Model Backbone** | `microsoft/codebert-base` | `microsoft/codebert-base` | Identical |
-| **Data Split** | `data/experiments/v2/` | `data/experiments/v2/` | Identical ($N=1,205$) |
+| **Data Split** | `data/v1_synthetic/` (or `data/experiments/v2/`) | `data/v1_synthetic/` (or `data/experiments/v2/`) | Identical ($N=1,205$) |
 | **Random Seed** | `42` | `42` | Identical |
 | **Training Objective** | Standard `CrossEntropyLoss` | Standard `CrossEntropyLoss` | **Identical (Unweighted)** |
 | **Focal Loss** | **OFF** | **OFF** (`--no_focal_loss`) | **Identical** |

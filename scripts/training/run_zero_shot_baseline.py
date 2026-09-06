@@ -213,8 +213,10 @@ def set_seed(seed=42):
 
 def main():
     parser = argparse.ArgumentParser(description="Run Model A (Baseline) Evaluation")
-    parser.add_argument("--val", default="data/experiments/v2/val.jsonl", help="Validation dataset path")
-    parser.add_argument("--test", default="data/experiments/v2/test.jsonl", help="Test dataset path")
+    parser.add_argument("--dataset_generation", choices=["v1", "v2"], default="v2",
+                        help="Dataset generation: 'v1' (controlled synthetic) or 'v2' (real-world-grounded)")
+    parser.add_argument("--val", default=None, help="Validation dataset path (defaults to selected dataset_generation)")
+    parser.add_argument("--test", default=None, help="Test dataset path (defaults to selected dataset_generation)")
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for embedding")
     parser.add_argument("--pooling", choices=["mean", "cls"], default="mean", help="Pooling strategy")
     parser.add_argument("--metric", choices=["accuracy", "balanced_accuracy", "macro_f1", "f1"], default="balanced_accuracy", help="Sweep target metric")
@@ -227,6 +229,18 @@ def main():
     args = parser.parse_args()
 
     set_seed(args.seed)
+
+    # Resolve dataset paths based on generation
+    if args.dataset_generation == "v2":
+        if args.val is None:
+            args.val = "data/v2_real_world/training/val.jsonl"
+        if args.test is None:
+            args.test = "data/v2_real_world/evaluation/verified_test.jsonl"
+    else:  # v1
+        if args.val is None:
+            args.val = "data/v1_synthetic/ablation/val.jsonl"
+        if args.test is None:
+            args.test = "data/v1_synthetic/benchmark/synthetic_dataset.jsonl"
 
     config = load_config()
     model_name = config.get("embedder", {}).get("model_name", "microsoft/codebert-base")

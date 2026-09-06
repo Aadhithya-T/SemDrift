@@ -1,0 +1,34 @@
+{
+  "training": {
+    "django": 4466,
+    "pytest": 1156,
+    "sqlalchemy": 2191,
+    "celery": 9,
+    "click": 241,
+    "tornado": 66,
+    "numpy": 1036,
+    "scikit-learn": 1498,
+    "pandas": 2378,
+    "fastapi": 63,
+    "flask": 146,
+    "requests": 116
+  },
+  "validation": {
+    "sqlalchemy": 194,
+    "click": 29,
+    "pytest": 129,
+    "tornado": 10,
+    "django": 470,
+    "scikit-learn": 183,
+    "pandas": 270,
+    "fastapi": 5,
+    "flask": 15,
+    "numpy": 114,
+    "requests": 11
+  },
+  "verified_test": {
+    "click": 19,
+    "fastapi": 7,
+    "django": 75
+  }
+}

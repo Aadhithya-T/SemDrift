@@ -227,9 +227,11 @@ def main():
     )
 
     # Data
-    parser.add_argument("--train", default="data/experiments/v2/train.jsonl", help="Train dataset")
-    parser.add_argument("--val", default="data/experiments/v2/val.jsonl", help="Validation dataset")
-    parser.add_argument("--test", default="data/experiments/v2/test.jsonl", help="Test dataset")
+    parser.add_argument("--dataset_generation", choices=["v1", "v2"], default="v2",
+                        help="Dataset generation: 'v1' (controlled synthetic) or 'v2' (real-world-grounded)")
+    parser.add_argument("--train", default=None, help="Train dataset (defaults to selected dataset_generation)")
+    parser.add_argument("--val", default=None, help="Validation dataset (defaults to selected dataset_generation)")
+    parser.add_argument("--test", default=None, help="Test dataset (defaults to selected dataset_generation)")
 
     # Architecture & Tokenization configs
     parser.add_argument("--model_name", default="microsoft/codebert-base",
@@ -280,6 +282,22 @@ def main():
 
     args = parser.parse_args()
     set_seed(args.seed)
+
+    # Resolve dataset paths based on generation
+    if args.dataset_generation == "v2":
+        if args.train is None:
+            args.train = "data/v2_real_world/training/train.jsonl"
+        if args.val is None:
+            args.val = "data/v2_real_world/training/val.jsonl"
+        if args.test is None:
+            args.test = "data/v2_real_world/evaluation/verified_test.jsonl"
+    else:  # v1
+        if args.train is None:
+            args.train = "data/v1_synthetic/ablation/train.jsonl"
+        if args.val is None:
+            args.val = "data/v1_synthetic/ablation/val.jsonl"
+        if args.test is None:
+            args.test = "data/v1_synthetic/benchmark/synthetic_dataset.jsonl"
 
     # Force clip max_length to 512 to avoid index out of bound for CodeBERT positional embeddings
     if args.max_length > 512:

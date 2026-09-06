@@ -1,6 +1,13 @@
-# Real-Time Balanced Python Documentation Drift Dataset (15,000 Samples)
+# Real-Time Balanced Python Documentation Drift Dataset (15,000 Raw Pool)
 
-This directory contains the balanced **15,000 real-time dataset** (50% Drift Positives, 50% Clean Negatives) tailored specifically for training neural classifiers such as CodeBERT, GraphCodeBERT, and RoBERTa.
+> [!NOTE]
+> **Active Architecture Notice**:
+> This directory houses the unpartitioned raw 15,000 sample pool. For official training, validation, and evaluation, use [`data/v2_real_world/`](../v2_real_world/), where:
+> - All 101 verified test lineages were purged prior to generation (204 leaking candidates removed, leaving 14,796 clean non-leaking samples).
+> - Partitions are strictly grouped by function lineage into `training/train.jsonl` (13,366) and `training/val.jsonl` (1,430).
+> - Evaluation is strictly isolated in `evaluation/verified_test.jsonl` (101).
+
+This directory contains the raw balanced **15,000 dataset** (50% Drift Positives, 50% Clean Negatives) prior to test set lineage isolation.
 
 ---
 

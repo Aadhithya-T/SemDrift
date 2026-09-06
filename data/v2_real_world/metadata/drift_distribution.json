@@ -1,0 +1,11 @@
+{
+  "drift_total": 7344,
+  "authentic_historical_mined": 2222,
+  "contract_grounded_generated": 5122,
+  "contract_violations": {
+    "parameter_contract_violation": 1451,
+    "return_contract_violation": 1900,
+    "raises_contract_violation": 1642,
+    "default_contract_violation": 1430
+  }
+}

@@ -94,6 +94,64 @@ Evaluated on $N = 1,205$ test instances from 10 distinct open-source projects (z
 
 ---
 
+## 📊 Dataset Architecture: Two Separated Generations
+
+SemDrift structures dataset curation into **two clearly separated generations**, strictly isolating controlled synthetic experimentation from real-world-grounded learning and final evaluation.
+
+```text
+                    SEMDRIFT
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+             ▼                   ▼
+       V1 — SYNTHETIC      V2 — REAL-WORLD-
+          1,205               GROUNDED
+             │                 ~14,796
+             │                   │
+       Baseline/ablation    ┌────┴────┐
+                            │         │
+                          TRAIN      VAL
+                         13,366     1,430
+                            │         │
+                            └────┬────┘
+                                 ▼
+                           TRAIN MODEL
+                                 │
+                                 ▼
+                            FINAL MODEL
+                                 │
+                                 ▼
+                         ┌───────────────┐
+                         │ 101 VERIFIED  │
+                         │   TEST ONLY   │
+                         └───────────────┘
+```
+
+### Dataset Roles & Research Objectives
+
+| Dataset Partition | Size ($N$) | Purpose | Question Answered |
+|:---|:---:|:---|:---|
+| **V1 Benchmark** | 1,205 | Controlled Baseline Evaluation | *"Can the model learn semantic code-documentation consistency under controlled conditions?"* |
+| **V1 Ablation Pool** | 12,102 | Controlled Model Selection & Ablation | Training (9,638), Validation (1,259), Test (1,205) for Dual vs. Joint architecture comparison |
+| **V2 Main Train** | 13,366 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* |
+| **V2 Validation** | 1,430 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by function lineage; 0% train overlap) |
+| **V2 Verified Test** | 101 | **Final Real-World Ground Truth Evaluation** | *"Does the learned model actually generalize to independently human-verified real-world drift?"* |
+
+> [!IMPORTANT]
+> **Strict Evaluation Isolation Guarantee (Zero Leakage)**:
+> The 101 human-verified instances (`14 drift`, `87 clean`) from [`data/v2_real_world/evaluation/verified_test.jsonl`](data/v2_real_world/evaluation/verified_test.jsonl) are held out strictly for final evaluation.
+> All 101 function lineages (`repo::file_path::function_name`) are purged from V2 prior to training/validation construction (eliminating 204 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
+
+### V2 Provenance Breakdown
+
+SemDrift explicitly distinguishes authentic historical git commits from contract-grounded AST mutations:
+* **Authentic Historical Mined Drift**: **2,222** samples mined directly from Git commit diffs across mature open-source repositories.
+* **AST Contract-Grounded Generated Drift**: **5,122** samples synthesized directly on top of authentic repository code via deterministic AST contract mutations (parameter removal, default change, return divergence, exception mismatch).
+* **Historical Clean Negatives**: **7,452** confirmed clean code-docstring pairs.
+* **Total Usable Pool**: **14,796** samples (50.36% clean / 49.64% drift).
+
+---
+
 ## 🏗️ Model Architectures & Workflows
 
 ```
@@ -184,13 +242,26 @@ SemDrift/
 │   ├── train_joint_encoder.py        # Top-level execution shim
 │   ├── train_dual_encoder.py         # Top-level execution shim
 │   └── run_zero_shot_baseline.py     # Top-level execution shim
-├── tests/                            # Unit Test Suite (51 tests)
+├── tests/                            # Unit Test Suite
 │   ├── test_parser.py                # AST & docstring extraction tests
 │   ├── test_embedder.py              # Embedding & model loading tests
 │   ├── test_comparator.py            # Comparator unit tests
-│   └── test_v2_updates.py            # Head-tail truncation, doc stripping & metrics
-├── data/                             # Datasets & Model Checkpoints
-│   └── experiments/v2/               # 10-Repository Zero-Leakage Dataset & Runs
+│   ├── test_v2_updates.py            # Head-tail truncation, doc stripping & metrics
+│   └── test_dataset_architecture.py  # Dataset architecture invariants & zero-leakage tests
+├── data/                             # Two-Generation Dataset Architecture
+│   ├── v1_synthetic/                 # V1 — Synthetic Controlled Benchmark
+│   │   ├── benchmark/                # 1,205 synthetic benchmark (597 aligned + 608 drift)
+│   │   ├── raw/                      # 597 original aligned functions
+│   │   ├── ablation/                 # Controlled ablation splits (9,638 train / 1,259 val / 1,205 test)
+│   │   └── metadata/                 # dataset_summary.json & mutation_distribution.json
+│   ├── v2_real_world/                # V2 — Real-World-Grounded Dataset
+│   │   ├── raw/                      # repositories/ junction & historical_candidates.jsonl (2,367)
+│   │   ├── mined/                    # filtered_candidates.jsonl
+│   │   ├── generated/                # contract_grounded_drift.jsonl (5,133)
+│   │   ├── training/                 # train.jsonl (13,366) & val.jsonl (1,430)
+│   │   ├── evaluation/               # verified_test.jsonl (101 human-verified ground truth, 0% leakage)
+│   │   └── metadata/                 # dataset_summary.json, drift_distribution.json, repo distribution
+│   └── experiments/v2/               # Historical experiment outputs & ablation checkpoints
 ├── Results - Thunder.md              # Controlled Ablation Experiment Report
 ├── config.yaml                       # Global pipeline configuration
 ├── requirements.txt                  # Python dependencies
@@ -212,10 +283,14 @@ cd SemDrift
 pip install -r requirements.txt
 ```
 
-### 2. Run Unit Tests (51 Tests)
+### 2. Build / Verify Dataset Architecture & Invariants
 
 ```bash
-python -m pytest tests/
+# Setup both V1 Synthetic and V2 Real-World-Grounded datasets with assertion checks
+python scripts/data_pipeline/setup_dataset_architecture.py
+
+# Run unit tests including zero-leakage and mathematical partition assertions
+python -m unittest discover tests/
 ```
 
 ### 3. Automated One-Click Runners

@@ -1,0 +1,32 @@
+{
+  "dataset_name": "SemDrift V1 Synthetic Dataset (Controlled Baseline & Ablation Benchmark)",
+  "purpose": "Controlled synthetic experiment to evaluate model learning under known mutation operators",
+  "benchmark_samples": 1205,
+  "aligned_count": 597,
+  "drifted_count": 608,
+  "drift_ratio": 0.5046,
+  "mutation_distribution": {
+    "return_value_change": 139,
+    "param_rename": 221,
+    "doc_negation": 95,
+    "doc_sentence_delete": 153
+  },
+  "ablation_splits": {
+    "train": 9638,
+    "val": 1259,
+    "test": 1205,
+    "total": 12102
+  },
+  "repositories": [
+    "click",
+    "django",
+    "fastapi",
+    "flask",
+    "numpy",
+    "pandas",
+    "pytest",
+    "requests",
+    "scikit-learn",
+    "sqlalchemy"
+  ]
+}

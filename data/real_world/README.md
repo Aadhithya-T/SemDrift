@@ -1,5 +1,10 @@
 # Real-World Documentation Drift Datasets
 
+> [!NOTE]
+> **Active Architecture Notice**:
+> The 101 human-verified test samples in this directory (`verified_dataset.jsonl`) are now formally isolated under [`data/v2_real_world/evaluation/verified_test.jsonl`](../v2_real_world/evaluation/verified_test.jsonl) as the official ground truth real-world evaluation benchmark.
+> All 101 function lineages are guaranteed 0% leakage with training and validation splits.
+
 This directory contains real-world Python documentation-drift datasets mined from the complete Git commit histories of 7 mature open-source repositories (**Django**, **SQLAlchemy**, **Pytest**, **Celery**, **Tornado**, **Click**, and **FastAPI**).
 
 ---

@@ -1,16 +1,17 @@
 """V2 Dataset Splitter for SemDrift.
 
-Produces the 3 evaluation splits requested in the research roadmap:
-1. Function-Held-Out Split (data/experiments/v2_function_split/):
-   - Deterministic hash grouping on function identity (repo + file + lineno)
-   - Prevents mutation variants from leaking across train/val/test (80/10/10)
+Produces the evaluation splits requested in the research roadmap:
+1. Function-Lineage Grouped Split (data/v2_real_world/training/):
+   - Deterministic hash grouping on robust function identity (repo + file_path + function_name)
+   - Eliminates line-number shift vulnerabilities across commits
+   - Guarantees 0% leakage across train and val
 
-2. Repository-Held-Out Split (data/experiments/v2_repo_split/):
+2. Repository-Held-Out Split (data/v2_real_world/repo_split/):
    - Leave-Out Repositories for true cross-project zero-shot evaluation
    - Train on 8 repos, Test on 2 completely unseen repos (e.g. requests, flask)
 
-3. Real-World Evaluation Benchmark:
-   - Evaluates trained models directly on data/real_world/verified_dataset.jsonl (N=101)
+3. Real-World-Grounded Evaluation Benchmark:
+   - Evaluates trained models directly on data/v2_real_world/evaluation/verified_test.jsonl (N=101, 100% human-verified)
 """
 
 import argparse
@@ -21,12 +22,16 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List, Set
 
+from scripts.data_pipeline.setup_dataset_architecture import (
+    get_function_lineage,
+    norm_repo,
+    norm_file_path,
+)
+
 
 def get_function_key(row: dict) -> str:
-    """Stable identity for the ORIGINAL function, independent of mutation."""
-    if row.get("function_id"):
-        return str(row["function_id"])
-    return f"{row.get('repo')}::{row.get('file')}::{row.get('lineno')}"
+    """Stable lineage identity for function, immune to line-number shifts."""
+    return get_function_lineage(row)
 
 
 def get_function_split(function_key: str, train: float = 0.8, val: float = 0.1) -> str:
