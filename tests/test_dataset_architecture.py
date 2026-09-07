@@ -176,6 +176,30 @@ class TestDatasetArchitecture(unittest.TestCase):
         self.assertEqual(summary["zero_leakage_guarantee"]["train_test_overlap"], 0)
         self.assertEqual(summary["zero_leakage_guarantee"]["val_test_overlap"], 0)
 
+    def test_clean_v2_canonical_manifest_and_splits(self):
+        """Verify the clean-slate V2 canonical dataset, manifest, and 104-instance test set."""
+        import yaml
+        exp_dir = PROJECT_ROOT / "experiments" / "2026-09-07_clean_v2"
+        manifest_file = exp_dir / "config" / "manifest.yaml"
+        self.assertTrue(manifest_file.is_file(), "Canonical manifest.yaml missing")
+
+        with manifest_file.open("r", encoding="utf-8") as f:
+            manifest = yaml.safe_load(f)
+
+        d = manifest["dataset"]
+        self.assertEqual(d["train_samples"], 24229)
+        self.assertEqual(d["val_samples"], 2636)
+        self.assertEqual(d["test_samples"], 104)
+        self.assertEqual(d["test_labels"]["aligned"], 52)
+        self.assertEqual(d["test_labels"]["drifted"], 52)
+        self.assertEqual(d["provenance_distribution"]["test"]["authentic_historical_mined"], 52)
+
+        # Check canonical test file on disk
+        test_file = exp_dir / "dataset" / "verified_test.jsonl"
+        self.assertTrue(test_file.is_file())
+        test_rows = load_jsonl(test_file)
+        self.assertEqual(len(test_rows), d["test_samples"])
+
 
 if __name__ == "__main__":
     unittest.main()

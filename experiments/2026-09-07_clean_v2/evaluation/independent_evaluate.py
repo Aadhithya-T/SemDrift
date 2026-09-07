@@ -30,14 +30,23 @@ from transformers import AutoTokenizer
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import yaml
+
 from semdrift.models.joint_encoder import JointEncoderModel, make_collate_fn
-from semdrift.data.integrity import verify_dataset_integrity
+from semdrift.data.integrity import (
+    verify_dataset_integrity,
+    verify_checkpoint_integrity,
+    CheckpointIntegrityError,
+    DatasetIntegrityError,
+)
 from scripts.training.train_joint_encoder import SemDriftDataset, calculate_metrics, evaluate_breakdowns
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Independent Clean-Slate V2 Evaluation")
     parser.add_argument("--checkpoint", default="experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt")
+    parser.add_argument("--training_run", default="experiments/2026-09-07_clean_v2/checkpoints/training_run.json")
+    parser.add_argument("--manifest", default="experiments/2026-09-07_clean_v2/config/manifest.yaml")
     parser.add_argument("--test_file", default="experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl")
     parser.add_argument("--output_results", default="experiments/2026-09-07_clean_v2/evaluation/eval_results.json")
     parser.add_argument("--output_preds", default="experiments/2026-09-07_clean_v2/predictions/independent_predictions.jsonl")
@@ -55,28 +64,56 @@ def main():
     
     ckpt_path = PROJECT_ROOT / args.checkpoint
     test_path = PROJECT_ROOT / args.test_file
+    run_record_path = PROJECT_ROOT / args.training_run
+    manifest_path = PROJECT_ROOT / args.manifest
     
-    assert ckpt_path.is_file(), f"Checkpoint not found at: {ckpt_path}"
     assert test_path.is_file(), f"Test set not found at: {test_path}"
+    assert manifest_path.is_file(), f"Manifest not found at: {manifest_path}"
     
     print("=" * 70)
     print("SEMDRIFT INDEPENDENT EVALUATION (CLEAN-SLATE V2)")
     print(f"Checkpoint : {ckpt_path}")
+    print(f"Run Record : {run_record_path}")
+    print(f"Manifest   : {manifest_path}")
     print(f"Test Set   : {test_path}")
     print(f"Device     : {args.device}")
     print("=" * 70)
     
-    # 1. Authoritative Dataset Integrity Verification Gate
-    print(f"Verifying cryptographic integrity gate for {test_path.parent}...", flush=True)
-    verify_dataset_integrity(test_path.parent, required_files=[test_path.name])
-    print("  -> Cryptographic integrity verified (Layer A + Layer B).", flush=True)
+    # ------------------------------------------------------------------
+    # 1. Authoritative Dataset Integrity Verification Gate (Layer A + B)
+    # ------------------------------------------------------------------
+    print(f"Verifying cryptographic dataset integrity for {test_path.parent}...", flush=True)
+    verify_dataset_integrity(test_path.parent, manifest_path=manifest_path, required_files=[test_path.name])
+    print("  -> Dataset cryptographic integrity verified (Layer A + Layer B).", flush=True)
     
-    # 2. Load Dataset
+    # ------------------------------------------------------------------
+    # 2. Dynamic Test Count Validation from Manifest
+    # ------------------------------------------------------------------
+    with manifest_path.open("r", encoding="utf-8") as mf:
+        manifest_data = yaml.safe_load(mf)
+    expected_test_samples = manifest_data.get("dataset", {}).get("test_samples", 104)
+    
     test_dataset = SemDriftDataset(str(test_path), clean_docs=False)
-    assert len(test_dataset) >= 100, f"Expected at least 100 test samples, got {len(test_dataset)}"
-    print(f"[OK] Loaded {len(test_dataset)} human-verified test samples.")
+    if len(test_dataset) != expected_test_samples:
+        raise DatasetIntegrityError(
+            f"FATAL: Test dataset sample count mismatch!\n"
+            f"  Expected (manifest.yaml): {expected_test_samples}\n"
+            f"  Actual   (Loaded)       : {len(test_dataset)}\n"
+            "Evaluation refused."
+        )
+    print(f"[OK] Loaded exactly {len(test_dataset)} human-verified test samples (matches manifest).")
     
-    # 3. Tokenizer & DataLoader
+    # ------------------------------------------------------------------
+    # 3. Checkpoint Cryptographic Integrity Verification Gate
+    # Enforces Zero Side Effects: Must verify BEFORE torch.load()
+    # ------------------------------------------------------------------
+    print(f"Verifying checkpoint cryptographic integrity against {run_record_path}...", flush=True)
+    verified_ckpt_hash = verify_checkpoint_integrity(ckpt_path, run_record_path)
+    print(f"  -> Checkpoint SHA-256 verified: {verified_ckpt_hash}", flush=True)
+    
+    # ------------------------------------------------------------------
+    # 4. Tokenizer & DataLoader
+    # ------------------------------------------------------------------
     tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
     collate_fn = make_collate_fn(
         tokenizer,
@@ -88,7 +125,9 @@ def main():
         test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
     )
     
-    # 4. Model Architecture & Checkpoint Loading
+    # ------------------------------------------------------------------
+    # 5. Model Architecture & Checkpoint Loading
+    # ------------------------------------------------------------------
     print("Instantiating fresh JointEncoderModel...")
     model = JointEncoderModel(
         model_name="microsoft/codebert-base",
@@ -96,7 +135,7 @@ def main():
         num_labels=2,
         dropout=0.1
     )
-    print(f"Loading checkpoint weights from {ckpt_path}...")
+    print(f"Loading verified checkpoint weights from {ckpt_path}...")
     state_dict = torch.load(ckpt_path, map_location=args.device)
     model.load_state_dict(state_dict)
     model.to(args.device)

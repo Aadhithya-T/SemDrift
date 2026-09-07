@@ -10,6 +10,7 @@ Refuses execution if any file is missing, altered, or unverified.
 """
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 import yaml
@@ -17,6 +18,11 @@ import yaml
 
 class DatasetIntegrityError(RuntimeError):
     """Raised when dataset files fail cryptographic SHA-256 integrity verification."""
+    pass
+
+
+class CheckpointIntegrityError(RuntimeError):
+    """Raised when a model checkpoint fails cryptographic SHA-256 integrity verification."""
     pass
 
 
@@ -152,3 +158,70 @@ def verify_dataset_integrity(
                     )
                     
     return verified_hashes
+
+
+def verify_checkpoint_integrity(
+    checkpoint_path: Union[str, Path],
+    run_record_path: Union[str, Path],
+) -> str:
+    """
+    Verify model checkpoint against recorded SHA-256 hash in training_run.json.
+    Enforces a strict cryptographic security boundary:
+    Refuses execution BEFORE torch.load() if checksum mismatch or missing.
+    
+    Parameters
+    ----------
+    checkpoint_path : str or Path
+        Path to the saved PyTorch model checkpoint (.pt).
+    run_record_path : str or Path
+        Path to training_run.json recorded at training completion.
+        
+    Returns
+    -------
+    str
+        The verified SHA-256 hash of the checkpoint.
+        
+    Raises
+    ------
+    CheckpointIntegrityError
+        If the checkpoint is missing, run record is missing, or SHA-256 mismatches.
+    """
+    c_path = Path(checkpoint_path).resolve()
+    r_path = Path(run_record_path).resolve()
+    
+    if not c_path.is_file():
+        raise CheckpointIntegrityError(
+            f"FATAL: Checkpoint file missing at {c_path}. Evaluation refused."
+        )
+    if not r_path.is_file():
+        raise CheckpointIntegrityError(
+            f"FATAL: Training run record missing at {r_path}. "
+            "Checkpoint has no verified cryptographic provenance. Evaluation refused."
+        )
+        
+    try:
+        with r_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        raise CheckpointIntegrityError(
+            f"FATAL: Failed to parse training run record at {r_path}: {e}"
+        )
+        
+    expected_hash = data.get("checkpoint_sha256")
+    if not expected_hash:
+        raise CheckpointIntegrityError(
+            f"FATAL: Training run record at {r_path} contains no verified 'checkpoint_sha256'! "
+            "Evaluation refused."
+        )
+        
+    actual_hash = compute_sha256(c_path)
+    if actual_hash != expected_hash.strip().lower():
+        raise CheckpointIntegrityError(
+            f"FATAL: Checkpoint SHA-256 mismatch!\n"
+            f"  Expected ({r_path.name}): {expected_hash}\n"
+            f"  Actual   (Live File)    : {actual_hash}\n"
+            "Model checkpoint has been modified or tampered with. Evaluation refused."
+        )
+        
+    return actual_hash
+
