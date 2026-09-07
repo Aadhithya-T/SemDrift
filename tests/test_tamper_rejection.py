@@ -179,47 +179,97 @@ class TestFiveScenarioTamperRejection(unittest.TestCase):
         """Scenario 3: Modifying 1 byte in SHA256SUMS must cause Layer B integrity gate to refuse execution."""
         original_bytes = SHA256SUMS_PATH.read_bytes()
         
-        try:
-            # Tamper 1 byte in SHA256SUMS (append a newline -> Layer B mismatch)
-            tampered_bytes = original_bytes + b"\n"
-            SHA256SUMS_PATH.write_bytes(tampered_bytes)
-            
-            # Integrity gate MUST fail with Two-layer integrity failure
-            with self.assertRaises(DatasetIntegrityError) as ctx:
-                verify_dataset_integrity(CANONICAL_DIR, manifest_path=MANIFEST_PATH)
+        with tempfile.TemporaryDirectory() as tmp_eval:
+            tmp_eval_path = Path(tmp_eval)
+            preds_file = tmp_eval_path / "preds.jsonl"
+            results_file = tmp_eval_path / "results.json"
+            mock_ckpt = tmp_eval_path / "mock.pt"
+            mock_ckpt.write_bytes(b"MOCK_CHECKPOINT_BYTES_12345")
+            mock_run = tmp_eval_path / "training_run.json"
+            mock_run.write_text(json.dumps({"checkpoint_sha256": compute_sha256(mock_ckpt)}), encoding="utf-8")
+
+            try:
+                # Tamper 1 byte in SHA256SUMS (append a newline -> Layer B mismatch)
+                tampered_bytes = original_bytes + b"\n"
+                SHA256SUMS_PATH.write_bytes(tampered_bytes)
                 
-            self.assertIn("Two-layer integrity failure", str(ctx.exception))
+                # Integrity gate MUST fail with Two-layer integrity failure
+                with self.assertRaises(DatasetIntegrityError) as ctx:
+                    verify_dataset_integrity(CANONICAL_DIR, manifest_path=MANIFEST_PATH)
+                self.assertIn("Two-layer integrity failure", str(ctx.exception))
+
+                # Real CLI entrypoint execution MUST refuse evaluation
+                cmd = [
+                    sys.executable,
+                    str(PROJECT_ROOT / "experiments" / "2026-09-07_clean_v2" / "evaluation" / "independent_evaluate.py"),
+                    "--test_file", str(CANONICAL_DIR / "verified_test.jsonl"),
+                    "--checkpoint", str(mock_ckpt),
+                    "--training_run", str(mock_run),
+                    "--manifest", str(MANIFEST_PATH),
+                    "--output_results", str(results_file),
+                    "--output_preds", str(preds_file),
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                self.assertNotEqual(proc.returncode, 0, "Evaluator should have failed on tampered SHA256SUMS!")
+                self.assertIn("DatasetIntegrityError", proc.stderr + proc.stdout)
+                self.assertFalse(preds_file.exists(), "Predictions must not be written!")
+                self.assertFalse(results_file.exists(), "Results must not be written!")
+                
+                # Also test tampering a recorded hash inside SHA256SUMS -> Layer A mismatch
+                tampered_bytes2 = original_bytes.replace(b"7d0f5c21", b"7d0f5c22")
+                SHA256SUMS_PATH.write_bytes(tampered_bytes2)
+                with self.assertRaises(DatasetIntegrityError) as ctx2:
+                    verify_dataset_integrity(CANONICAL_DIR, manifest_path=MANIFEST_PATH)
+                self.assertIn("Checksum mismatch", str(ctx2.exception))
+                
+            finally:
+                SHA256SUMS_PATH.write_bytes(original_bytes)
             
-            # Also test tampering a recorded hash inside SHA256SUMS -> Layer A mismatch
-            tampered_bytes2 = original_bytes.replace(b"7d0f5c21", b"7d0f5c22")
-            SHA256SUMS_PATH.write_bytes(tampered_bytes2)
-            with self.assertRaises(DatasetIntegrityError) as ctx2:
-                verify_dataset_integrity(CANONICAL_DIR, manifest_path=MANIFEST_PATH)
-            self.assertIn("Checksum mismatch", str(ctx2.exception))
-            
-        finally:
-            SHA256SUMS_PATH.write_bytes(original_bytes)
-            
-        print("[SCENARIO 3 PASSED] Tampered SHA256SUMS refused by Layer A & Layer B integrity gates.")
+        print("[SCENARIO 3 PASSED] Tampered SHA256SUMS refused by real entrypoint and Layer A & B integrity gates.")
 
     def test_scenario_4_manifest_hash_tamper_refuses_execution(self):
         """Scenario 4: Modifying the expected hash in manifest.yaml must cause Layer B integrity gate to refuse."""
         original_bytes = MANIFEST_PATH.read_bytes()
         
-        try:
-            # Tamper 1 character in manifest.yaml's recorded sha256sums_sha256
-            tampered_content = original_bytes.decode("utf-8").replace("fec45253", "00000000")
-            MANIFEST_PATH.write_text(tampered_content, encoding="utf-8")
-            
-            with self.assertRaises(DatasetIntegrityError) as ctx:
-                verify_dataset_integrity(CANONICAL_DIR, manifest_path=MANIFEST_PATH)
+        with tempfile.TemporaryDirectory() as tmp_eval:
+            tmp_eval_path = Path(tmp_eval)
+            preds_file = tmp_eval_path / "preds.jsonl"
+            results_file = tmp_eval_path / "results.json"
+            mock_ckpt = tmp_eval_path / "mock.pt"
+            mock_ckpt.write_bytes(b"MOCK_CHECKPOINT_BYTES_12345")
+            mock_run = tmp_eval_path / "training_run.json"
+            mock_run.write_text(json.dumps({"checkpoint_sha256": compute_sha256(mock_ckpt)}), encoding="utf-8")
+
+            try:
+                # Tamper 1 character in manifest.yaml's recorded sha256sums_sha256
+                tampered_content = original_bytes.decode("utf-8").replace("fec45253", "00000000")
+                MANIFEST_PATH.write_text(tampered_content, encoding="utf-8")
                 
-            self.assertIn("Two-layer integrity failure", str(ctx.exception))
+                with self.assertRaises(DatasetIntegrityError) as ctx:
+                    verify_dataset_integrity(CANONICAL_DIR, manifest_path=MANIFEST_PATH)
+                self.assertIn("Two-layer integrity failure", str(ctx.exception))
+
+                # Real CLI entrypoint execution MUST refuse evaluation
+                cmd = [
+                    sys.executable,
+                    str(PROJECT_ROOT / "experiments" / "2026-09-07_clean_v2" / "evaluation" / "independent_evaluate.py"),
+                    "--test_file", str(CANONICAL_DIR / "verified_test.jsonl"),
+                    "--checkpoint", str(mock_ckpt),
+                    "--training_run", str(mock_run),
+                    "--manifest", str(MANIFEST_PATH),
+                    "--output_results", str(results_file),
+                    "--output_preds", str(preds_file),
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                self.assertNotEqual(proc.returncode, 0, "Evaluator should have failed on tampered manifest.yaml!")
+                self.assertIn("DatasetIntegrityError", proc.stderr + proc.stdout)
+                self.assertFalse(preds_file.exists(), "Predictions must not be written!")
+                self.assertFalse(results_file.exists(), "Results must not be written!")
+                
+            finally:
+                MANIFEST_PATH.write_bytes(original_bytes)
             
-        finally:
-            MANIFEST_PATH.write_bytes(original_bytes)
-            
-        print("[SCENARIO 4 PASSED] Tampered manifest.yaml hash refused by Layer B integrity gate.")
+        print("[SCENARIO 4 PASSED] Tampered manifest.yaml hash refused by real entrypoint and Layer B integrity gate.")
 
     def test_scenario_5_checkpoint_tamper_refuses_without_torch_load(self):
         """Scenario 5: Modifying 1 byte in checkpoint must raise CheckpointIntegrityError BEFORE torch.load()."""
@@ -227,6 +277,8 @@ class TestFiveScenarioTamperRejection(unittest.TestCase):
             td = Path(tmpdir)
             mock_ckpt = td / "mock_checkpoint.pt"
             mock_run = td / "training_run.json"
+            preds_file = td / "preds.jsonl"
+            results_file = td / "results.json"
             
             # Create a valid mock checkpoint file
             mock_ckpt.write_bytes(b"PYTORCH_VALID_MODEL_WEIGHTS_MOCK_BYTES_123456789")
@@ -247,18 +299,34 @@ class TestFiveScenarioTamperRejection(unittest.TestCase):
             # Tamper 1 byte in the checkpoint file
             mock_ckpt.write_bytes(b"PYTORCH_VALID_MODEL_WEIGHTS_MOCK_BYTES_123456780")
             
-            # Patch torch.load to guarantee it is NEVER called if checkpoint hash mismatches
+            # 1. Real CLI entrypoint execution MUST refuse evaluation with CheckpointIntegrityError
+            cmd = [
+                sys.executable,
+                str(PROJECT_ROOT / "experiments" / "2026-09-07_clean_v2" / "evaluation" / "independent_evaluate.py"),
+                "--test_file", str(CANONICAL_DIR / "verified_test.jsonl"),
+                "--checkpoint", str(mock_ckpt),
+                "--training_run", str(mock_run),
+                "--manifest", str(MANIFEST_PATH),
+                "--output_results", str(results_file),
+                "--output_preds", str(preds_file),
+            ]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertNotEqual(proc.returncode, 0, "Evaluator should have failed on tampered checkpoint!")
+            self.assertIn("CheckpointIntegrityError", proc.stderr + proc.stdout)
+            self.assertIn("Checkpoint SHA-256 mismatch", proc.stderr + proc.stdout)
+            self.assertFalse(preds_file.exists(), "Predictions must not be written!")
+            self.assertFalse(results_file.exists(), "Results must not be written!")
+
+            # 2. Strict Security Boundary Assertion: verify torch.load was NEVER called
             with patch("torch.load") as mock_torch_load:
                 with self.assertRaises(CheckpointIntegrityError) as ctx:
-                    # Evaluator boundary: verify_checkpoint_integrity is called BEFORE torch.load
                     verify_checkpoint_integrity(mock_ckpt, mock_run)
                     torch.load(mock_ckpt)
                     
-                # Assertion of ZERO SIDE EFFECTS: torch.load was NOT called
                 mock_torch_load.assert_not_called()
                 self.assertIn("Checkpoint SHA-256 mismatch", str(ctx.exception))
                 
-        print("[SCENARIO 5 PASSED] Tampered checkpoint refused before torch.load() with zero side effects.")
+        print("[SCENARIO 5 PASSED] Tampered checkpoint refused by real evaluator entrypoint before torch.load() with zero side effects.")
 
 
 if __name__ == "__main__":

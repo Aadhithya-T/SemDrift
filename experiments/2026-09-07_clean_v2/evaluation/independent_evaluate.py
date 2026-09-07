@@ -45,9 +45,9 @@ from scripts.training.train_joint_encoder import SemDriftDataset, calculate_metr
 def parse_args():
     parser = argparse.ArgumentParser(description="Independent Clean-Slate V2 Evaluation")
     parser.add_argument("--checkpoint", default="experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt")
-    parser.add_argument("--training_run", default="experiments/2026-09-07_clean_v2/checkpoints/training_run.json")
+    parser.add_argument("--training_run", "--run_record", dest="training_run", default="experiments/2026-09-07_clean_v2/checkpoints/training_run.json")
     parser.add_argument("--manifest", default="experiments/2026-09-07_clean_v2/config/manifest.yaml")
-    parser.add_argument("--test_file", default="experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl")
+    parser.add_argument("--test_file", "--test", dest="test_file", default="experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl")
     parser.add_argument("--output_results", default="experiments/2026-09-07_clean_v2/evaluation/eval_results.json")
     parser.add_argument("--output_preds", default="experiments/2026-09-07_clean_v2/predictions/independent_predictions.jsonl")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -80,19 +80,33 @@ def main():
     print("=" * 70)
     
     # ------------------------------------------------------------------
-    # 1. Authoritative Dataset Integrity Verification Gate (Layer A + B)
+    # 1. Load Manifest
+    # ------------------------------------------------------------------
+    print(f"Loading pre-training dataset manifest from {manifest_path}...", flush=True)
+    with manifest_path.open("r", encoding="utf-8") as mf:
+        manifest_data = yaml.safe_load(mf)
+    if not manifest_data or "dataset" not in manifest_data:
+        raise DatasetIntegrityError(f"FATAL: Manifest at {manifest_path} missing 'dataset' block.")
+    print("  -> Manifest loaded successfully.", flush=True)
+    
+    # ------------------------------------------------------------------
+    # 2. Authoritative Dataset Integrity Verification Gate (Layer A + B)
     # ------------------------------------------------------------------
     print(f"Verifying cryptographic dataset integrity for {test_path.parent}...", flush=True)
     verify_dataset_integrity(test_path.parent, manifest_path=manifest_path, required_files=[test_path.name])
     print("  -> Dataset cryptographic integrity verified (Layer A + Layer B).", flush=True)
     
     # ------------------------------------------------------------------
-    # 2. Dynamic Test Count Validation from Manifest
+    # 3. Read manifest dataset.test_samples
     # ------------------------------------------------------------------
-    with manifest_path.open("r", encoding="utf-8") as mf:
-        manifest_data = yaml.safe_load(mf)
-    expected_test_samples = manifest_data.get("dataset", {}).get("test_samples", 104)
+    expected_test_samples = manifest_data.get("dataset", {}).get("test_samples")
+    if expected_test_samples is None:
+        raise DatasetIntegrityError(f"FATAL: Manifest at {manifest_path} has no 'dataset.test_samples'!")
+    print(f"  -> Authoritative test samples from manifest: {expected_test_samples}", flush=True)
     
+    # ------------------------------------------------------------------
+    # 4. Assert len(test) == manifest count
+    # ------------------------------------------------------------------
     test_dataset = SemDriftDataset(str(test_path), clean_docs=False)
     if len(test_dataset) != expected_test_samples:
         raise DatasetIntegrityError(
@@ -101,10 +115,10 @@ def main():
             f"  Actual   (Loaded)       : {len(test_dataset)}\n"
             "Evaluation refused."
         )
-    print(f"[OK] Loaded exactly {len(test_dataset)} human-verified test samples (matches manifest).")
+    print(f"[OK] Loaded exactly {len(test_dataset)} human-verified test samples (matches manifest count {expected_test_samples}).")
     
     # ------------------------------------------------------------------
-    # 3. Checkpoint Cryptographic Integrity Verification Gate
+    # 5. Checkpoint Cryptographic Integrity Verification Gate
     # Enforces Zero Side Effects: Must verify BEFORE torch.load()
     # ------------------------------------------------------------------
     print(f"Verifying checkpoint cryptographic integrity against {run_record_path}...", flush=True)
@@ -112,21 +126,7 @@ def main():
     print(f"  -> Checkpoint SHA-256 verified: {verified_ckpt_hash}", flush=True)
     
     # ------------------------------------------------------------------
-    # 4. Tokenizer & DataLoader
-    # ------------------------------------------------------------------
-    tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
-    collate_fn = make_collate_fn(
-        tokenizer,
-        max_length=args.max_length,
-        doc_max_tokens=args.doc_max_tokens,
-        truncation_strategy=args.code_truncation
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
-    )
-    
-    # ------------------------------------------------------------------
-    # 5. Model Architecture & Checkpoint Loading
+    # 6. ONLY THEN instantiate/load checkpoint
     # ------------------------------------------------------------------
     print("Instantiating fresh JointEncoderModel...")
     model = JointEncoderModel(
@@ -141,6 +141,20 @@ def main():
     model.to(args.device)
     model.eval()
     print("[OK] Model restored to eval mode.")
+    
+    # ------------------------------------------------------------------
+    # 7. Tokenizer & DataLoader
+    # ------------------------------------------------------------------
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
+    collate_fn = make_collate_fn(
+        tokenizer,
+        max_length=args.max_length,
+        doc_max_tokens=args.doc_max_tokens,
+        truncation_strategy=args.code_truncation
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
+    )
     
     # 5. Evaluation Loop
     all_labels = []

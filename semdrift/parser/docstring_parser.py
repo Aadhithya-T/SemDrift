@@ -153,7 +153,7 @@ class DocstringParser:
         if not raw_docstring or not raw_docstring.strip():
             return DocContract(raw=raw_docstring or "")
 
-        cleaned = textwrap.dedent(raw_docstring).strip()
+        cleaned = textwrap.dedent(raw_docstring).replace("\r\n", "\n").replace("\r", "\n").strip()
         style = self._detect_style(cleaned)
 
         if style == "javadoc":

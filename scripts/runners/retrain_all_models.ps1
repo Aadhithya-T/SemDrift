@@ -23,7 +23,6 @@ Write-Host "`n[3/4] Retraining Fine-Tuned Joint-Encoder (Primary Contribution wi
 python scripts/training/train_joint_encoder.py `
     --train data/v2_real_world/training/train.jsonl `
     --val data/v2_real_world/training/val.jsonl `
-    --test data/v2_real_world/evaluation/verified_test.jsonl `
     --device cuda `
     --epochs 3 `
     --batch_size 8 `
