@@ -70,19 +70,20 @@ def norm_repo(r: Any) -> str:
 def norm_file_path(f: Any) -> str:
     if not f:
         return ""
-    f_str = str(f).replace("\\", "/").lower().strip()
+    f_str = str(f).replace("\\", "/").lower().strip().lstrip("/")
     for prefix in ["data/raw_repos/", "data/experiments/v2/", "data/"]:
         if f_str.startswith(prefix):
             f_str = f_str[len(prefix):]
-    parts = f_str.split("/")
-    known_repos = {
-        "click", "django", "fastapi", "flask", "numpy", "pandas",
-        "pytest", "requests", "scikit_learn", "scikit-learn",
-        "sqlalchemy", "tornado", "celery"
-    }
-    if len(parts) > 1 and parts[0] in known_repos:
-        f_str = "/".join(parts[1:])
-    return f_str
+            parts = f_str.split("/", 1)
+            known_repos = {
+                "click", "django", "fastapi", "flask", "numpy", "pandas",
+                "pytest", "requests", "scikit_learn", "scikit-learn",
+                "sqlalchemy", "tornado", "celery"
+            }
+            if len(parts) > 1 and parts[0] in known_repos:
+                f_str = parts[1]
+            break
+    return f_str.strip("/")
 
 
 def get_file_ast_info(repo: str, file_path: str) -> Dict[str, List[Dict[str, Any]]]:

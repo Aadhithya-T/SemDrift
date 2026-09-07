@@ -108,7 +108,9 @@ class SemDriftDataset(Dataset):
 
         meta = {
             "repo": rec.get("repo") or rec.get("repo_name") or "unknown",
-            "drift_type": rec.get("drift_type") or rec.get("curation_method") or rec.get("drift_source") or label_str,
+            "drift_type": rec.get("drift_type") or rec.get("mutation_type") or label_str,
+            "provenance": rec.get("provenance") or ("contract_grounded_generated" if label == 1 else "clean_grounded"),
+            "function_lineage": rec.get("function_lineage") or "",
             "severity": rec.get("severity") or ("aligned" if label == 0 else "unknown"),
             "label_str": label_str,
         }

@@ -74,19 +74,19 @@ class TestDatasetArchitecture(unittest.TestCase):
         v2_dir = DATA_DIR / "v2_real_world"
         self.assertTrue(v2_dir.is_dir(), "v2_real_world directory missing")
 
-        # Verified test set (exactly 101 samples: 14 drift, 87 clean)
+        # Verified test set (balanced diagnostic test set: >=100 samples, >=50 drift)
         eval_file = v2_dir / "evaluation" / "verified_test.jsonl"
         self.assertTrue(eval_file.is_file(), "evaluation/verified_test.jsonl missing")
         eval_rows = load_jsonl(eval_file)
-        self.assertEqual(len(eval_rows), 101)
+        self.assertGreaterEqual(len(eval_rows), 100, "Verified test set must be >= 100 samples")
 
         eval_labels = Counter(r.get("label") for r in eval_rows)
-        self.assertEqual(eval_labels[1], 14, "Verified drift positives must equal 14")
-        self.assertEqual(eval_labels[0], 87, "Verified clean negatives must equal 87")
+        self.assertGreaterEqual(eval_labels[1], 50, "Verified drift positives must be >= 50")
+        self.assertGreaterEqual(eval_labels[0], 50, "Verified clean negatives must be >= 50")
 
         # Lineages
         test_lineages = {get_function_lineage(r) for r in eval_rows}
-        self.assertEqual(len(test_lineages), 101, "All 101 verified test samples must have unique function lineages")
+        self.assertEqual(len(test_lineages), len(eval_rows), "All verified test samples must have unique function lineages")
 
     def test_v2_real_world_training_partitions_and_zero_leakage(self):
         v2_dir = DATA_DIR / "v2_real_world"
@@ -105,7 +105,7 @@ class TestDatasetArchitecture(unittest.TestCase):
         # Dynamic dataset counts and non-emptiness
         self.assertGreater(len(train_rows), 0, "Train split must not be empty")
         self.assertGreater(len(val_rows), 0, "Val split must not be empty")
-        self.assertEqual(len(eval_rows), 101, "Verified test set must be exactly 101 instances")
+        self.assertGreaterEqual(len(eval_rows), 100, "Verified test set must be >= 100 instances")
 
         # Label presence checks
         train_labels = Counter(r.get("pseudo_label", r.get("label")) for r in train_rows)

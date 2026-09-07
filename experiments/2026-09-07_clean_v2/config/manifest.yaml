@@ -1,37 +1,54 @@
 experiment_id: "2026-09-07_clean_v2"
 experiment_name: "V2 Clean Baseline — Production Training Configuration"
-git_commit: "546362faffe62a45bc3f436b35a05f9335d42d48"
-timestamp: "2026-09-07T21:44:00+05:30"
+git_commit: "2245d9d"
+timestamp: "2026-09-07T22:15:00+05:30"
 disclaimer: >-
   New experimental generation with AST, mutation, lineage, and truncation corrections.
-  Not an apples-to-apples continuation of previous CrossEntropy ablation benchmark.
+  Features a balanced diagnostic test set (104 samples: 52 authentic historical drift, 52 clean).
+  Cryptographically locked with two-layer integrity verification.
 dataset:
   canonical_path: "experiments/2026-09-07_clean_v2/dataset/"
-  train_samples: 24260
-  val_samples: 2640
-  test_samples: 101
+  test_type: "balanced_diagnostic"
+  train_samples: 24229
+  val_samples: 2636
+  test_samples: 104
   train_labels:
-    aligned: 13888
-    drifted: 10372
+    aligned: 13871
+    drifted: 10358
   val_labels:
-    aligned: 1522
-    drifted: 1118
+    aligned: 1520
+    drifted: 1116
   test_labels:
-    aligned: 87
-    drifted: 14
+    aligned: 52
+    drifted: 52
+  provenance_distribution:
+    train:
+      clean_grounded: 13871
+      contract_grounded_generated: 10358
+      authentic_historical_mined: 0
+    val:
+      clean_grounded: 1520
+      contract_grounded_generated: 1116
+      authentic_historical_mined: 0
+    test:
+      clean_grounded: 52
+      authentic_historical_mined: 52
+      contract_grounded_generated: 0
   zero_leakage_audit:
-    verified_test_exclusion_set: 101
-    purged_leaked_candidates: 36
-    train_lineages: 13873
-    val_lineages: 1522
-    test_lineages: 101
+    verified_test_exclusion_set: 104
+    purged_leaked_candidates: 71
+    train_lineages: 13856
+    val_lineages: 1520
+    test_lineages: 104
     train_val_overlap: 0
     train_test_overlap: 0
     val_test_overlap: 0
+    duplicate_rows: 0
   checksums:
-    train_sha256: "f918a707e83ab8e2db5b1bd92b1e7e62fcc96f3f5888077c66969573a8d2b3c6"
-    val_sha256: "27c18a1d69d3eda80373bdba90e648e75c9c8481285df5917cdad94c3e0db13d"
-    test_sha256: "4483dde8e325e0e55ae37e765053b4be2dfbe8cf0c13da9da1cd3bc9a0af5fe8"
+    train_sha256: "7d0f5c21da4d618ffdb3c7681b98ec45e25f2a7fd53fe663d6c427bf59f1f9c5"
+    val_sha256: "d188b128f5f955f5565e5479d9010eabc15c8df816b63ff096a0a2486cff17a5"
+    verified_test_sha256: "fff74007ea28dfd2f4822f4833f8d702489404ed8ad4882f53ea307ba540ef40"
+    sha256sums_sha256: "fec452530a1d27e97d3ef6dd99d53640fbe48e616235deec7959637de5aba64f"
 training_hyperparameters:
   base_model: "microsoft/codebert-base"
   architecture: "joint_encoder"

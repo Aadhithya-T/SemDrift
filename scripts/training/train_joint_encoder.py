@@ -43,6 +43,7 @@ from semdrift.models.joint_encoder import (
     make_collate_fn,
     extract_docstring_summary,
 )
+from semdrift.data.integrity import verify_dataset_integrity
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -182,16 +183,18 @@ def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
 
 
 def evaluate_breakdowns(y_true: list[str], y_pred: list[str], metas: list[dict]) -> dict:
-    """Compute metrics broken down by drift_type, severity, and repo."""
+    """Compute metrics broken down by drift_type, severity, repo, and provenance."""
     by_drift_type: dict[str, list] = defaultdict(list)
     by_severity: dict[str, list] = defaultdict(list)
     by_repo: dict[str, list] = defaultdict(list)
+    by_provenance: dict[str, list] = defaultdict(list)
 
     for yt, yp, m in zip(y_true, y_pred, metas):
         pair = (yt, yp)
         by_drift_type[m["drift_type"]].append(pair)
         by_severity[m["severity"]].append(pair)
         by_repo[m["repo"]].append(pair)
+        by_provenance[m.get("provenance", "unknown")].append(pair)
 
     def calc_group(group_dict):
         result = {}
@@ -204,6 +207,7 @@ def evaluate_breakdowns(y_true: list[str], y_pred: list[str], metas: list[dict])
         "by_drift_type": calc_group(by_drift_type),
         "by_severity": calc_group(by_severity),
         "by_repo": calc_group(by_repo),
+        "by_provenance": calc_group(by_provenance),
     }
 
 
@@ -330,21 +334,29 @@ def main():
     print("-" * 70, flush=True)
 
     # ------------------------------------------------------------------
-    # 1. Load Datasets
+    # 1. Authoritative Dataset Integrity Verification Gate
     # ------------------------------------------------------------------
+    dataset_dir = os.path.dirname(os.path.abspath(args.train))
+    print(f"Verifying dataset cryptographic integrity at {dataset_dir}...", flush=True)
+    req_files = [os.path.basename(args.train), os.path.basename(args.val)]
+    verify_dataset_integrity(dataset_dir, required_files=req_files)
+    print("  -> Cryptographic integrity verified (Layer A + Layer B).", flush=True)
+
     print("Loading datasets...", flush=True)
     train_dataset = SemDriftDataset(args.train, clean_docs=args.clean_docstrings)
     val_dataset = SemDriftDataset(args.val, clean_docs=args.clean_docstrings)
-    test_dataset = SemDriftDataset(args.test, clean_docs=args.clean_docstrings)
+    test_dataset = SemDriftDataset(args.test, clean_docs=args.clean_docstrings) if args.test else None
 
     if args.dry_run:
         print(f"[Dry Run] Subsetting datasets to 16 samples each.", flush=True)
         train_dataset.records = train_dataset.records[:16]
         val_dataset.records = val_dataset.records[:16]
-        test_dataset.records = test_dataset.records[:16]
+        if test_dataset:
+            test_dataset.records = test_dataset.records[:16]
 
+    test_count_str = str(len(test_dataset)) if test_dataset else "None (decoupled)"
     print(f"Train: {len(train_dataset)} | Val: {len(val_dataset)} | "
-          f"Test: {len(test_dataset)} samples.", flush=True)
+          f"Test: {test_count_str} samples.", flush=True)
 
     # ------------------------------------------------------------------
     # 2. Tokenizer & DataLoaders
@@ -365,7 +377,7 @@ def main():
     )
     test_loader = DataLoader(
         test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
-    )
+    ) if test_dataset else None
 
     # ------------------------------------------------------------------
     # 3. Model
@@ -410,14 +422,18 @@ def main():
         )
 
         # Validation evaluation
-        val_y_true, val_y_pred, _, _ = evaluate(model, val_loader, args.device)
+        val_y_true, val_y_pred, _, val_metas = evaluate(model, val_loader, args.device)
         val_metrics = calculate_metrics(val_y_true, val_y_pred)
+        val_breakdowns = evaluate_breakdowns(val_y_true, val_y_pred, val_metas)
 
         elapsed = time.time() - epoch_start
         print(f"Epoch {epoch + 1}/{args.epochs} | Loss: {avg_loss:.4f} | ({elapsed:.1f}s)", flush=True)
         print(f"  Accuracy: {val_metrics['accuracy']:.4f} | F1: {val_metrics['f1']:.4f} | Macro-F1: {val_metrics['macro_f1']:.4f} | Balanced Acc: {val_metrics['balanced_accuracy']:.4f}", flush=True)
         print(f"  Confusion Matrix: {val_metrics['confusion_matrix']}", flush=True)
         print(f"  Prediction Balance: Aligned={val_metrics['pred_aligned']} | Drifted={val_metrics['pred_drifted']}", flush=True)
+        print("  Validation Provenance Breakdown:", flush=True)
+        for prov, m in sorted(val_breakdowns["by_provenance"].items()):
+            print(f"    {prov:<28}: Acc={m['accuracy']:.4f} | F1={m['f1']:.4f} | Macro-F1={m['macro_f1']:.4f} (N={m['count']})", flush=True)
 
         # Checkpoint selection with Bias Collapse Guard
         current_metric_val = val_metrics[args.checkpoint_metric]
@@ -448,58 +464,53 @@ def main():
     val_y_true, val_y_pred, _, _ = evaluate(model, val_loader, args.device)
     val_metrics = calculate_metrics(val_y_true, val_y_pred)
 
-    # Evaluate test metrics with best checkpoint
-    test_y_true, test_y_pred, test_probs, test_metas = evaluate(
-        model, test_loader, args.device
-    )
-    test_overall = calculate_metrics(test_y_true, test_y_pred)
-    breakdowns = evaluate_breakdowns(test_y_true, test_y_pred, test_metas)
+    # Evaluate test metrics if test_loader provided (otherwise decoupled)
+    if test_loader is not None:
+        test_y_true, test_y_pred, test_probs, test_metas = evaluate(
+            model, test_loader, args.device
+        )
+        test_overall = calculate_metrics(test_y_true, test_y_pred)
+        breakdowns = evaluate_breakdowns(test_y_true, test_y_pred, test_metas)
 
-    print("\n" + "=" * 70, flush=True)
-    print("FINAL TEST RESULTS — Fine-Tuned Joint-Encoder V2", flush=True)
-    print("=" * 70, flush=True)
-    print(f"Best Validation Epoch   : {best_epoch}", flush=True)
-    print(f"Accuracy                : {test_overall['accuracy']:.4f}", flush=True)
-    print(f"Precision               : {test_overall['precision']:.4f}", flush=True)
-    print(f"Recall                  : {test_overall['recall']:.4f}", flush=True)
-    print(f"F1 Score (Binary)       : {test_overall['f1']:.4f}", flush=True)
-    print(f"Macro F1 Score          : {test_overall['macro_f1']:.4f}", flush=True)
-    print(f"Balanced Accuracy       : {test_overall['balanced_accuracy']:.4f}", flush=True)
-    print("Confusion Matrix:", flush=True)
-    print(f"  TN: {test_overall['tn']}  |  FP: {test_overall['fp']}", flush=True)
-    print(f"  FN: {test_overall['fn']}  |  TP: {test_overall['tp']}", flush=True)
+        print("\n" + "=" * 70, flush=True)
+        print("FINAL TEST RESULTS — Fine-Tuned Joint-Encoder V2", flush=True)
+        print("=" * 70, flush=True)
+        print(f"Best Validation Epoch   : {best_epoch}", flush=True)
+        print(f"Accuracy                : {test_overall['accuracy']:.4f}", flush=True)
+        print(f"Precision               : {test_overall['precision']:.4f}", flush=True)
+        print(f"Recall                  : {test_overall['recall']:.4f}", flush=True)
+        print(f"F1 Score (Binary)       : {test_overall['f1']:.4f}", flush=True)
+        print(f"Macro F1 Score          : {test_overall['macro_f1']:.4f}", flush=True)
+        print(f"Balanced Accuracy       : {test_overall['balanced_accuracy']:.4f}", flush=True)
+        print("Confusion Matrix:", flush=True)
+        print(f"  TN: {test_overall['tn']}  |  FP: {test_overall['fp']}", flush=True)
+        print(f"  FN: {test_overall['fn']}  |  TP: {test_overall['tp']}", flush=True)
 
-    print("\n--- Breakdown by Drift Type ---", flush=True)
-    for dt, m in sorted(breakdowns["by_drift_type"].items()):
-        print(f"  {dt:<22}: Acc={m['accuracy']:.4f} | "
-              f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
-              f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
+        print("\n--- Breakdown by Provenance ---", flush=True)
+        for prov, m in sorted(breakdowns["by_provenance"].items()):
+            print(f"  {prov:<28}: Acc={m['accuracy']:.4f} | "
+                  f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
+                  f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
 
-    print("\n--- Breakdown by Severity ---", flush=True)
-    for sev, m in sorted(breakdowns["by_severity"].items()):
-        print(f"  {sev:<22}: Acc={m['accuracy']:.4f} | "
-              f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
-              f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
+        print("\n--- Breakdown by Drift Type ---", flush=True)
+        for dt, m in sorted(breakdowns["by_drift_type"].items()):
+            print(f"  {dt:<22}: Acc={m['accuracy']:.4f} | "
+                  f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
+                  f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
 
-    print("\n--- Breakdown by Repository ---", flush=True)
-    for repo, m in sorted(breakdowns["by_repo"].items()):
-        print(f"  {repo:<22}: Acc={m['accuracy']:.4f} | "
-              f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
-              f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
+        pred_path = os.path.join(args.output_dir, "predictions_joint_encoder.jsonl")
+        with open(pred_path, "w", encoding="utf-8") as f:
+            for rec, prob, pred in zip(test_dataset.records, test_probs, test_y_pred):
+                out = dict(rec)
+                out["predicted_label"] = pred
+                out["confidence"] = round(prob, 6)
+                f.write(json.dumps(out) + "\n")
+    else:
+        test_overall = {}
+        breakdowns = {}
+        print("\nTest evaluation decoupled from training pipeline (run independent_evaluate.py).", flush=True)
 
-    # ------------------------------------------------------------------
-    # 7. Save outputs
-    # ------------------------------------------------------------------
-    pred_path = os.path.join(args.output_dir, "predictions_joint_encoder.jsonl")
     results_path = os.path.join(args.output_dir, "results_joint_encoder.json")
-
-    with open(pred_path, "w", encoding="utf-8") as f:
-        for rec, prob, pred in zip(test_dataset.records, test_probs, test_y_pred):
-            out = dict(rec)
-            out["predicted_label"] = pred
-            out["confidence"] = round(prob, 6)
-            f.write(json.dumps(out) + "\n")
-
     full_results = {
         "model": "Fine-Tuned Joint Encoder (Joint Code–Documentation Self-Attention) — V2",
         "model_name": args.model_name,
@@ -516,11 +527,11 @@ def main():
         "val_metrics": val_metrics,
         "test_overall": test_overall,
         "confusion_matrix": {
-            "tn": test_overall["tn"],
-            "fp": test_overall["fp"],
-            "fn": test_overall["fn"],
-            "tp": test_overall["tp"],
-        },
+            "tn": test_overall.get("tn"),
+            "fp": test_overall.get("fp"),
+            "fn": test_overall.get("fn"),
+            "tp": test_overall.get("tp"),
+        } if test_overall else {},
         "breakdowns": breakdowns,
     }
 
@@ -528,9 +539,8 @@ def main():
         json.dump(full_results, f, indent=2)
 
     print("\n" + "-" * 70, flush=True)
-    print(f"Predictions : {pred_path}", flush=True)
-    print(f"Results     : {results_path}", flush=True)
-    print("Fine-Tuned Joint-Encoder v2 execution complete!", flush=True)
+    print(f"Results saved : {results_path}", flush=True)
+    print("Fine-Tuned Joint-Encoder execution complete!", flush=True)
 
 
 if __name__ == "__main__":
