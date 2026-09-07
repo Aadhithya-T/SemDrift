@@ -109,20 +109,17 @@ SemDrift structures dataset curation into **two clearly separated generations**,
         Baseline/ablation    ┌────┴─────────┐
                              │              │
                            TRAIN           VAL
-                          13,366          1,430
+                          24,229          2,636
                              │              │
                              └────┬─────────┘
                                   ▼
                             TRAIN MODEL
                                   │
                                   ▼
-                             FINAL MODEL
-                                  │
-                                  ▼
-                          ┌───────────────┐
-                          │ 101 VERIFIED  │
-                          │   TEST ONLY   │
-                          └───────────────┘
+                           ┌───────────────┐
+                           │ 104 VERIFIED  │
+                           │   TEST ONLY   │
+                           └───────────────┘
 ```
 
 ### Dataset Roles & Research Objectives
@@ -131,22 +128,24 @@ SemDrift structures dataset curation into **two clearly separated generations**,
 |:---|:---:|:---|:---|
 | **V1 Benchmark** | 1,205 | Controlled Baseline Evaluation | *"Can the model learn semantic code-documentation consistency under controlled conditions?"* |
 | **V1 Ablation Pool** | 12,102 | Controlled Model Selection & Ablation | Training (9,638), Validation (1,259), Test (1,205) for Dual vs. Joint architecture comparison |
-| **V2 Main Train** | 13,366 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* |
-| **V2 Validation** | 1,430 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by function lineage; 0% train overlap) |
-| **V2 Verified Test** | 101 | **Final Real-World Ground Truth Evaluation** | *"Does the learned model actually generalize to independently human-verified real-world drift?"* |
+| **V2 Main Train** | 24,229 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* (13,871 clean / 10,358 drift) |
+| **V2 Validation** | 2,636 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by function lineage; 0% train overlap) |
+| **V2 Verified Test** | 104 | **Balanced Diagnostic Real-World Evaluation** | *"Does the learned model generalize to authentic historical drift vs. contract-grounded mutations?"* (52 historical drift / 52 clean) |
 
 > [!IMPORTANT]
-> **Strict Evaluation Isolation Guarantee (Zero Leakage)**:
-> The 101 human-verified instances (`14 drift`, `87 clean`) from [`data/v2_real_world/evaluation/verified_test.jsonl`](data/v2_real_world/evaluation/verified_test.jsonl) are held out strictly for final evaluation.
-> All 101 function lineages (`repo::normalized_file_path::function_name`) are purged from V2 prior to training/validation construction (eliminating 204 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
+> **Strict Evaluation Isolation & Cryptographic Integrity Guarantee**:
+> - **Zero Leakage**: All 104 human-verified test lineages (`repo::normalized_file_path::qualified_name`) are purged from candidate pools prior to train/val partitioning (eliminating 71 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
+> - **Two-Layer Cryptographic Lock**: All canonical splits in `experiments/2026-09-07_clean_v2/dataset/` are locked via `SHA256SUMS` and `manifest.yaml`. Training and independent evaluation scripts refuse execution if any byte has been tampered with.
+> - **Strict Training Decoupling**: The training pipeline accepts ONLY `--train` and `--val`. The test set is isolated exclusively for independent post-training evaluation.
 
 ### V2 Provenance Breakdown
 
 SemDrift explicitly distinguishes authentic historical git commits from contract-grounded AST mutations:
-* **Authentic Historical Mined Drift**: **2,222** samples (mined from 2,367 raw historical candidates; 145 purged for zero leakage).
-* **AST Contract-Grounded Generated Drift**: **5,122** samples usable after leakage purge (synthesized from 5,133 generated raw candidates; 11 purged for zero leakage).
-* **Historical Clean Negatives**: **7,452** confirmed clean code-docstring pairs (from 7,500 raw clean candidates; 48 purged for zero leakage).
-* **Total Usable Pool**: **14,796** samples (50.36% clean / 49.64% drift).
+* **Authentic Historical Mined Drift (Test)**: **52** confirmed, independently human-verified real-world drift commits across Click, Django, FastAPI, SQLAlchemy, PyTest, and Tornado.
+* **Historical Clean Negatives (Test)**: **52** confirmed clean negative samples held out strictly for diagnostic specificity testing.
+* **AST Contract-Grounded Generated Drift (Train/Val)**: **10,358** (Train) + **1,116** (Val) contract-grounded mutations.
+* **Historical Clean Negatives (Train/Val)**: **13,871** (Train) + **1,520** (Val) confirmed clean code-docstring pairs.
+* **Total Canonical Pool**: **26,969** samples (Train: 24,229 | Val: 2,636 | Test: 104).
 
 ---
 
@@ -423,18 +422,27 @@ Outputs:
 
 ### 7. Build Two-Generation Dataset Architecture (V1 Synthetic & V2 Real-World-Grounded)
 
-To construct, verify, and partition the complete two-generation dataset architecture:
+To validate, hash, and lock the canonical Clean-Slate V2 dataset architecture:
 
 ```bash
-# Run the canonical idempotent dataset architecture setup script
-python scripts/data_pipeline/setup_dataset_architecture.py
+# 1. Validate structural correctness and atomically generate SHA256SUMS and manifest.yaml
+python scripts/data_pipeline/generate_manifest.py
+
+# 2. Verify complete dataset provenance, schema, and zero-leakage disjointness
+python scripts/data_pipeline/verify_dataset_provenance.py
+
+# 3. Verify two-layer cryptographic integrity gate
+python -c "from semdrift.data.integrity import verify_dataset_integrity; print(verify_dataset_integrity('experiments/2026-09-07_clean_v2/dataset/'))"
+
+# 4. Execute the 5-scenario cryptographic tamper rejection suite
+python -m pytest tests/test_tamper_rejection.py -v
 ```
 
 This enforces all invariants:
-* **Zero-Leakage Guarantee**: Automatically purges all 101 human-verified test function lineages from candidate pools before train/val partitioning.
-* **Function-Lineage Partitioning**: Uses `repo::file_path::function_name` hashing to ensure no function family is split between train and val.
-* **V1 Synthetic Benchmark**: Isolates 1,205 controlled synthetic pairs in `data/v1_synthetic/benchmark/synthetic_dataset.jsonl`.
-* **V2 Real-World Pool**: Constructs 13,366 train, 1,430 val, and 101 verified test samples in `data/v2_real_world/`.
+* **Zero-Leakage Guarantee**: Automatically purges all 104 human-verified test function lineages from candidate pools before train/val partitioning (71 candidate rows eliminated).
+* **Lineage Invariant**: Qualified function identity (`repo::normalized_file::qualified_name`) guarantees mathematical disjointness across train, val, and test.
+* **Balanced Diagnostic Test Set**: 104 human-verified samples (52 authentic historical drift positives, 52 clean negatives) held out strictly for independent evaluation.
+* **Canonical V2 Dataset**: 24,229 train and 2,636 val samples cryptographically locked in `experiments/2026-09-07_clean_v2/dataset/`.
 
 ---
 

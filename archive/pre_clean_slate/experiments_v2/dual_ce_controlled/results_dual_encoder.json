@@ -1,0 +1,192 @@
+{
+  "model": "Fine-Tuned Dual-Encoder (Ablation Model)",
+  "model_name": "microsoft/codebert-base",
+  "variant": "variant_2",
+  "clean_docstrings": true,
+  "freeze_base": false,
+  "dropout": 0.1,
+  "checkpoint_metric": "macro_f1",
+  "optimal_threshold": 0.5,
+  "val_metrics": {
+    "accuracy": 0.8133,
+    "precision": 0.9171,
+    "recall": 0.6667,
+    "f1": 0.7721,
+    "macro_f1": 0.807,
+    "count": 1259
+  },
+  "test_overall": {
+    "accuracy": 0.8091,
+    "precision": 0.9163,
+    "recall": 0.6842,
+    "f1": 0.7834,
+    "macro_f1": 0.8064,
+    "count": 1205
+  },
+  "confusion_matrix": {
+    "tn": 559,
+    "fp": 38,
+    "fn": 192,
+    "tp": 416
+  },
+  "breakdowns": {
+    "by_drift_type": {
+      "return_value_change": {
+        "accuracy": 0.6475,
+        "precision": 1.0,
+        "recall": 0.6475,
+        "f1": 0.786,
+        "macro_f1": 0.393,
+        "count": 139
+      },
+      "aligned": {
+        "accuracy": 0.9363,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.4836,
+        "count": 597
+      },
+      "param_rename": {
+        "accuracy": 0.9683,
+        "precision": 1.0,
+        "recall": 0.9683,
+        "f1": 0.9839,
+        "macro_f1": 0.492,
+        "count": 221
+      },
+      "doc_negation": {
+        "accuracy": 0.0947,
+        "precision": 1.0,
+        "recall": 0.0947,
+        "f1": 0.1731,
+        "macro_f1": 0.0865,
+        "count": 95
+      },
+      "doc_sentence_delete": {
+        "accuracy": 0.6732,
+        "precision": 1.0,
+        "recall": 0.6732,
+        "f1": 0.8047,
+        "macro_f1": 0.4023,
+        "count": 153
+      }
+    },
+    "by_severity": {
+      "severe": {
+        "accuracy": 0.7194,
+        "precision": 1.0,
+        "recall": 0.7194,
+        "f1": 0.8368,
+        "macro_f1": 0.4184,
+        "count": 196
+      },
+      "aligned": {
+        "accuracy": 0.9363,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.4836,
+        "count": 597
+      },
+      "mild": {
+        "accuracy": 0.7014,
+        "precision": 1.0,
+        "recall": 0.7014,
+        "f1": 0.8245,
+        "macro_f1": 0.4123,
+        "count": 211
+      },
+      "moderate": {
+        "accuracy": 0.6318,
+        "precision": 1.0,
+        "recall": 0.6318,
+        "f1": 0.7744,
+        "macro_f1": 0.3872,
+        "count": 201
+      }
+    },
+    "by_repo": {
+      "pandas": {
+        "accuracy": 0.7845,
+        "precision": 0.875,
+        "recall": 0.6316,
+        "f1": 0.7336,
+        "macro_f1": 0.7763,
+        "count": 283
+      },
+      "numpy": {
+        "accuracy": 0.7679,
+        "precision": 0.9565,
+        "recall": 0.6471,
+        "f1": 0.7719,
+        "macro_f1": 0.7678,
+        "count": 112
+      },
+      "requests": {
+        "accuracy": 0.6667,
+        "precision": 1.0,
+        "recall": 0.3333,
+        "f1": 0.5,
+        "macro_f1": 0.625,
+        "count": 12
+      },
+      "scikit-learn": {
+        "accuracy": 0.81,
+        "precision": 0.9506,
+        "recall": 0.6696,
+        "f1": 0.7857,
+        "macro_f1": 0.8075,
+        "count": 221
+      },
+      "flask": {
+        "accuracy": 0.8077,
+        "precision": 0.8421,
+        "recall": 0.8889,
+        "f1": 0.8649,
+        "macro_f1": 0.7658,
+        "count": 26
+      },
+      "django": {
+        "accuracy": 0.7864,
+        "precision": 0.8571,
+        "recall": 0.6667,
+        "f1": 0.75,
+        "macro_f1": 0.7818,
+        "count": 206
+      },
+      "click": {
+        "accuracy": 0.8824,
+        "precision": 0.8889,
+        "recall": 0.8889,
+        "f1": 0.8889,
+        "macro_f1": 0.8819,
+        "count": 17
+      },
+      "fastapi": {
+        "accuracy": 0.5714,
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6667,
+        "macro_f1": 0.5333,
+        "count": 7
+      },
+      "sqlalchemy": {
+        "accuracy": 0.8515,
+        "precision": 0.9432,
+        "recall": 0.7411,
+        "f1": 0.83,
+        "macro_f1": 0.8491,
+        "count": 229
+      },
+      "pytest": {
+        "accuracy": 0.9022,
+        "precision": 1.0,
+        "recall": 0.7857,
+        "f1": 0.88,
+        "macro_f1": 0.8987,
+        "count": 92
+      }
+    }
+  }
+}

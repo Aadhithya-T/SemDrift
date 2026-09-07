@@ -70,19 +70,20 @@ def norm_repo(r: Any) -> str:
 def norm_file_path(f: Any) -> str:
     if not f:
         return ""
-    f_str = str(f).replace("\\", "/").lower().strip()
+    f_str = str(f).replace("\\", "/").lower().strip().lstrip("/")
     for prefix in ["data/raw_repos/", "data/experiments/v2/", "data/"]:
         if f_str.startswith(prefix):
             f_str = f_str[len(prefix):]
-    parts = f_str.split("/")
-    known_repos = {
-        "click", "django", "fastapi", "flask", "numpy", "pandas",
-        "pytest", "requests", "scikit_learn", "scikit-learn",
-        "sqlalchemy", "tornado", "celery"
-    }
-    if len(parts) > 1 and parts[0] in known_repos:
-        f_str = "/".join(parts[1:])
-    return f_str
+            parts = f_str.split("/", 1)
+            known_repos = {
+                "click", "django", "fastapi", "flask", "numpy", "pandas",
+                "pytest", "requests", "scikit_learn", "scikit-learn",
+                "sqlalchemy", "tornado", "celery"
+            }
+            if len(parts) > 1 and parts[0] in known_repos:
+                f_str = parts[1]
+            break
+    return f_str.strip("/")
 
 
 def get_file_ast_info(repo: str, file_path: str) -> Dict[str, List[Dict[str, Any]]]:
@@ -174,14 +175,18 @@ def resolve_qualified_name(row: Dict[str, Any]) -> str:
 
 
 def get_function_lineage(row: Dict[str, Any]) -> str:
-    """Stable lineage key: repo + normalized file + function name.
+    """Stable lineage key: repo + normalized file + qualified function identity.
     
-    Immune to line-number shifts across commits.
-    Format: repo::normalized_file_path::function_name
+    Immune to line-number shifts across commits and disambiguates methods across classes.
+    Format: repo::normalized_file_path::qualified_name_or_function_name
     """
     r = norm_repo(row.get("repo") or row.get("repo_name"))
     fp = norm_file_path(row.get("file_path") or row.get("file"))
-    fn = str(row.get("function_name", "")).strip()
+    fn = (
+        str(row.get("qualified_name") or "").strip()
+        or str(row.get("qualified_function_name") or "").strip()
+        or str(row.get("function_name") or "").strip()
+    )
     return f"{r}::{fp}::{fn}"
 
 

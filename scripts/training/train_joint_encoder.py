@@ -36,6 +36,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from datetime import datetime, timezone
+
 from semdrift.models.joint_encoder import (
     JointEncoderModel,
     SemDriftDataset,
@@ -43,6 +45,7 @@ from semdrift.models.joint_encoder import (
     make_collate_fn,
     extract_docstring_summary,
 )
+from semdrift.data.integrity import verify_dataset_integrity, compute_sha256
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -182,16 +185,18 @@ def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
 
 
 def evaluate_breakdowns(y_true: list[str], y_pred: list[str], metas: list[dict]) -> dict:
-    """Compute metrics broken down by drift_type, severity, and repo."""
+    """Compute metrics broken down by drift_type, severity, repo, and provenance."""
     by_drift_type: dict[str, list] = defaultdict(list)
     by_severity: dict[str, list] = defaultdict(list)
     by_repo: dict[str, list] = defaultdict(list)
+    by_provenance: dict[str, list] = defaultdict(list)
 
     for yt, yp, m in zip(y_true, y_pred, metas):
         pair = (yt, yp)
         by_drift_type[m["drift_type"]].append(pair)
         by_severity[m["severity"]].append(pair)
         by_repo[m["repo"]].append(pair)
+        by_provenance[m.get("provenance", "unknown")].append(pair)
 
     def calc_group(group_dict):
         result = {}
@@ -204,6 +209,7 @@ def evaluate_breakdowns(y_true: list[str], y_pred: list[str], metas: list[dict])
         "by_drift_type": calc_group(by_drift_type),
         "by_severity": calc_group(by_severity),
         "by_repo": calc_group(by_repo),
+        "by_provenance": calc_group(by_provenance),
     }
 
 
@@ -221,7 +227,6 @@ def main():
                         help="Dataset generation: 'v1' (controlled synthetic) or 'v2' (real-world-grounded)")
     parser.add_argument("--train", default=None, help="Train dataset (defaults to selected dataset_generation)")
     parser.add_argument("--val", default=None, help="Validation dataset (defaults to selected dataset_generation)")
-    parser.add_argument("--test", default=None, help="Test dataset (defaults to selected dataset_generation)")
 
     # Architecture & Tokenization configs
     parser.add_argument("--model_name", default="microsoft/codebert-base",
@@ -282,7 +287,7 @@ def main():
     # Resolve output directory based on generation if not specified
     if args.output_dir is None:
         args.output_dir = (
-            "data/v2_real_world/joint_encoder_results"
+            "experiments/2026-09-07_clean_v2/checkpoints"
             if args.dataset_generation == "v2"
             else "data/experiments/v2/joint_encoder_results"
         )
@@ -290,18 +295,14 @@ def main():
     # Resolve dataset paths based on generation
     if args.dataset_generation == "v2":
         if args.train is None:
-            args.train = "data/v2_real_world/training/train.jsonl"
+            args.train = "experiments/2026-09-07_clean_v2/dataset/train.jsonl"
         if args.val is None:
-            args.val = "data/v2_real_world/training/val.jsonl"
-        if args.test is None:
-            args.test = "data/v2_real_world/evaluation/verified_test.jsonl"
+            args.val = "experiments/2026-09-07_clean_v2/dataset/val.jsonl"
     else:  # v1
         if args.train is None:
             args.train = "data/v1_synthetic/ablation/train.jsonl"
         if args.val is None:
             args.val = "data/v1_synthetic/ablation/val.jsonl"
-        if args.test is None:
-            args.test = "data/v1_synthetic/benchmark/synthetic_dataset.jsonl"
 
     # Force clip max_length to 512 to avoid index out of bound for CodeBERT positional embeddings
     if args.max_length > 512:
@@ -330,21 +331,24 @@ def main():
     print("-" * 70, flush=True)
 
     # ------------------------------------------------------------------
-    # 1. Load Datasets
+    # 1. Authoritative Dataset Integrity Verification Gate
     # ------------------------------------------------------------------
+    dataset_dir = os.path.dirname(os.path.abspath(args.train))
+    print(f"Verifying dataset cryptographic integrity at {dataset_dir}...", flush=True)
+    req_files = [os.path.basename(args.train), os.path.basename(args.val)]
+    verify_dataset_integrity(dataset_dir, required_files=req_files)
+    print("  -> Cryptographic integrity verified (Layer A + Layer B).", flush=True)
+
     print("Loading datasets...", flush=True)
     train_dataset = SemDriftDataset(args.train, clean_docs=args.clean_docstrings)
     val_dataset = SemDriftDataset(args.val, clean_docs=args.clean_docstrings)
-    test_dataset = SemDriftDataset(args.test, clean_docs=args.clean_docstrings)
 
     if args.dry_run:
         print(f"[Dry Run] Subsetting datasets to 16 samples each.", flush=True)
         train_dataset.records = train_dataset.records[:16]
         val_dataset.records = val_dataset.records[:16]
-        test_dataset.records = test_dataset.records[:16]
 
-    print(f"Train: {len(train_dataset)} | Val: {len(val_dataset)} | "
-          f"Test: {len(test_dataset)} samples.", flush=True)
+    print(f"Train: {len(train_dataset)} | Val: {len(val_dataset)} samples.", flush=True)
 
     # ------------------------------------------------------------------
     # 2. Tokenizer & DataLoaders
@@ -362,9 +366,6 @@ def main():
     )
     val_loader = DataLoader(
         val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
     )
 
     # ------------------------------------------------------------------
@@ -410,14 +411,18 @@ def main():
         )
 
         # Validation evaluation
-        val_y_true, val_y_pred, _, _ = evaluate(model, val_loader, args.device)
+        val_y_true, val_y_pred, _, val_metas = evaluate(model, val_loader, args.device)
         val_metrics = calculate_metrics(val_y_true, val_y_pred)
+        val_breakdowns = evaluate_breakdowns(val_y_true, val_y_pred, val_metas)
 
         elapsed = time.time() - epoch_start
         print(f"Epoch {epoch + 1}/{args.epochs} | Loss: {avg_loss:.4f} | ({elapsed:.1f}s)", flush=True)
         print(f"  Accuracy: {val_metrics['accuracy']:.4f} | F1: {val_metrics['f1']:.4f} | Macro-F1: {val_metrics['macro_f1']:.4f} | Balanced Acc: {val_metrics['balanced_accuracy']:.4f}", flush=True)
         print(f"  Confusion Matrix: {val_metrics['confusion_matrix']}", flush=True)
         print(f"  Prediction Balance: Aligned={val_metrics['pred_aligned']} | Drifted={val_metrics['pred_drifted']}", flush=True)
+        print("  Validation Provenance Breakdown:", flush=True)
+        for prov, m in sorted(val_breakdowns["by_provenance"].items()):
+            print(f"    {prov:<28}: Acc={m['accuracy']:.4f} | F1={m['f1']:.4f} | Macro-F1={m['macro_f1']:.4f} (N={m['count']})", flush=True)
 
         # Checkpoint selection with Bias Collapse Guard
         current_metric_val = val_metrics[args.checkpoint_metric]
@@ -436,101 +441,87 @@ def main():
         print("-" * 50, flush=True)
 
     # ------------------------------------------------------------------
-    # 6. Load Best Checkpoint & Run Test Evaluation
+    # 6. Load Best Checkpoint & Record Training Run
     # ------------------------------------------------------------------
     if os.path.exists(checkpoint_path):
-        print(f"\nLoading best checkpoint from Epoch {best_epoch} for final test evaluation...", flush=True)
+        print(f"\nLoading best checkpoint from Epoch {best_epoch} for validation verification...", flush=True)
         model.load_state_dict(torch.load(checkpoint_path, map_location=args.device))
+        checkpoint_sha256 = compute_sha256(checkpoint_path)
     else:
-        print(f"\nNo saved checkpoint found at {checkpoint_path} (best_epoch={best_epoch}). Using current in-memory model weights for evaluation...", flush=True)
+        print(f"\nNo saved checkpoint found at {checkpoint_path} (best_epoch={best_epoch}). Using current in-memory model weights...", flush=True)
+        checkpoint_sha256 = None
 
     # Evaluate validation metrics with best checkpoint
-    val_y_true, val_y_pred, _, _ = evaluate(model, val_loader, args.device)
+    val_y_true, val_y_pred, _, val_metas = evaluate(model, val_loader, args.device)
     val_metrics = calculate_metrics(val_y_true, val_y_pred)
-
-    # Evaluate test metrics with best checkpoint
-    test_y_true, test_y_pred, test_probs, test_metas = evaluate(
-        model, test_loader, args.device
-    )
-    test_overall = calculate_metrics(test_y_true, test_y_pred)
-    breakdowns = evaluate_breakdowns(test_y_true, test_y_pred, test_metas)
+    val_breakdowns = evaluate_breakdowns(val_y_true, val_y_pred, val_metas)
 
     print("\n" + "=" * 70, flush=True)
-    print("FINAL TEST RESULTS — Fine-Tuned Joint-Encoder V2", flush=True)
+    print("FINAL VALIDATION RESULTS — Fine-Tuned Joint-Encoder V2", flush=True)
     print("=" * 70, flush=True)
-    print(f"Best Validation Epoch   : {best_epoch}", flush=True)
-    print(f"Accuracy                : {test_overall['accuracy']:.4f}", flush=True)
-    print(f"Precision               : {test_overall['precision']:.4f}", flush=True)
-    print(f"Recall                  : {test_overall['recall']:.4f}", flush=True)
-    print(f"F1 Score (Binary)       : {test_overall['f1']:.4f}", flush=True)
-    print(f"Macro F1 Score          : {test_overall['macro_f1']:.4f}", flush=True)
-    print(f"Balanced Accuracy       : {test_overall['balanced_accuracy']:.4f}", flush=True)
+    print(f"Best Epoch              : {best_epoch}", flush=True)
+    print(f"Validation Accuracy     : {val_metrics['accuracy']:.4f}", flush=True)
+    print(f"Validation Precision    : {val_metrics['precision']:.4f}", flush=True)
+    print(f"Validation Recall       : {val_metrics['recall']:.4f}", flush=True)
+    print(f"Validation Macro F1     : {val_metrics['macro_f1']:.4f}", flush=True)
+    print(f"Validation Balanced Acc : {val_metrics['balanced_accuracy']:.4f}", flush=True)
     print("Confusion Matrix:", flush=True)
-    print(f"  TN: {test_overall['tn']}  |  FP: {test_overall['fp']}", flush=True)
-    print(f"  FN: {test_overall['fn']}  |  TP: {test_overall['tp']}", flush=True)
+    print(f"  TN: {val_metrics['tn']}  |  FP: {val_metrics['fp']}", flush=True)
+    print(f"  FN: {val_metrics['fn']}  |  TP: {val_metrics['tp']}", flush=True)
 
-    print("\n--- Breakdown by Drift Type ---", flush=True)
-    for dt, m in sorted(breakdowns["by_drift_type"].items()):
-        print(f"  {dt:<22}: Acc={m['accuracy']:.4f} | "
+    print("\n--- Validation Breakdown by Provenance ---", flush=True)
+    for prov, m in sorted(val_breakdowns["by_provenance"].items()):
+        print(f"  {prov:<28}: Acc={m['accuracy']:.4f} | "
               f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
               f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
 
-    print("\n--- Breakdown by Severity ---", flush=True)
-    for sev, m in sorted(breakdowns["by_severity"].items()):
-        print(f"  {sev:<22}: Acc={m['accuracy']:.4f} | "
-              f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
-              f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
-
-    print("\n--- Breakdown by Repository ---", flush=True)
-    for repo, m in sorted(breakdowns["by_repo"].items()):
-        print(f"  {repo:<22}: Acc={m['accuracy']:.4f} | "
-              f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
-              f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
-
-    # ------------------------------------------------------------------
-    # 7. Save outputs
-    # ------------------------------------------------------------------
-    pred_path = os.path.join(args.output_dir, "predictions_joint_encoder.jsonl")
-    results_path = os.path.join(args.output_dir, "results_joint_encoder.json")
-
-    with open(pred_path, "w", encoding="utf-8") as f:
-        for rec, prob, pred in zip(test_dataset.records, test_probs, test_y_pred):
-            out = dict(rec)
-            out["predicted_label"] = pred
-            out["confidence"] = round(prob, 6)
-            f.write(json.dumps(out) + "\n")
-
-    full_results = {
-        "model": "Fine-Tuned Joint Encoder (Joint Code–Documentation Self-Attention) — V2",
-        "model_name": args.model_name,
+    # Save training_run.json record (immutable record containing checkpoint SHA256)
+    run_record_path = os.path.join(args.output_dir, "training_run.json")
+    training_run = {
+        "run_name": "clean_v2_joint_encoder_training",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "base_model": args.model_name,
         "architecture": "joint_encoder",
-        "pooling": args.pooling,
-        "code_truncation": args.code_truncation,
-        "doc_max_tokens": args.doc_max_tokens,
-        "max_length": args.max_length,
-        "dropout": args.dropout,
-        "use_focal_loss": args.use_focal_loss,
-        "category_weighting": args.category_weighting,
-        "checkpoint_metric": args.checkpoint_metric,
+        "checkpoint_path": checkpoint_path,
+        "checkpoint_sha256": checkpoint_sha256,
         "best_epoch": best_epoch,
+        "checkpoint_metric": args.checkpoint_metric,
+        "best_val_metric_value": best_val_metric_val,
         "val_metrics": val_metrics,
-        "test_overall": test_overall,
-        "confusion_matrix": {
-            "tn": test_overall["tn"],
-            "fp": test_overall["fp"],
-            "fn": test_overall["fn"],
-            "tp": test_overall["tp"],
+        "val_breakdowns": val_breakdowns,
+        "hyperparameters": {
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "weight_decay": args.weight_decay,
+            "warmup_ratio": args.warmup_ratio,
+            "max_length": args.max_length,
+            "doc_max_tokens": args.doc_max_tokens,
+            "code_truncation": args.code_truncation,
+            "pooling": args.pooling,
+            "use_focal_loss": args.use_focal_loss,
+            "focal_alpha": args.focal_alpha,
+            "focal_gamma": args.focal_gamma,
+            "category_weighting": args.category_weighting,
+            "seed": args.seed,
+            "clean_docstrings": args.clean_docstrings,
         },
-        "breakdowns": breakdowns,
     }
+    with open(run_record_path, "w", encoding="utf-8") as f:
+        json.dump(training_run, f, indent=2)
+    print(f"\n[OK] Training run record saved to: {run_record_path}", flush=True)
+    if checkpoint_sha256:
+        print(f"     Checkpoint SHA-256: {checkpoint_sha256}", flush=True)
 
+    results_path = os.path.join(args.output_dir, "results_joint_encoder.json")
     with open(results_path, "w", encoding="utf-8") as f:
-        json.dump(full_results, f, indent=2)
+        json.dump(training_run, f, indent=2)
+    print(f"[OK] Results summary saved to: {results_path}", flush=True)
 
-    print("\n" + "-" * 70, flush=True)
-    print(f"Predictions : {pred_path}", flush=True)
-    print(f"Results     : {results_path}", flush=True)
-    print("Fine-Tuned Joint-Encoder v2 execution complete!", flush=True)
+    print("\n" + "=" * 70, flush=True)
+    print("TRAINING PHASE COMPLETE (ZERO TEST EXPOSURE)", flush=True)
+    print("Test set is strictly isolated. Execute independent_evaluate.py to evaluate on locked test set.", flush=True)
+    print("=" * 70, flush=True)
 
 
 if __name__ == "__main__":

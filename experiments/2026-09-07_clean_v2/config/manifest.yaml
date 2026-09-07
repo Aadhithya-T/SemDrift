@@ -1,0 +1,71 @@
+experiment_id: 2026-09-07_clean_v2
+experiment_name: "V2 Clean Baseline \u2014 Production Training Configuration"
+timestamp: '2026-09-07T16:55:52.222158+00:00'
+disclaimer: 'New experimental generation with AST, mutation, lineage, and truncation
+  corrections. Features a balanced diagnostic test set (104 samples: 52 authentic
+  historical drift, 52 clean). Cryptographically locked with two-layer integrity verification.
+  Pre-training manifest is immutable.'
+dataset:
+  canonical_path: experiments/2026-09-07_clean_v2/dataset/
+  test_type: balanced_diagnostic
+  train_samples: 24229
+  val_samples: 2636
+  test_samples: 104
+  train_labels:
+    aligned: 13871
+    drifted: 10358
+  val_labels:
+    aligned: 1520
+    drifted: 1116
+  test_labels:
+    aligned: 52
+    drifted: 52
+  provenance_distribution:
+    train:
+      clean_grounded: 13871
+      contract_grounded_generated: 10358
+      authentic_historical_mined: 0
+    val:
+      clean_grounded: 1520
+      contract_grounded_generated: 1116
+      authentic_historical_mined: 0
+    test:
+      clean_grounded: 52
+      authentic_historical_mined: 52
+      contract_grounded_generated: 0
+  zero_leakage_audit:
+    verified_test_exclusion_set: 104
+    purged_leaked_candidates: 71
+    train_lineages: 13856
+    val_lineages: 1520
+    test_lineages: 104
+    train_val_overlap: 0
+    train_test_overlap: 0
+    val_test_overlap: 0
+    duplicate_rows: 0
+  checksums:
+    train_sha256: 7d0f5c21da4d618ffdb3c7681b98ec45e25f2a7fd53fe663d6c427bf59f1f9c5
+    val_sha256: d188b128f5f955f5565e5479d9010eabc15c8df816b63ff096a0a2486cff17a5
+    verified_test_sha256: fff74007ea28dfd2f4822f4833f8d702489404ed8ad4882f53ea307ba540ef40
+    sha256sums_sha256: fec452530a1d27e97d3ef6dd99d53640fbe48e616235deec7959637de5aba64f
+training_hyperparameters:
+  base_model: microsoft/codebert-base
+  architecture: joint_encoder
+  pooling: mean
+  code_truncation: head_tail
+  doc_max_tokens: 96
+  max_length: 512
+  epochs: 3
+  batch_size: 8
+  learning_rate: 2.0e-05
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  use_focal_loss: true
+  focal_alpha: 0.5
+  focal_gamma: 2.0
+  category_weighting: true
+  checkpoint_metric: macro_f1
+  bias_collapse_guard: ratio > 0.88 skips checkpoint save
+  seed: 42
+  device: cuda
+  zero_checkpoint_reuse: true

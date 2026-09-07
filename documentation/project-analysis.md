@@ -25,16 +25,14 @@ The dataset architecture is organized into two clearly separated generations:
      - Fine-tuned joint encoder (CE): accuracy 85.06%, F1 83.67%, macro-F1 84.95%.
      - Reported joint-vs-dual McNemar result: chi-square 18.76, p = 1.48e-05 (statistically significant).
 
-2. **V2 — Real-World-Grounded Dataset (`data/v2_real_world/`)**:
-   - Main training pool of **14,796** samples partitioned into `training/train.jsonl` (13,366) and `training/val.jsonl` (1,430) using function-lineage grouping (`repo::file_path::function_name`).
-   - Provenance explicitly distinguished:
-     - **2,222** authentic mined Git evolution commits (from 2,367 raw candidates; 145 purged for zero leakage).
-     - **5,122** realistic AST contract-grounded drift mutations (from 5,133 generated raw candidates; 11 purged for zero leakage).
-     - **7,452** confirmed clean negative samples (from 7,500 raw candidates; 48 purged for zero leakage).
-   - Final evaluation test set: `evaluation/verified_test.jsonl` with **101** 100% human-verified samples (14 drift, 87 clean).
-   - Zero-leakage guarantee: All 101 test function lineages were purged from V2 prior to training/validation generation (eliminating 204 candidate rows). Overlap between train/val and test is mathematically 0.
+2. **V2 — Clean-Slate Real-World-Grounded Dataset (`experiments/2026-09-07_clean_v2/dataset/`)**:
+   - Main canonical pool of **26,969** samples partitioned into `train.jsonl` (24,229) and `val.jsonl` (2,636) using qualified function-lineage grouping (`repo::normalized_file::qualified_name`).
+   - Balanced diagnostic test set: `verified_test.jsonl` with **104** independently human-verified samples (52 authentic historical drift positives across Click, Django, FastAPI, SQLAlchemy, PyTest, Tornado, and 52 clean negatives).
+   - Zero-leakage guarantee: All 104 test function lineages were purged from candidate pools prior to train/val partitioning (eliminating 71 candidate rows). Mathematical disjointness: $\text{train} \cap \text{val} = \emptyset, \text{train} \cap \text{test} = \emptyset, \text{val} \cap \text{test} = \emptyset$.
+   - Two-layer cryptographic lock (`SHA256SUMS` + `manifest.yaml`) enforces tamper rejection across 5 distinct tamper scenarios.
+   - Strict training decoupling: The training pipeline accepts ONLY `--train` and `--val`. Model evaluation is executed independently via `independent_evaluate.py` with checkpoint hash verification before weights loading.
 
-Datasets and metadata are managed via `scripts/data_pipeline/setup_dataset_architecture.py` and validated by `tests/test_dataset_architecture.py`.
+Datasets, manifest, and cryptographic locks are managed via `scripts/data_pipeline/generate_manifest.py` and validated by `scripts/data_pipeline/verify_dataset_provenance.py` and `tests/test_tamper_rejection.py`.
 
 ## Current implementation status
 The parser and model utility modules contain substantial implementation and are the strongest usable parts of the project. Training and evaluation scripts exist at the top level of `scripts/`, including Java extraction/parser test utilities. However, `semdrift.pipeline.Pipeline` is only a skeleton: `_parse`, `_embed`, and `_compare` raise `NotImplementedError`, and the comparator package has no visible concrete scoring implementation in its package initializer. The documented end-to-end `Pipeline` API therefore is not operational as written; practical execution currently goes through the scripts and direct parser/model APIs.

@@ -45,7 +45,7 @@ def extract_docstring_summary(docstring: str) -> str:
 
 
 class SemDriftDataset(Dataset):
-    """Loads JSONL records with fields: code, docstring, label, drift_type, severity."""
+    """Loads JSONL records across V1 (synthetic) and V2 (real-world-grounded) schemas."""
 
     def __init__(self, filepath: str, clean_docs: bool = True):
         self.records: list[dict] = []
@@ -54,24 +54,64 @@ class SemDriftDataset(Dataset):
                 line = line.strip()
                 if line:
                     rec = json.loads(line)
+                    raw_code = rec.get("code") or rec.get("code_after") or rec.get("code_before") or ""
+                    raw_doc = rec.get("docstring") or rec.get("docstring_after") or rec.get("docstring_before") or ""
+
                     if clean_docs:
-                        rec["docstring"] = extract_docstring_summary(rec.get("docstring", ""))
+                        rec["docstring"] = extract_docstring_summary(raw_doc)
+                    else:
+                        rec["docstring"] = raw_doc
+                    rec["code"] = raw_code
+
+                    rec["label_int"], rec["label_str"] = self._extract_label(rec)
                     self.records.append(rec)
+
+    @staticmethod
+    def _extract_label(rec: dict) -> tuple[int, str]:
+        # 1. Check pseudo_label (V2 training/val: 1 or 0)
+        if "pseudo_label" in rec and rec["pseudo_label"] is not None:
+            val = int(rec["pseudo_label"])
+            return (val, "drifted" if val == 1 else "aligned")
+
+        # 2. Check label (V2 verified_test: int 1/0, or V1: str 'drifted'/'aligned')
+        lbl = rec.get("label")
+        if lbl is not None:
+            if isinstance(lbl, (int, float)):
+                val = int(lbl)
+                return (val, "drifted" if val == 1 else "aligned")
+            s = str(lbl).strip().lower()
+            if s in ("drifted", "drift", "1"):
+                return (1, "drifted")
+            if s in ("aligned", "clean", "non_drift", "0"):
+                return (0, "aligned")
+
+        # 3. Check categorical labels
+        for k in ("verified_label", "drift_label", "filtered_label"):
+            if k in rec and rec[k] is not None:
+                s = str(rec[k]).strip().lower()
+                if s in ("drifted", "drift", "1"):
+                    return (1, "drifted")
+                if s in ("aligned", "clean", "non_drift", "0"):
+                    return (0, "aligned")
+
+        return (0, "aligned")
 
     def __len__(self):
         return len(self.records)
 
     def __getitem__(self, idx):
         rec = self.records[idx]
-        code = rec.get("code", "")
-        docstring = rec.get("docstring", "")
-        label_str = rec.get("label", "aligned")
-        label = 1 if label_str == "drifted" else 0
+        code = rec["code"]
+        docstring = rec["docstring"]
+        label = rec["label_int"]
+        label_str = rec["label_str"]
 
         meta = {
-            "repo": rec.get("repo", "unknown"),
-            "drift_type": rec.get("drift_type") or "aligned",
-            "severity": rec.get("severity") or "aligned",
+            "repo": rec.get("repo") or rec.get("repo_name") or "unknown",
+            "drift_type": rec.get("drift_type") or rec.get("mutation_type") or label_str,
+            "provenance": rec.get("provenance") or ("contract_grounded_generated" if label == 1 else "clean_grounded"),
+            "function_lineage": rec.get("function_lineage") or "",
+            "severity": rec.get("severity") or ("aligned" if label == 0 else "unknown"),
             "label_str": label_str,
         }
         return docstring, code, label, meta
@@ -108,6 +148,8 @@ def make_collate_fn(tokenizer: AutoTokenizer, max_length: int, doc_max_tokens: i
                     else:
                         code_ids = [mask_token_id]
                 elif truncation_strategy == "head":
+                    code_ids = code_ids[:remaining_budget]
+                elif truncation_strategy == "tail":
                     code_ids = code_ids[-remaining_budget:]
                 else:
                     code_ids = code_ids[:remaining_budget]
