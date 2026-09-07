@@ -4,7 +4,7 @@
 [![PyTorch 2.1+](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
 [![Transformers 4.30+](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)](https://huggingface.co/transformers/)
 [![Tree-Sitter](https://img.shields.io/badge/Tree--Sitter-Multi--Language-green.svg)](https://tree-sitter.github.io/)
-[![Unit Tests](https://img.shields.io/badge/tests-51%20passed-brightgreen.svg)](tests/)
+[![Unit Tests](https://img.shields.io/badge/tests-136%20passed-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **SemDrift** is an automated framework for detecting **semantic drift** between source code and documentation comments (docstrings). It combines AST parsing, multi-language Tree-Sitter support, synthetic mutation injection, and deep transformer architectures (CodeBERT) to detect when code changes silently invalidate docstring contracts.
@@ -320,38 +320,31 @@ Retrains the zero-shot baseline, fine-tuned dual encoder, fine-tuned joint encod
 
 ### 4. Individual Training & Baseline Execution
 
-#### Current Main Experiment (V2 Real-World-Grounded Architecture)
-The production training scripts default to the V2 Real-World-Grounded architecture (`data/v2_real_world/`):
+#### Current Main Experiment (Clean V2 Production Architecture)
+The canonical production experiment (`experiments/2026-09-07_clean_v2/`) features an immutable pre-training dataset manifest (24,229 train, 2,636 val, 104 balanced diagnostic test), strict training/evaluation decoupling, and a two-layer cryptographic verification gate:
 
 ```bash
-# 1. Lexical Baseline (TF-IDF + Logistic Regression) & Negation Diagnosis
-python scripts/analysis/diagnose_negation_and_lexical.py
+# 1. Verify Dataset Cryptographic Provenance & Lineage Invariants
+python scripts/data_pipeline/verify_dataset_provenance.py
 
-# 2. Zero-Shot Dual Encoder Baseline (Threshold Sweep on Verified Test)
-python scripts/training/run_zero_shot_baseline.py \
-    --val data/v2_real_world/training/val.jsonl \
-    --test data/v2_real_world/evaluation/verified_test.jsonl \
-    --output_dir data/v2_real_world/baseline_results \
-    --device cuda
-
-# 3. Fine-Tuned Dual-Encoder (Ablation Model on V2)
-python scripts/training/train_dual_encoder.py \
-    --train data/v2_real_world/training/train.jsonl \
-    --val data/v2_real_world/training/val.jsonl \
-    --test data/v2_real_world/evaluation/verified_test.jsonl \
-    --device cuda --epochs 3 --batch_size 8 \
-    --output_dir data/v2_real_world/dual_encoder_results/
-
-# 4. Fine-Tuned Joint-Encoder (Primary Contribution on V2)
+# 2. Fine-Tuned Joint-Encoder (Primary Contribution — Training Decoupled from Test)
 python scripts/training/train_joint_encoder.py \
-    --train data/v2_real_world/training/train.jsonl \
-    --val data/v2_real_world/training/val.jsonl \
-    --test data/v2_real_world/evaluation/verified_test.jsonl \
+    --train experiments/2026-09-07_clean_v2/dataset/train.jsonl \
+    --val experiments/2026-09-07_clean_v2/dataset/val.jsonl \
     --device cuda --epochs 3 --batch_size 8 \
-    --code_truncation head_tail --pooling cls \
+    --code_truncation head_tail --pooling mean \
     --checkpoint_metric macro_f1 \
     --use_focal_loss --category_weighting \
-    --output_dir data/v2_real_world/joint_encoder_results/
+    --output_dir experiments/2026-09-07_clean_v2/checkpoints/
+
+# 3. Independent Evaluation on Balanced Diagnostic Test Set (Cryptographically Verified)
+python experiments/2026-09-07_clean_v2/evaluation/independent_evaluate.py \
+    --checkpoint experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt \
+    --training_run experiments/2026-09-07_clean_v2/checkpoints/training_run.json \
+    --manifest experiments/2026-09-07_clean_v2/config/manifest.yaml \
+    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl \
+    --output_results experiments/2026-09-07_clean_v2/evaluation/eval_results.json \
+    --output_preds experiments/2026-09-07_clean_v2/predictions/independent_predictions.jsonl
 ```
 
 #### Historical V1 / Phase-1 Benchmark Artifacts (Controlled Synthetic Ablation)
@@ -366,12 +359,11 @@ python scripts/training/train_dual_encoder.py \
     --test data/v1_synthetic/benchmark/synthetic_dataset.jsonl \
     --output_dir data/experiments/v2/dual_encoder_results/
 
-# Joint-Encoder on Historical Controlled Benchmark
+# Joint-Encoder on Historical Controlled Benchmark (Training Phase Only)
 python scripts/training/train_joint_encoder.py \
     --dataset_generation v1 \
     --train data/v1_synthetic/ablation/train.jsonl \
     --val data/v1_synthetic/ablation/val.jsonl \
-    --test data/v1_synthetic/benchmark/synthetic_dataset.jsonl \
     --output_dir data/experiments/v2/joint_encoder_results/
 ```
 

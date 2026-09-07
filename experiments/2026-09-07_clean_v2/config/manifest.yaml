@@ -1,6 +1,6 @@
 experiment_id: 2026-09-07_clean_v2
 experiment_name: "V2 Clean Baseline \u2014 Production Training Configuration"
-timestamp: '2026-09-07T16:55:52.222158+00:00'
+timestamp: '2026-09-07T17:13:40.205874+00:00'
 disclaimer: 'New experimental generation with AST, mutation, lineage, and truncation
   corrections. Features a balanced diagnostic test set (104 samples: 52 authentic
   historical drift, 52 clean). Cryptographically locked with two-layer integrity verification.

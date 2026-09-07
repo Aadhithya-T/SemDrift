@@ -227,6 +227,7 @@ def main():
                         help="Dataset generation: 'v1' (controlled synthetic) or 'v2' (real-world-grounded)")
     parser.add_argument("--train", default=None, help="Train dataset (defaults to selected dataset_generation)")
     parser.add_argument("--val", default=None, help="Validation dataset (defaults to selected dataset_generation)")
+    parser.add_argument("--manifest", default=None, help="Path to manifest.yaml (defaults to experiments/2026-09-07_clean_v2/config/manifest.yaml for V2)")
 
     # Architecture & Tokenization configs
     parser.add_argument("--model_name", default="microsoft/codebert-base",
@@ -334,9 +335,14 @@ def main():
     # 1. Authoritative Dataset Integrity Verification Gate
     # ------------------------------------------------------------------
     dataset_dir = os.path.dirname(os.path.abspath(args.train))
+    manifest_path = args.manifest
+    if manifest_path is None and args.dataset_generation == "v2":
+        cand_manifest = os.path.join(os.path.dirname(dataset_dir), "config", "manifest.yaml")
+        if os.path.isfile(cand_manifest):
+            manifest_path = cand_manifest
     print(f"Verifying dataset cryptographic integrity at {dataset_dir}...", flush=True)
     req_files = [os.path.basename(args.train), os.path.basename(args.val)]
-    verify_dataset_integrity(dataset_dir, required_files=req_files)
+    verify_dataset_integrity(dataset_dir, manifest_path=manifest_path, required_files=req_files)
     print("  -> Cryptographic integrity verified (Layer A + Layer B).", flush=True)
 
     print("Loading datasets...", flush=True)
@@ -475,16 +481,26 @@ def main():
               f"F1={m['f1']:.4f} | Prec={m['precision']:.4f} | "
               f"Rec={m['recall']:.4f} (N={m['count']})", flush=True)
 
+    try:
+        import subprocess
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode("utf-8").strip()
+    except Exception:
+        git_commit = "unknown"
+
     # Save training_run.json record (immutable record containing checkpoint SHA256)
     run_record_path = os.path.join(args.output_dir, "training_run.json")
     training_run = {
         "run_name": "clean_v2_joint_encoder_training",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "git_commit": git_commit,
         "base_model": args.model_name,
         "architecture": "joint_encoder",
         "checkpoint_path": checkpoint_path,
         "checkpoint_sha256": checkpoint_sha256,
         "best_epoch": best_epoch,
+        "seed": args.seed,
         "checkpoint_metric": args.checkpoint_metric,
         "best_val_metric_value": best_val_metric_val,
         "val_metrics": val_metrics,
