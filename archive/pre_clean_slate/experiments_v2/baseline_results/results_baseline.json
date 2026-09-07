@@ -1,0 +1,185 @@
+{
+  "model": "Model A (CodeBERT Dual-Encoder Baseline)",
+  "model_name": "microsoft/codebert-base",
+  "pooling": "mean",
+  "clean_docstrings": true,
+  "normalize": true,
+  "sweep_metric": "balanced_accuracy",
+  "optimal_threshold": 0.8825000000000001,
+  "val_metrics": {
+    "accuracy": 0.5266,
+    "precision": 0.5011,
+    "recall": 0.3853,
+    "f1": 0.4356,
+    "macro_f1": 0.514,
+    "count": 1259
+  },
+  "test_overall": {
+    "accuracy": 0.4456,
+    "precision": 0.4333,
+    "recall": 0.3207,
+    "f1": 0.3686,
+    "macro_f1": 0.4373,
+    "count": 1205
+  },
+  "breakdowns": {
+    "by_drift_type": {
+      "return_value_change": {
+        "accuracy": 0.3309,
+        "precision": 1.0,
+        "recall": 0.3309,
+        "f1": 0.4973,
+        "macro_f1": 0.2486,
+        "count": 139
+      },
+      "aligned": {
+        "accuracy": 0.5729,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.3642,
+        "count": 597
+      },
+      "param_rename": {
+        "accuracy": 0.3756,
+        "precision": 1.0,
+        "recall": 0.3756,
+        "f1": 0.5461,
+        "macro_f1": 0.273,
+        "count": 221
+      },
+      "doc_negation": {
+        "accuracy": 0.4211,
+        "precision": 1.0,
+        "recall": 0.4211,
+        "f1": 0.5926,
+        "macro_f1": 0.2963,
+        "count": 95
+      },
+      "doc_sentence_delete": {
+        "accuracy": 0.1699,
+        "precision": 1.0,
+        "recall": 0.1699,
+        "f1": 0.2905,
+        "macro_f1": 0.1453,
+        "count": 153
+      }
+    },
+    "by_severity": {
+      "severe": {
+        "accuracy": 0.352,
+        "precision": 1.0,
+        "recall": 0.352,
+        "f1": 0.5208,
+        "macro_f1": 0.2604,
+        "count": 196
+      },
+      "aligned": {
+        "accuracy": 0.5729,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "macro_f1": 0.3642,
+        "count": 597
+      },
+      "mild": {
+        "accuracy": 0.3081,
+        "precision": 1.0,
+        "recall": 0.3081,
+        "f1": 0.471,
+        "macro_f1": 0.2355,
+        "count": 211
+      },
+      "moderate": {
+        "accuracy": 0.3035,
+        "precision": 1.0,
+        "recall": 0.3035,
+        "f1": 0.4656,
+        "macro_f1": 0.2328,
+        "count": 201
+      }
+    },
+    "by_repo": {
+      "pandas": {
+        "accuracy": 0.47,
+        "precision": 0.438,
+        "recall": 0.4511,
+        "f1": 0.4444,
+        "macro_f1": 0.4688,
+        "count": 283
+      },
+      "numpy": {
+        "accuracy": 0.3839,
+        "precision": 0.4906,
+        "recall": 0.3824,
+        "f1": 0.4298,
+        "macro_f1": 0.3799,
+        "count": 112
+      },
+      "requests": {
+        "accuracy": 0.5,
+        "precision": 0.5,
+        "recall": 0.3333,
+        "f1": 0.4,
+        "macro_f1": 0.4857,
+        "count": 12
+      },
+      "scikit-learn": {
+        "accuracy": 0.3665,
+        "precision": 0.381,
+        "recall": 0.3478,
+        "f1": 0.3636,
+        "macro_f1": 0.3665,
+        "count": 221
+      },
+      "flask": {
+        "accuracy": 0.3077,
+        "precision": 0.5,
+        "recall": 0.0556,
+        "f1": 0.1,
+        "macro_f1": 0.2687,
+        "count": 26
+      },
+      "django": {
+        "accuracy": 0.4612,
+        "precision": 0.3889,
+        "recall": 0.2121,
+        "f1": 0.2745,
+        "macro_f1": 0.423,
+        "count": 206
+      },
+      "click": {
+        "accuracy": 0.4118,
+        "precision": 0.3333,
+        "recall": 0.1111,
+        "f1": 0.1667,
+        "macro_f1": 0.3561,
+        "count": 17
+      },
+      "fastapi": {
+        "accuracy": 0.7143,
+        "precision": 0.8333,
+        "recall": 0.8333,
+        "f1": 0.8333,
+        "macro_f1": 0.4167,
+        "count": 7
+      },
+      "sqlalchemy": {
+        "accuracy": 0.4716,
+        "precision": 0.4328,
+        "recall": 0.2589,
+        "f1": 0.324,
+        "macro_f1": 0.4452,
+        "count": 229
+      },
+      "pytest": {
+        "accuracy": 0.5543,
+        "precision": 0.5263,
+        "recall": 0.2381,
+        "f1": 0.3279,
+        "macro_f1": 0.4973,
+        "count": 92
+      }
+    }
+  }
+}

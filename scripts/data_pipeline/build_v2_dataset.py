@@ -100,13 +100,14 @@ class DefaultValueMutator(ast.NodeTransformer):
         self.mutated = False
 
     def visit_FunctionDef(self, node):
-        # Match parameter defaults
-        num_defaults = len(node.args.defaults)
-        params_with_defaults = [a.arg for a in node.args.args[-num_defaults:]] if num_defaults > 0 else []
-        if self.param_name in params_with_defaults:
-            idx = params_with_defaults.index(self.param_name)
-            node.args.defaults[idx] = ast.Constant(value=self.new_default_val)
-            self.mutated = True
+        if not self.mutated:
+            # Match parameter defaults
+            num_defaults = len(node.args.defaults)
+            params_with_defaults = [a.arg for a in node.args.args[-num_defaults:]] if num_defaults > 0 else []
+            if self.param_name in params_with_defaults:
+                idx = params_with_defaults.index(self.param_name)
+                node.args.defaults[idx] = ast.Constant(value=self.new_default_val)
+                self.mutated = True
         return self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node):
@@ -247,6 +248,58 @@ def mutate_exception_contract(code_str: str, function_name: str, doc_meta: dict)
     }
 
 
+def find_function_node(tree: ast.AST, function_name: str) -> Optional[ast.AST]:
+    """Find AST node for a function, supporting qualified names like 'ClassName.method'.
+
+    If qualified_name contains dots, traverses class/function hierarchy.
+    Handles module prefixes (e.g. 'pkg.module.ClassName.method') by searching
+    matching sub-paths in the AST.
+    If bare name or if hierarchical lookup fails, falls back to searching for any
+    matching function node (backward compatible).
+    """
+    if not function_name:
+        return None
+
+    parts = [p.strip() for p in function_name.split(".") if p.strip()]
+    if not parts:
+        return None
+
+    target_name = parts[-1]
+
+    if len(parts) == 1:
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == target_name:
+                return node
+        return None
+
+    # Try matching full path, then shorter suffixes down to length 2
+    for start_idx in range(len(parts) - 1):
+        sub_path = parts[start_idx:-1]
+        current_nodes: list[ast.AST] = [tree]
+        for part in sub_path:
+            next_nodes = []
+            for parent in current_nodes:
+                for child in ast.iter_child_nodes(parent):
+                    if isinstance(child, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == part:
+                        next_nodes.append(child)
+            current_nodes = next_nodes
+            if not current_nodes:
+                break
+
+        if current_nodes:
+            for parent in current_nodes:
+                for child in ast.iter_child_nodes(parent):
+                    if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == target_name:
+                        return child
+
+    # Fallback to bare function name search across the AST
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == target_name:
+            return node
+
+    return None
+
+
 def mutate_default_value(code_str: str, function_name: str, doc_meta: dict) -> Optional[dict]:
     """Mutates parameter default value in signature."""
     try:
@@ -255,11 +308,7 @@ def mutate_default_value(code_str: str, function_name: str, doc_meta: dict) -> O
         return None
 
     # Find function
-    func_node = None
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
-            func_node = node
-            break
+    func_node = find_function_node(tree, function_name)
     if not func_node or not func_node.args.defaults:
         return None
 
@@ -270,13 +319,13 @@ def mutate_default_value(code_str: str, function_name: str, doc_meta: dict) -> O
 
     target_param = random.choice(params_with_defaults)
     mutator = DefaultValueMutator(target_param, 9999)
-    mutated_tree = mutator.visit(tree)
+    mutator.visit(func_node)
     if not mutator.mutated:
         return None
 
-    ast.fix_missing_locations(mutated_tree)
+    ast.fix_missing_locations(tree)
     try:
-        mutated_code = ast.unparse(mutated_tree)
+        mutated_code = ast.unparse(tree)
     except Exception:
         return None
 
@@ -393,6 +442,7 @@ def process_extracted_pairs(input_path: Path, output_path: Path) -> dict:
         repo = pair.get("repo", "")
         file_p = pair.get("file", "")
         fn_name = pair.get("function_name", "")
+        qualified_fn = pair.get("qualified_name") or pair.get("qualified_function_name") or fn_name
         code = pair.get("code", "")
         raw_doc = pair.get("docstring", "")
         lineno = pair.get("lineno", 0)
@@ -406,6 +456,7 @@ def process_extracted_pairs(input_path: Path, output_path: Path) -> dict:
             "file": file_p,
             "lineno": lineno,
             "function_name": fn_name,
+            "qualified_name": qualified_fn,
             "code": code,
             "docstring": formatted_doc,
             "raw_docstring": raw_doc,
@@ -425,7 +476,7 @@ def process_extracted_pairs(input_path: Path, output_path: Path) -> dict:
         random.shuffle(shuffled_mutators)
         mutated_res = None
         for m_name, m_fn in shuffled_mutators:
-            mutated_res = m_fn(code, fn_name, doc_meta)
+            mutated_res = m_fn(code, qualified_fn, doc_meta)
             if mutated_res is not None:
                 break
 

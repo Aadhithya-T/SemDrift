@@ -1,0 +1,55 @@
+experiment_id: "2026-09-07_clean_v2"
+experiment_name: "V2 Clean Baseline — Production Training Configuration"
+git_commit: "546362faffe62a45bc3f436b35a05f9335d42d48"
+timestamp: "2026-09-07T21:44:00+05:30"
+disclaimer: >-
+  New experimental generation with AST, mutation, lineage, and truncation corrections.
+  Not an apples-to-apples continuation of previous CrossEntropy ablation benchmark.
+dataset:
+  canonical_path: "experiments/2026-09-07_clean_v2/dataset/"
+  train_samples: 24260
+  val_samples: 2640
+  test_samples: 101
+  train_labels:
+    aligned: 13888
+    drifted: 10372
+  val_labels:
+    aligned: 1522
+    drifted: 1118
+  test_labels:
+    aligned: 87
+    drifted: 14
+  zero_leakage_audit:
+    verified_test_exclusion_set: 101
+    purged_leaked_candidates: 36
+    train_lineages: 13873
+    val_lineages: 1522
+    test_lineages: 101
+    train_val_overlap: 0
+    train_test_overlap: 0
+    val_test_overlap: 0
+  checksums:
+    train_sha256: "f918a707e83ab8e2db5b1bd92b1e7e62fcc96f3f5888077c66969573a8d2b3c6"
+    val_sha256: "27c18a1d69d3eda80373bdba90e648e75c9c8481285df5917cdad94c3e0db13d"
+    test_sha256: "4483dde8e325e0e55ae37e765053b4be2dfbe8cf0c13da9da1cd3bc9a0af5fe8"
+training_hyperparameters:
+  base_model: "microsoft/codebert-base"
+  architecture: "joint_encoder"
+  pooling: "mean"
+  code_truncation: "head_tail"
+  doc_max_tokens: 96
+  max_length: 512
+  epochs: 3
+  batch_size: 8
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  use_focal_loss: true
+  focal_alpha: 0.5
+  focal_gamma: 2.0
+  category_weighting: true
+  checkpoint_metric: "macro_f1"
+  bias_collapse_guard: "ratio > 0.88 skips checkpoint save"
+  seed: 42
+  device: "cuda"
+  zero_checkpoint_reuse: true

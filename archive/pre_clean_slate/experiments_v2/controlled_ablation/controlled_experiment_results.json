@@ -1,0 +1,120 @@
+{
+  "dual_metrics": {
+    "accuracy": 80.91,
+    "precision": 91.63,
+    "recall": 68.42,
+    "f1": 78.34,
+    "macro_f1": 80.64,
+    "balanced_accuracy": 81.03,
+    "tn": 559,
+    "fp": 38,
+    "fn": 192,
+    "tp": 416,
+    "count": 1205
+  },
+  "joint_metrics": {
+    "accuracy": 85.06,
+    "precision": 93.32,
+    "recall": 75.82,
+    "f1": 83.67,
+    "macro_f1": 84.95,
+    "balanced_accuracy": 85.15,
+    "tn": 564,
+    "fp": 33,
+    "fn": 147,
+    "tp": 461,
+    "count": 1205
+  },
+  "delta": {
+    "accuracy": 4.15,
+    "precision": 1.69,
+    "recall": 7.4,
+    "f1": 5.33,
+    "macro_f1": 4.31,
+    "balanced_accuracy": 4.12
+  },
+  "mcnemar": {
+    "n00": 141,
+    "n01_m2_wins": 89,
+    "n10_m1_wins": 39,
+    "n11": 936,
+    "statistic": 18.7578,
+    "p_value": 1.4841410792897199e-05,
+    "p_value_formatted": "1.4841e-05",
+    "is_statistically_significant": true
+  },
+  "dual_breakdown": {
+    "aligned": {
+      "count": 597,
+      "accuracy": 93.63,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    "doc_negation": {
+      "count": 95,
+      "accuracy": 9.47,
+      "f1": 17.31,
+      "precision": 100.0,
+      "recall": 9.47
+    },
+    "doc_sentence_delete": {
+      "count": 153,
+      "accuracy": 67.32,
+      "f1": 80.47,
+      "precision": 100.0,
+      "recall": 67.32
+    },
+    "param_rename": {
+      "count": 221,
+      "accuracy": 96.83,
+      "f1": 98.39,
+      "precision": 100.0,
+      "recall": 96.83
+    },
+    "return_value_change": {
+      "count": 139,
+      "accuracy": 64.75,
+      "f1": 78.6,
+      "precision": 100.0,
+      "recall": 64.75
+    }
+  },
+  "joint_breakdown": {
+    "aligned": {
+      "count": 597,
+      "accuracy": 94.47,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    "doc_negation": {
+      "count": 95,
+      "accuracy": 23.16,
+      "f1": 37.61,
+      "precision": 100.0,
+      "recall": 23.16
+    },
+    "doc_sentence_delete": {
+      "count": 153,
+      "accuracy": 68.63,
+      "f1": 81.4,
+      "precision": 100.0,
+      "recall": 68.63
+    },
+    "param_rename": {
+      "count": 221,
+      "accuracy": 95.93,
+      "f1": 97.92,
+      "precision": 100.0,
+      "recall": 95.93
+    },
+    "return_value_change": {
+      "count": 139,
+      "accuracy": 87.77,
+      "f1": 93.49,
+      "precision": 100.0,
+      "recall": 87.77
+    }
+  }
+}

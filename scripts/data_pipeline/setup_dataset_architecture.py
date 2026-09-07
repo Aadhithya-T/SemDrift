@@ -174,14 +174,18 @@ def resolve_qualified_name(row: Dict[str, Any]) -> str:
 
 
 def get_function_lineage(row: Dict[str, Any]) -> str:
-    """Stable lineage key: repo + normalized file + function name.
+    """Stable lineage key: repo + normalized file + qualified function identity.
     
-    Immune to line-number shifts across commits.
-    Format: repo::normalized_file_path::function_name
+    Immune to line-number shifts across commits and disambiguates methods across classes.
+    Format: repo::normalized_file_path::qualified_name_or_function_name
     """
     r = norm_repo(row.get("repo") or row.get("repo_name"))
     fp = norm_file_path(row.get("file_path") or row.get("file"))
-    fn = str(row.get("function_name", "")).strip()
+    fn = (
+        str(row.get("qualified_name") or "").strip()
+        or str(row.get("qualified_function_name") or "").strip()
+        or str(row.get("function_name") or "").strip()
+    )
     return f"{r}::{fp}::{fn}"
 
 

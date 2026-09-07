@@ -20,7 +20,7 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, balanced_accuracy_score, confusion_matrix
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -51,6 +51,29 @@ def extract_docstring_summary(docstring: str) -> str:
     return lines[0].strip()
 
 
+def extract_label(rec: dict) -> str:
+    """Returns 'drifted' or 'aligned'."""
+    if "pseudo_label" in rec and rec["pseudo_label"] is not None:
+        return "drifted" if int(rec["pseudo_label"]) == 1 else "aligned"
+    lbl = rec.get("label")
+    if lbl is not None:
+        if isinstance(lbl, (int, float)):
+            return "drifted" if int(lbl) == 1 else "aligned"
+        s = str(lbl).strip().lower()
+        if s in ("drifted", "drift", "1"):
+            return "drifted"
+        if s in ("aligned", "clean", "non_drift", "0"):
+            return "aligned"
+    for k in ("verified_label", "drift_label", "filtered_label"):
+        if k in rec and rec[k] is not None:
+            s = str(rec[k]).strip().lower()
+            if s in ("drifted", "drift", "1"):
+                return "drifted"
+            if s in ("aligned", "clean", "non_drift", "0"):
+                return "aligned"
+    return "aligned"
+
+
 def load_jsonl(filepath: str, clean_docs: bool = False) -> list[dict]:
     records = []
     with open(filepath, "r", encoding="utf-8") as f:
@@ -58,8 +81,15 @@ def load_jsonl(filepath: str, clean_docs: bool = False) -> list[dict]:
             line = line.strip()
             if line:
                 rec = json.loads(line)
+                raw_code = rec.get("code") or rec.get("code_after") or rec.get("code_before") or ""
+                raw_doc = rec.get("docstring") or rec.get("docstring_after") or rec.get("docstring_before") or ""
+
                 if clean_docs:
-                    rec["docstring"] = extract_docstring_summary(rec.get("docstring", ""))
+                    rec["docstring"] = extract_docstring_summary(raw_doc)
+                else:
+                    rec["docstring"] = raw_doc
+                rec["code"] = raw_code
+                rec["label"] = extract_label(rec)
                 records.append(rec)
     return records
 
@@ -158,6 +188,10 @@ def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
     acc = float(accuracy_score(y_b_true, y_b_pred))
     p, r, f1, _ = precision_recall_fscore_support(y_b_true, y_b_pred, average="binary", zero_division=0)
     _, _, macro_f1, _ = precision_recall_fscore_support(y_b_true, y_b_pred, average="macro", zero_division=0)
+    balanced_acc = float(balanced_accuracy_score(y_b_true, y_b_pred))
+
+    cm = confusion_matrix(y_b_true, y_b_pred, labels=[0, 1])
+    tn, fp, fn, tp = cm.ravel()
 
     return {
         "accuracy": round(acc, 4),
@@ -165,6 +199,12 @@ def calculate_metrics(y_true: list[str], y_pred: list[str]) -> dict:
         "recall": round(float(r), 4),
         "f1": round(float(f1), 4),
         "macro_f1": round(float(macro_f1), 4),
+        "balanced_accuracy": round(balanced_acc, 4),
+        "confusion_matrix": f"TN={tn}, FP={fp}, FN={fn}, TP={tp}",
+        "tn": int(tn),
+        "fp": int(fp),
+        "fn": int(fn),
+        "tp": int(tp),
         "count": len(y_true),
     }
 
@@ -228,6 +268,7 @@ def main():
     parser.add_argument("--mean_center", action="store_true", default=True, help="Apply mean centering to mitigate CodeBERT anisotropy")
     parser.add_argument("--output_dir", default=None,
                         help="Directory to write predictions and results (defaults to data/v2_real_world/baseline_results/ for V2)")
+    parser.add_argument("--device", default=DEFAULT_DEVICE, help="Device to run on (cuda or cpu)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
 
@@ -322,6 +363,9 @@ def main():
     print(f"Recall                   : {test_overall['recall']:.4f}", flush=True)
     print(f"F1 Score (Binary)        : {test_overall['f1']:.4f}", flush=True)
     print(f"Macro F1 Score           : {test_overall['macro_f1']:.4f}", flush=True)
+    print(f"Balanced Accuracy        : {test_overall['balanced_accuracy']:.4f}", flush=True)
+    print(f"Confusion Matrix         : {test_overall['confusion_matrix']}", flush=True)
+    print(f"TN: {test_overall['tn']} | FP: {test_overall['fp']} | FN: {test_overall['fn']} | TP: {test_overall['tp']}", flush=True)
 
     print("\n--- Breakdown by Drift Type ---", flush=True)
     for dt, m in sorted(breakdowns["by_drift_type"].items()):
