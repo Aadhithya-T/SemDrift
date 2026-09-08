@@ -28,6 +28,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from semdrift.embedder.embed import get_embeddings, compute_divergence, load_config
+from semdrift.data.labels import extract_label_tuple
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -52,26 +53,9 @@ def extract_docstring_summary(docstring: str) -> str:
 
 
 def extract_label(rec: dict) -> str:
-    """Returns 'drifted' or 'aligned'."""
-    if "pseudo_label" in rec and rec["pseudo_label"] is not None:
-        return "drifted" if int(rec["pseudo_label"]) == 1 else "aligned"
-    lbl = rec.get("label")
-    if lbl is not None:
-        if isinstance(lbl, (int, float)):
-            return "drifted" if int(lbl) == 1 else "aligned"
-        s = str(lbl).strip().lower()
-        if s in ("drifted", "drift", "1"):
-            return "drifted"
-        if s in ("aligned", "clean", "non_drift", "0"):
-            return "aligned"
-    for k in ("verified_label", "drift_label", "filtered_label"):
-        if k in rec and rec[k] is not None:
-            s = str(rec[k]).strip().lower()
-            if s in ("drifted", "drift", "1"):
-                return "drifted"
-            if s in ("aligned", "clean", "non_drift", "0"):
-                return "aligned"
-    return "aligned"
+    """Returns 'drifted' or 'aligned' using canonical extract_label_tuple."""
+    _, label_str = extract_label_tuple(rec)
+    return label_str
 
 
 def load_jsonl(filepath: str, clean_docs: bool = False) -> list[dict]:

@@ -46,6 +46,7 @@ from semdrift.models.joint_encoder import (
     extract_docstring_summary,
 )
 from semdrift.data.integrity import verify_dataset_integrity, compute_sha256
+from semdrift.data.labels import validate_dataset_pipeline
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -344,6 +345,9 @@ def main():
     req_files = [os.path.basename(args.train), os.path.basename(args.val)]
     verify_dataset_integrity(dataset_dir, manifest_path=manifest_path, required_files=req_files)
     print("  -> Cryptographic integrity verified (Layer A + Layer B).", flush=True)
+
+    print("Validating dataset schema & class-presence invariants...", flush=True)
+    validate_dataset_pipeline(args.train, args.val, print_summary=True)
 
     print("Loading datasets...", flush=True)
     train_dataset = SemDriftDataset(args.train, clean_docs=args.clean_docstrings)

@@ -37,6 +37,7 @@ from semdrift.models.dual_encoder import (
     make_collate_fn,
     extract_docstring_summary,
 )
+from semdrift.data.labels import validate_dataset_pipeline
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -312,6 +313,10 @@ def main():
     print(f"Freeze Base      : {args.freeze_base}", flush=True)
     print(f"Dry Run Mode     : {args.dry_run}", flush=True)
     print("----------------------------------------------------------------------", flush=True)
+
+    # Authoritative Preflight Dataset Invariant Verification Gate
+    print("Validating dataset schema & class-presence invariants...", flush=True)
+    validate_dataset_pipeline(args.train, args.val, args.test, print_summary=True)
 
     # 1. Load Datasets
     print("Loading datasets...", flush=True)

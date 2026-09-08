@@ -10,6 +10,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from transformers import AutoModel, AutoTokenizer
 
+from semdrift.data.labels import extract_label_tuple
+
 
 def extract_docstring_summary(docstring: str) -> str:
     """Extract clean natural language summary from docstrings."""
@@ -53,33 +55,8 @@ class DualEncoderDataset(Dataset):
 
     @staticmethod
     def _extract_label(rec: dict) -> tuple[int, str]:
-        # 1. Check pseudo_label (V2 training/val: 1 or 0)
-        if "pseudo_label" in rec and rec["pseudo_label"] is not None:
-            val = int(rec["pseudo_label"])
-            return (val, "drifted" if val == 1 else "aligned")
-
-        # 2. Check label (V2 verified_test: int 1/0, or V1: str 'drifted'/'aligned')
-        lbl = rec.get("label")
-        if lbl is not None:
-            if isinstance(lbl, (int, float)):
-                val = int(lbl)
-                return (val, "drifted" if val == 1 else "aligned")
-            s = str(lbl).strip().lower()
-            if s in ("drifted", "drift", "1"):
-                return (1, "drifted")
-            if s in ("aligned", "clean", "non_drift", "0"):
-                return (0, "aligned")
-
-        # 3. Check categorical labels
-        for k in ("verified_label", "drift_label", "filtered_label"):
-            if k in rec and rec[k] is not None:
-                s = str(rec[k]).strip().lower()
-                if s in ("drifted", "drift", "1"):
-                    return (1, "drifted")
-                if s in ("aligned", "clean", "non_drift", "0"):
-                    return (0, "aligned")
-
-        return (0, "aligned")
+        """Extract canonical label (int, str) using authoritative semdrift.data.labels helper."""
+        return extract_label_tuple(rec)
 
     def __len__(self):
         return len(self.records)
