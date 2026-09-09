@@ -202,13 +202,13 @@ def evaluate_breakdowns(records: list[dict], predictions: list[str]) -> dict:
         true_label = record["label"]
         pair = (true_label, pred)
 
-        drift_type = record.get("drift_type") or "aligned"
+        drift_type = record.get("drift_type") or record.get("mutation_type") or "aligned"
         by_drift_type[drift_type].append(pair)
 
         severity = record.get("severity") or "aligned"
         by_severity[severity].append(pair)
 
-        repo = record.get("repo") or "unknown"
+        repo = record.get("repo") or record.get("repo_or_origin") or "unknown"
         by_repo[repo].append(pair)
 
     def calc_group_metrics(group_dict):

@@ -11,11 +11,11 @@
 1. **V1 Controlled Synthetic Dataset**: AST rule-based mutations across 10 repositories.
 2. **V2 Clean Real-World Dataset**: Contract-grounded training with a cryptographically locked diagnostic test set of authentic human commits mined from open-source repositories (Click, FastAPI, Django, Pandas, SQLAlchemy, Pytest).
 
-> 📄 **Complete Empirical Records**: For full per-model confusion matrices ($TN, FP, FN, TP$), provenance breakdowns, drift score distributions ($P(\text{drift})$), severity analyses, and McNemar test contingency tables, see the repository-level master report: [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
+> **Complete Empirical Records**: For full per-model confusion matrices ($TN, FP, FN, TP$), provenance breakdowns, drift score distributions ($P(\text{drift})$), severity analyses, and McNemar test contingency tables, see the repository-level master report: [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
 
 ---
 
-## 🔬 Core Empirical Findings: The Synthetic-to-Real Generalization Gap
+## Core Empirical Findings: The Synthetic-to-Real Generalization Gap
 
 The empirical results reveal a critical distinction between performance under controlled synthetic conditions versus real-world software evolution:
 
@@ -33,7 +33,7 @@ Authentic Real-World Domain (V2 Locked Diagnostic):
 
 ---
 
-## 📊 Benchmark Results
+## Benchmark Results
 
 ### 1. V2 Real-World Grounded Benchmark (Locked Diagnostic Test Set, $N = 104$)
 
@@ -114,7 +114,7 @@ Performance on held-out validation splits during training:
 
 ---
 
-## 📊 Dataset Architecture & Integrity Design
+## Dataset Architecture & Integrity Design
 
 SemDrift structures data curation into two strictly separated generations:
 
@@ -146,7 +146,7 @@ SemDrift structures data curation into two strictly separated generations:
 
 ---
 
-## 🏗️ Model Architectures
+## Model Architectures
 
 ```text
                         ┌────────────────────────────────────────────────────────┐
@@ -184,7 +184,7 @@ SemDrift structures data curation into two strictly separated generations:
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 SemDrift/
@@ -217,7 +217,7 @@ SemDrift/
 
 ---
 
-## ⚡ Quick Start & Reproduction
+## Quick Start & Reproduction
 
 ### 1. Environment Setup
 
@@ -291,6 +291,6 @@ python scripts/scan_repo.py . --output markdown --output_file drift_report.md
 
 ---
 
-## 📜 Citation & License
+## Citation & License
 
 This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.

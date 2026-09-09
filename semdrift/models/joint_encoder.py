@@ -57,7 +57,7 @@ class SemDriftDataset(Dataset):
                 if line:
                     rec = json.loads(line)
                     raw_code = rec.get("code") or rec.get("code_after") or rec.get("code_before") or ""
-                    raw_doc = rec.get("docstring") or rec.get("docstring_after") or rec.get("docstring_before") or ""
+                    raw_doc = rec.get("docstring") or rec.get("docstring_after") or rec.get("docstring_before") or rec.get("raw_docstring") or ""
 
                     if clean_docs:
                         rec["docstring"] = extract_docstring_summary(raw_doc)
@@ -84,9 +84,9 @@ class SemDriftDataset(Dataset):
         label_str = rec["label_str"]
 
         meta = {
-            "repo": rec.get("repo") or rec.get("repo_name") or "unknown",
+            "repo": rec.get("repo") or rec.get("repo_name") or rec.get("repo_or_origin") or "unknown",
             "drift_type": rec.get("drift_type") or rec.get("mutation_type") or label_str,
-            "provenance": rec.get("provenance") or ("contract_grounded_generated" if label == 1 else "clean_grounded"),
+            "provenance": rec.get("provenance") or rec.get("source") or ("contract_grounded_generated" if label == 1 else "clean_grounded"),
             "function_lineage": rec.get("function_lineage") or "",
             "severity": rec.get("severity") or ("aligned" if label == 0 else "unknown"),
             "label_str": label_str,

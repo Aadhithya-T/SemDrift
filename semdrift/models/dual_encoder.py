@@ -70,8 +70,9 @@ class DualEncoderDataset(Dataset):
 
         # Meta dictionary for evaluating breakdowns later
         meta = {
-            "repo": rec.get("repo") or rec.get("repo_name") or "unknown",
+            "repo": rec.get("repo") or rec.get("repo_name") or rec.get("repo_or_origin") or "unknown",
             "drift_type": rec.get("drift_type") or rec.get("curation_method") or rec.get("drift_source") or label_str,
+            "provenance": rec.get("provenance") or rec.get("source") or ("contract_grounded_generated" if label == 1 else "clean_grounded"),
             "severity": rec.get("severity") or ("aligned" if label == 0 else "unknown"),
             "label_str": label_str,
         }

@@ -30,12 +30,12 @@ def _normalize_binary_val(val: Any, field_name: str, record_ctx: Optional[dict] 
         )
     if isinstance(val, str):
         s = val.strip().lower()
-        if s in ("1", "drifted", "drift"):
+        if s in ("1", "drifted", "drift", "inconsistent"):
             return 1
-        if s in ("0", "aligned", "clean", "non_drift"):
+        if s in ("0", "aligned", "clean", "non_drift", "consistent"):
             return 0
         raise ValueError(
-            f"Invalid string {field_name} '{val}': expected binary ('0', '1') or ('aligned', 'drifted'). "
+            f"Invalid string {field_name} '{val}': expected binary ('0', '1') or ('aligned', 'drifted', 'consistent', 'inconsistent'). "
             f"Record context: {record_ctx}"
         )
     raise ValueError(
@@ -193,7 +193,7 @@ def validate_dataset_split(
             )
 
         # 2. Required docstring content
-        raw_doc = rec.get("docstring") or rec.get("docstring_after") or rec.get("docstring_before") or ""
+        raw_doc = rec.get("docstring") or rec.get("docstring_after") or rec.get("docstring_before") or rec.get("raw_docstring") or ""
         if not isinstance(raw_doc, str) or not raw_doc.strip():
             raise ValueError(
                 f"Record #{idx} in '{split_name}' missing required docstring content. "

@@ -56,6 +56,8 @@ def parse_args():
     parser.add_argument("--code_truncation", default="head_tail")
     parser.add_argument("--doc_max_tokens", type=int, default=96)
     parser.add_argument("--max_length", type=int, default=512)
+    parser.add_argument("--skip_integrity", action="store_true", default=False,
+                        help="Skip manifest-locked test set verification for evaluating custom/external test sets")
     return parser.parse_args()
 
 
@@ -68,7 +70,6 @@ def main():
     manifest_path = PROJECT_ROOT / args.manifest
     
     assert test_path.is_file(), f"Test set not found at: {test_path}"
-    assert manifest_path.is_file(), f"Manifest not found at: {manifest_path}"
     
     print("=" * 70)
     print("SEMDRIFT INDEPENDENT EVALUATION (CLEAN-SLATE V2)")
@@ -77,53 +78,59 @@ def main():
     print(f"Manifest   : {manifest_path}")
     print(f"Test Set   : {test_path}")
     print(f"Device     : {args.device}")
+    print(f"Skip Check : {args.skip_integrity}")
     print("=" * 70)
     
-    # ------------------------------------------------------------------
-    # 1. Load Manifest
-    # ------------------------------------------------------------------
-    print(f"Loading pre-training dataset manifest from {manifest_path}...", flush=True)
-    with manifest_path.open("r", encoding="utf-8") as mf:
-        manifest_data = yaml.safe_load(mf)
-    if not manifest_data or "dataset" not in manifest_data:
-        raise DatasetIntegrityError(f"FATAL: Manifest at {manifest_path} missing 'dataset' block.")
-    print("  -> Manifest loaded successfully.", flush=True)
-    
-    # ------------------------------------------------------------------
-    # 2. Authoritative Dataset Integrity Verification Gate (Layer A + B)
-    # ------------------------------------------------------------------
-    print(f"Verifying cryptographic dataset integrity for {test_path.parent}...", flush=True)
-    verify_dataset_integrity(test_path.parent, manifest_path=manifest_path, required_files=[test_path.name])
-    print("  -> Dataset cryptographic integrity verified (Layer A + Layer B).", flush=True)
-    
-    # ------------------------------------------------------------------
-    # 3. Read manifest dataset.test_samples
-    # ------------------------------------------------------------------
-    expected_test_samples = manifest_data.get("dataset", {}).get("test_samples")
-    if expected_test_samples is None:
-        raise DatasetIntegrityError(f"FATAL: Manifest at {manifest_path} has no 'dataset.test_samples'!")
-    print(f"  -> Authoritative test samples from manifest: {expected_test_samples}", flush=True)
-    
-    # ------------------------------------------------------------------
-    # 4. Assert len(test) == manifest count
-    # ------------------------------------------------------------------
     test_dataset = SemDriftDataset(str(test_path), clean_docs=False)
-    if len(test_dataset) != expected_test_samples:
-        raise DatasetIntegrityError(
-            f"FATAL: Test dataset sample count mismatch!\n"
-            f"  Expected (manifest.yaml): {expected_test_samples}\n"
-            f"  Actual   (Loaded)       : {len(test_dataset)}\n"
-            "Evaluation refused."
-        )
-    print(f"[OK] Loaded exactly {len(test_dataset)} human-verified test samples (matches manifest count {expected_test_samples}).")
-    
-    # ------------------------------------------------------------------
-    # 5. Checkpoint Cryptographic Integrity Verification Gate
-    # Enforces Zero Side Effects: Must verify BEFORE torch.load()
-    # ------------------------------------------------------------------
-    print(f"Verifying checkpoint cryptographic integrity against {run_record_path}...", flush=True)
-    verified_ckpt_hash = verify_checkpoint_integrity(ckpt_path, run_record_path)
-    print(f"  -> Checkpoint SHA-256 verified: {verified_ckpt_hash}", flush=True)
+
+    if not args.skip_integrity:
+        assert manifest_path.is_file(), f"Manifest not found at: {manifest_path}"
+        # ------------------------------------------------------------------
+        # 1. Load Manifest
+        # ------------------------------------------------------------------
+        print(f"Loading pre-training dataset manifest from {manifest_path}...", flush=True)
+        with manifest_path.open("r", encoding="utf-8") as mf:
+            manifest_data = yaml.safe_load(mf)
+        if not manifest_data or "dataset" not in manifest_data:
+            raise DatasetIntegrityError(f"FATAL: Manifest at {manifest_path} missing 'dataset' block.")
+        print("  -> Manifest loaded successfully.", flush=True)
+        
+        # ------------------------------------------------------------------
+        # 2. Authoritative Dataset Integrity Verification Gate (Layer A + B)
+        # ------------------------------------------------------------------
+        print(f"Verifying cryptographic dataset integrity for {test_path.parent}...", flush=True)
+        verify_dataset_integrity(test_path.parent, manifest_path=manifest_path, required_files=[test_path.name])
+        print("  -> Dataset cryptographic integrity verified (Layer A + Layer B).", flush=True)
+        
+        # ------------------------------------------------------------------
+        # 3. Read manifest dataset.test_samples
+        # ------------------------------------------------------------------
+        expected_test_samples = manifest_data.get("dataset", {}).get("test_samples")
+        if expected_test_samples is None:
+            raise DatasetIntegrityError(f"FATAL: Manifest at {manifest_path} has no 'dataset.test_samples'!")
+        print(f"  -> Authoritative test samples from manifest: {expected_test_samples}", flush=True)
+        
+        # ------------------------------------------------------------------
+        # 4. Assert len(test) == manifest count
+        # ------------------------------------------------------------------
+        if len(test_dataset) != expected_test_samples:
+            raise DatasetIntegrityError(
+                f"FATAL: Test dataset sample count mismatch!\n"
+                f"  Expected (manifest.yaml): {expected_test_samples}\n"
+                f"  Actual   (Loaded)       : {len(test_dataset)}\n"
+                "Evaluation refused."
+            )
+        print(f"[OK] Loaded exactly {len(test_dataset)} human-verified test samples (matches manifest count {expected_test_samples}).")
+        
+        # ------------------------------------------------------------------
+        # 5. Checkpoint Cryptographic Integrity Verification Gate
+        # Enforces Zero Side Effects: Must verify BEFORE torch.load()
+        # ------------------------------------------------------------------
+        print(f"Verifying checkpoint cryptographic integrity against {run_record_path}...", flush=True)
+        verified_ckpt_hash = verify_checkpoint_integrity(ckpt_path, run_record_path)
+        print(f"  -> Checkpoint SHA-256 verified: {verified_ckpt_hash}", flush=True)
+    else:
+        print(f"[OK] Loaded test dataset with {len(test_dataset)} samples (manifest integrity check skipped via --skip_integrity).")
     
     # ------------------------------------------------------------------
     # 6. ONLY THEN instantiate/load checkpoint

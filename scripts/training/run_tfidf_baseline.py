@@ -323,13 +323,18 @@ def parse_args():
         help="Optimize decision threshold on validation Macro-F1",
     )
     parser.add_argument(
+        "--output_dir",
+        default=None,
+        help="Optional directory to save results JSON and predictions JSONL",
+    )
+    parser.add_argument(
         "--output_results",
-        default="experiments/2026-09-07_clean_v2/evaluation/results_tfidf_baseline.json",
+        default=None,
         help="Path to export results JSON",
     )
     parser.add_argument(
         "--output_preds",
-        default="experiments/2026-09-07_clean_v2/predictions/tfidf_baseline_predictions.jsonl",
+        default=None,
         help="Path to export predictions JSONL",
     )
     parser.add_argument("--save_model", default=None, help="Optional path to save serialized model pipeline")
@@ -339,6 +344,18 @@ def parse_args():
 def main():
     args = parse_args()
     start_time = time.time()
+
+    if args.output_dir:
+        out_d = Path(args.output_dir)
+        if not args.output_results:
+            args.output_results = str(out_d / f"results_tfidf_{args.feature_mode}.json")
+        if not args.output_preds:
+            args.output_preds = str(out_d / f"tfidf_{args.feature_mode}_predictions.jsonl")
+
+    if not args.output_results:
+        args.output_results = "experiments/2026-09-07_clean_v2/evaluation/results_tfidf_baseline.json"
+    if not args.output_preds:
+        args.output_preds = "experiments/2026-09-07_clean_v2/predictions/tfidf_baseline_predictions.jsonl"
 
     train_path = PROJECT_ROOT / args.train_file
     val_path = PROJECT_ROOT / args.val_file
@@ -370,14 +387,20 @@ def main():
     val_records, y_val, _ = load_jsonl_dataset(val_path)
     test_records, y_test, _ = load_jsonl_dataset(test_path)
 
-    train_docs = [clean_docstring(r.get("docstring", "")) for r in train_records]
-    train_codes = [r.get("code", "") for r in train_records]
+    def extract_doc_text(r):
+        return clean_docstring(r.get("docstring") or r.get("docstring_after") or r.get("docstring_before") or r.get("raw_docstring") or "")
 
-    val_docs = [clean_docstring(r.get("docstring", "")) for r in val_records]
-    val_codes = [r.get("code", "") for r in val_records]
+    def extract_code_text(r):
+        return r.get("code") or r.get("code_after") or r.get("code_before") or ""
 
-    test_docs = [clean_docstring(r.get("docstring", "")) for r in test_records]
-    test_codes = [r.get("code", "") for r in test_records]
+    train_docs = [extract_doc_text(r) for r in train_records]
+    train_codes = [extract_code_text(r) for r in train_records]
+
+    val_docs = [extract_doc_text(r) for r in val_records]
+    val_codes = [extract_code_text(r) for r in val_records]
+
+    test_docs = [extract_doc_text(r) for r in test_records]
+    test_codes = [extract_code_text(r) for r in test_records]
 
     # 3. Vectorization & Feature Engineering
     print(f"\n[Step 3/5] Vectorizing text in '{args.feature_mode}' mode...", flush=True)
@@ -516,11 +539,11 @@ def main():
         test_metrics_default_tau = compute_metrics(y_test, test_preds_default, test_probs.tolist())
 
     # Multi-dimensional breakdowns
-    provenances = [r.get("provenance", "unknown") for r in test_records]
+    provenances = [r.get("provenance") or r.get("source") or "unknown" for r in test_records]
     drift_types = [r.get("mutation_type") or r.get("drift_type") or ("aligned" if yt == 0 else "unknown")
                    for r, yt in zip(test_records, y_test)]
     severities = [r.get("severity") or ("none" if yt == 0 else "unknown") for r, yt in zip(test_records, y_test)]
-    repos = [r.get("repo", "unknown") for r in test_records]
+    repos = [r.get("repo") or r.get("repo_or_origin") or "unknown" for r in test_records]
 
     def build_breakdown(group_keys: List[str]):
         grouped_true = defaultdict(list)
