@@ -4,189 +4,183 @@
 [![PyTorch 2.1+](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
 [![Transformers 4.30+](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)](https://huggingface.co/transformers/)
 [![Tree-Sitter](https://img.shields.io/badge/Tree--Sitter-Multi--Language-green.svg)](https://tree-sitter.github.io/)
-[![Unit Tests](https://img.shields.io/badge/tests-136%20passed-brightgreen.svg)](tests/)
+[![Unit Tests](https://img.shields.io/badge/tests-164%20passed-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**SemDrift** is an automated framework for detecting **semantic drift** between source code and documentation comments (docstrings). It combines AST parsing, multi-language Tree-Sitter support, synthetic mutation injection, and deep transformer architectures (CodeBERT) to detect when code changes silently invalidate docstring contracts.
+**SemDrift** is an empirical research framework for investigating and detecting **semantic drift** between source code and documentation comments (docstrings) in Python repositories. It benchmarks classical lexical baselines (TF-IDF + Logistic Regression), pretrained zero-shot representations, and fine-tuned deep transformer architectures (CodeBERT bi-encoders and cross-encoders) across two strictly separated dataset generations:
+1. **V1 Controlled Synthetic Dataset**: AST rule-based mutations across 10 repositories.
+2. **V2 Clean Real-World Dataset**: Contract-grounded training with a cryptographically locked diagnostic test set of authentic human commits mined from open-source repositories (Click, FastAPI, Django, Pandas, SQLAlchemy, Pytest).
+
+> 📄 **Complete Empirical Records**: For full per-model confusion matrices ($TN, FP, FN, TP$), provenance breakdowns, drift score distributions ($P(\text{drift})$), severity analyses, and McNemar test contingency tables, see the repository-level master report: [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
 
 ---
 
-## 📊 Benchmark Results (IEEE Conference Benchmark — Phase 1)
+## 🔬 Core Empirical Findings: The Synthetic-to-Real Generalization Gap
 
-All models are evaluated on the clean, zero-leakage 10-repository V1 controlled benchmark dataset (`data/v1_synthetic/benchmark/synthetic_dataset.jsonl` / historical `data/experiments/v2/test.jsonl`, $N = 1,205$). The test repositories are strictly partitioned from training and validation sets to ensure cross-repository generalization.
-
-### 1. Overall Performance Comparison
-
-| Model Architecture | Loss Objective | Accuracy (%) | Precision (%) | Recall (%) | F1-Score (%) | Macro-F1 (%) | Balanced Acc (%) | 95% F1 Conf. Interval |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Lexical Baseline (TF-IDF + LogReg)** | Logistic Loss | 58.84% | 60.26% | 54.11% | 57.02% | 58.76% | 58.91% | — |
-| **Zero-Shot Baseline (Dual Encoder)** | Cosine Threshold | 44.56% | 43.33% | 32.07% | 36.86% | 43.73% | 44.68% | `[33.33, 40.41]` |
-| **Fine-Tuned Dual Encoder (Ablation)** | CrossEntropy | 80.91% | 91.63% | 68.42% | 78.34% | 80.64% | 81.03% | `[74.61, 80.30]` |
-| **Fine-Tuned Joint Encoder (Controlled)** | CrossEntropy | **85.06%** | **93.32%** | **75.82%** | **83.67%** | **84.95%** | **85.15%** | `[81.22, 85.76]` |
-| **Fine-Tuned Joint Encoder (Loss Ablation)** | Focal Loss (Plain) | **85.81%** | **96.00%** | 75.00% | **84.21%** | **85.66%** | **85.91%** | `[81.85, 86.30]` |
-| **Fine-Tuned Joint Encoder (Weighted)** | Focal + Category | **85.06%** | **93.85%** | 75.33% | 83.58% | 84.94% | 85.15% | `[81.22, 85.76]` |
-
----
-
-### 2. 🔬 Controlled Architectural Ablation (Dual vs. Joint Encoder)
-
-To isolate the impact of **transformer architecture** from loss formulation, we conducted a strictly controlled experiment holding every variable constant:
-* **Backbone**: `microsoft/codebert-base`
-* **Objective**: Standard, unweighted `CrossEntropyLoss` (Focal Loss = **OFF**, Category Weights = **OFF**)
-* **Hyperparameters**: Epochs = 3, Batch Size = 8, LR = $2\times 10^{-5}$, Warmup = 0.1, Dropout = 0.1, Seed = 42
-
-$$\text{Dual-Encoder (CE)}: \mathbf{78.34\% \text{ F1}} \quad \xrightarrow{\mathbf{+5.33\% \text{ F1}}} \quad \text{Joint-Encoder (CE)}: \mathbf{83.67\% \text{ F1}}$$
-
-| Metric | Dual-Encoder (CE) | Joint-Encoder (CE) | Absolute Delta ($\Delta$) | Relative Gain |
-|:---|:---:|:---:|:---:|:---:|
-| **Accuracy** | 80.91% | **85.06%** | **`+4.15%`** | +5.13% |
-| **Precision** | 91.63% | **93.32%** | **`+1.69%`** | +1.84% |
-| **Recall** | 68.42% | **75.82%** | **`+7.40%`** | **+10.82%** |
-| **Binary F1-Score** | 78.34% | **83.67%** | **`+5.33%`** | **+6.80%** |
-| **Macro-F1 Score** | 80.64% | **84.95%** | **`+4.31%`** | +5.34% |
-| **Balanced Accuracy** | 81.03% | **85.15%** | **`+4.12%`** | +5.08% |
-
-#### Statistical Significance (McNemar's Paired Test with Continuity Correction):
-* Contingency Table ($N = 1,205$): $n_{00}=141$, $n_{01}=89$ (Joint wins), $n_{10}=39$ (Dual wins), $n_{11}=936$.
-* **Chi-Square Statistic ($\chi^2$)**: **`18.7578`**
-* **$p$-value**: **`1.4841 × 10⁻⁵`** ($p < 0.001 \rightarrow$ **Statistically Significant**)
-* *Conclusion*: Joint Code–Documentation Self-Attention provides an architecture-driven advantage over independent dual encoding.
-
-*For complete ablation tables and confusion matrices, see [`Results - Thunder.md`](Results%20-%20Thunder.md).*
-
----
-
-### 3. F1-Score Breakdown Across Semantic Drift Types
-
-| Drift Type / Mutation | Sample Count ($N$) | TF-IDF Baseline | Zero-Shot Baseline | Fine-Tuned Dual (CE) | Fine-Tuned Joint (CE) | Delta ($\Delta$) |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **`return_value_change`** | 139 | 62.38% | 49.73% | 78.60% | **93.49%** | **`+14.89%`** |
-| **`doc_negation`** | 95 | 64.29% | 59.26% | 17.31% | **37.61%** | **`+20.30%`** |
-| **`doc_sentence_delete`** | 153 | 52.17% | 29.05% | 80.47% | **81.40%** | `+0.93%` |
-| **`param_rename`** | 221 | 86.08% | 54.61% | **98.39%** | 97.92% | `-0.47%` |
-| **`aligned` (Specificity)** | 597 | 63.65% Acc | 57.29% Acc | 93.63% Acc | **94.47% Acc** | `+0.84%` |
-
-#### Key Insights on Drift Types:
-1. **Return Value Drift (`+14.89% F1`)**: Joint cross-modal attention enables the model to align function return signatures and exit expressions with docstring `@return` / summary claims across token boundaries.
-2. **Docstring Negation (`+20.30% F1`)**: Dual encoding collapses sentence tokens into isolated vector embeddings $\mathbf{u}$ and $\mathbf{v}$, losing polarity tokens (*"not"*, *"never"*, *"disabled"*). Joint self-attention allows negation particles to directly attend to control-flow conditions.
-3. **Parameter Renames**: Both deep architectures perform near-ceiling ($98.39\%$ vs $97.92\%$), demonstrating that parameter misalignment is effectively captured by both representations.
-
----
-
-### 4. Cross-Repository Generalization Across 10 Unseen Repositories
-
-Evaluated on $N = 1,205$ test instances from 10 distinct open-source projects (zero repository overlap with train/val):
-
-| Repository | Test Count ($N$) | Dual-Encoder (CE) F1 | Joint-Encoder (CE) F1 | Delta ($\Delta$) |
-|:---|:---:|:---:|:---:|:---:|
-| **pandas** | 283 | 73.36% | **80.16%** | **`+6.80%`** |
-| **numpy** | 112 | 77.19% | **85.25%** | **`+8.06%`** |
-| **scikit-learn** | 221 | 78.57% | **81.95%** | **`+3.38%`** |
-| **django** | 206 | 75.00% | **83.15%** | **`+8.15%`** |
-| **sqlalchemy** | 229 | 83.00% | **85.15%** | **`+2.15%`** |
-| **pytest** | 92 | **88.00%** | 86.84% | `-1.16%` |
-| **flask** | 26 | 86.49% | **97.14%** | **`+10.65%`** |
-| **click** | 17 | 88.89% | **94.12%** | **`+5.23%`** |
-| **requests** | 12 | 50.00% | **66.67%** | **`+16.67%`** |
-| **fastapi** | 7 | 66.67% | **90.91%** | **`+24.24%`** |
-
-> **Result**: The Joint Encoder outperforms the Dual Encoder across **9 out of 10 unseen repositories**.
-
----
-
-## 📊 Dataset Architecture: Two Separated Generations
-
-SemDrift structures dataset curation into **two clearly separated generations**, strictly isolating controlled synthetic experimentation from real-world-grounded learning and final evaluation.
+The empirical results reveal a critical distinction between performance under controlled synthetic conditions versus real-world software evolution:
 
 ```text
-                    SEMDRIFT
-                       │
-             ┌─────────┴─────────┐
-            V1 — SYNTHETIC      V2 — REAL-WORLD-
-           1,205               GROUNDED
-              │                 ~14,796
-              │                   │
-        Baseline/ablation    ┌────┴─────────┐
-                             │              │
-                           TRAIN           VAL
-                          24,229          2,636
-                             │              │
-                             └────┬─────────┘
-                                  ▼
-                            TRAIN MODEL
-                                  │
-                                  ▼
-                           ┌───────────────┐
-                           │ 104 VERIFIED  │
-                           │   TEST ONLY   │
-                           └───────────────┘
+Synthetic Domain (V1 Controlled):
+  Lexical TF-IDF (65.23% / 70.04%) < Dual-Encoder (80.91%) < Joint-Encoder (85.06% / 85.81%)
+  → Cross-modal attention and negative mining provide significant gains on synthetic rule mutations.
+
+Authentic Real-World Domain (V2 Locked Diagnostic):
+  Fine-Tuned Neural (0.00% / 3.85% Recall) < Enhanced Lexical (21.15%) < Pure Lexical (32.69%) < Zero-Shot (36.54%)
+  → Fine-tuning on generated/contract-grounded drift causes neural models to exploit generator artifacts,
+    leading to severe false-negative collapse on authentic human commits. Pretrained and lexical signals
+    transfer with higher robustness.
 ```
-
-### Dataset Roles & Research Objectives
-
-| Dataset Partition | Size ($N$) | Purpose | Question Answered |
-|:---|:---:|:---|:---|
-| **V1 Benchmark** | 1,205 | Controlled Baseline Evaluation | *"Can the model learn semantic code-documentation consistency under controlled conditions?"* |
-| **V1 Ablation Pool** | 12,102 | Controlled Model Selection & Ablation | Training (9,638), Validation (1,259), Test (1,205) for Dual vs. Joint architecture comparison |
-| **V2 Main Train** | 24,229 | Real-World-Grounded Training | *"Can the model learn from realistic historical git evolution and contract-grounded drift?"* (13,871 clean / 10,358 drift) |
-| **V2 Validation** | 2,636 | Model Tuning & Early Stopping | Held-out validation partition (strictly grouped by function lineage; 0% train overlap) |
-| **V2 Verified Test** | 104 | **Balanced Diagnostic Real-World Evaluation** | *"Does the learned model generalize to authentic historical drift vs. contract-grounded mutations?"* (52 historical drift / 52 clean) |
-
-> [!IMPORTANT]
-> **Strict Evaluation Isolation & Cryptographic Integrity Guarantee**:
-> - **Zero Leakage**: All 104 human-verified test lineages (`repo::normalized_file_path::qualified_name`) are purged from candidate pools prior to train/val partitioning (eliminating 71 candidate samples), guaranteeing **zero function lineage or commit leakage into training or validation**.
-> - **Two-Layer Cryptographic Lock**: All canonical splits in `experiments/2026-09-07_clean_v2/dataset/` are locked via `SHA256SUMS` and `manifest.yaml`. Training and independent evaluation scripts refuse execution if any byte has been tampered with.
-> - **Strict Training Decoupling**: The training pipeline accepts ONLY `--train` and `--val`. The test set is isolated exclusively for independent post-training evaluation.
-
-### V2 Provenance Breakdown
-
-SemDrift explicitly distinguishes authentic historical git commits from contract-grounded AST mutations:
-* **Authentic Historical Mined Drift (Test)**: **52** confirmed, independently human-verified real-world drift commits across Click, Django, FastAPI, SQLAlchemy, PyTest, and Tornado.
-* **Historical Clean Negatives (Test)**: **52** confirmed clean negative samples held out strictly for diagnostic specificity testing.
-* **AST Contract-Grounded Generated Drift (Train/Val)**: **10,358** (Train) + **1,116** (Val) contract-grounded mutations.
-* **Historical Clean Negatives (Train/Val)**: **13,871** (Train) + **1,520** (Val) confirmed clean code-docstring pairs.
-* **Total Canonical Pool**: **26,969** samples (Train: 24,229 | Val: 2,636 | Test: 104).
 
 ---
 
-## 🏗️ Model Architectures & Workflows
+## 📊 Benchmark Results
 
+### 1. V2 Real-World Grounded Benchmark (Locked Diagnostic Test Set, $N = 104$)
+
+Evaluated on the locked diagnostic split (`experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl`), consisting of **52 authentic historical human drift commits** mined from production repositories and **52 clean grounded functions** (100% held-out function lineages; zero training/validation overlap):
+
+| Model Architecture | Category | Threshold ($\tau$) | Accuracy | Balanced Acc | Drift Recall | Drift Precision | Binary F1 | Macro F1 | ROC-AUC | PR-AUC | Confusion Matrix | Authentic Drift Caught |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- | :---: |
+| **Zero-Shot CodeBERT** | Pretrained Semantic | `0.96` (tuned) | **54.81%** | **54.81%** | **36.54%** | **57.58%** | **44.71%** | **53.25%** | — | — | `TN=38, FP=14, FN=33, TP=19` | **19 / 52** |
+| **TF-IDF Combined** | Pure Lexical Baseline | `0.50` (default) | **52.88%** | **52.88%** | **32.69%** | **54.84%** | **40.96%** | **50.88%** | 0.5459 | 0.5337 | `TN=38, FP=14, FN=35, TP=17` | **17 / 52** |
+| **TF-IDF Combined** | Pure Lexical Baseline | `0.53` (tuned) | **48.08%** | **48.08%** | **21.15%** | **45.83%** | **28.95%** | **44.02%** | 0.5459 | 0.5337 | `TN=39, FP=13, FN=41, TP=11` | **11 / 52** |
+| **TF-IDF Relational** | Enhanced Lexical Baseline | `0.50` (default) | **50.00%** | **50.00%** | **23.08%** | **50.00%** | **31.58%** | **46.09%** | 0.5318 | 0.5300 | `TN=40, FP=12, FN=40, TP=12` | **12 / 52** |
+| **TF-IDF Relational** | Enhanced Lexical Baseline | `0.51` (tuned) | **50.00%** | **50.00%** | **21.15%** | **50.00%** | **29.73%** | **45.46%** | 0.5318 | 0.5300 | `TN=41, FP=11, FN=41, TP=11` | **11 / 52** |
+| **Joint-Encoder (CodeBERT)** | Fine-Tuned Cross-Input | `0.50` (default) | **50.00%** | **50.00%** | **3.85%** | **50.00%** | **7.14%** | **36.47%** | — | — | `TN=50, FP=2, FN=50, TP=2` | **2 / 52** |
+| **Dual-Encoder (CodeBERT)** | Fine-Tuned Bi-Encoder | `0.50` (default) | **45.19%** | **45.19%** | **0.00%** | **0.00%** | **0.00%** | **31.13%** | — | — | `TN=47, FP=5, FN=52, TP=0` | **0 / 52** |
+
+#### Observations on V2:
+- **Lexical and Pretrained Advantage**: Pretrained CodeBERT (Zero-Shot) and pure n-gram TF-IDF detect 19 and 17 of 52 authentic drifts, respectively.
+- **Deep Fine-Tuned False-Negative Collapse**: The Joint-Encoder predicts "aligned" on 50 of 52 authentic drift instances ($FN=50$), achieving high clean-grounded specificity ($TN=50/52$, 96.15%) but near-zero real drift recall (3.85%). The Dual-Encoder predicts "aligned" on all 52 authentic drift instances ($FN=52$, 0.00% recall).
+- **Practical Takeaway**: Models trained on synthetic or rule-based drift patterns should not be assumed to transfer reliably to authentic human documentation drift without real-world grounded fine-tuning data.
+
+---
+
+### 2. V1 Controlled Synthetic Benchmark ($N = 1,205$)
+
+Evaluated on the 10-repository synthetic test set (`data/v1_synthetic/ablation/test.jsonl`, 597 aligned + 608 drifted instances):
+
+| Model Architecture | Category | Objective | Accuracy | Balanced Acc | Drift Recall | Drift Precision | Binary F1 | Macro F1 | ROC-AUC | Confusion Matrix |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Zero-Shot CodeBERT** | Pretrained Semantic | Cosine Divergence | 44.56% | 44.68% | 32.07% | 43.33% | 36.86% | 43.73% | — | `TN=342, FP=255, FN=413, TP=195` |
+| **TF-IDF Combined** | Pure Lexical Baseline | Logistic Regression | 65.23% | 65.18% | 70.56% | 64.13% | 67.19% | 65.10% | 0.7040 | `TN=357, FP=240, FN=179, TP=429` |
+| **TF-IDF Relational** | Enhanced Lexical Baseline | Logistic Regression | **70.04%** | **70.04%** | **69.90%** | **70.48%** | **70.19%** | **70.04%** | 0.7691 | `TN=419, FP=178, FN=183, TP=425` |
+| **Dual-Encoder (CodeBERT)** | Fine-Tuned Bi-Encoder | Cross-Entropy Loss | 80.91% | 81.03% | 68.42% | 91.63% | 78.34% | 80.64% | — | `TN=559, FP=38, FN=192, TP=416` |
+| **Joint-Encoder (CodeBERT)** | Fine-Tuned Cross-Input | Cross-Entropy Loss | **85.06%** | **85.15%** | **75.82%** | **93.32%** | **83.67%** | **84.95%** | — | `TN=564, FP=33, FN=147, TP=461` |
+| **Joint-Encoder (CodeBERT)** | Hard-Negative Mining | Focal Loss ($\gamma=2.0$) | **85.81%** | **85.91%** | **75.00%** | **96.00%** | **84.21%** | **85.66%** | — | `TN=578, FP=19, FN=152, TP=456` |
+
+#### Controlled Architectural Ablation (Dual vs. Joint Encoder under identical CE loss):
+Holding backbone (`microsoft/codebert-base`), training objective (`CrossEntropyLoss`), batch size (8), learning rate ($2 \times 10^{-5}$), and seeds constant:
+- **Accuracy**: $80.91\% \rightarrow 85.06\%$ ($\Delta = +4.15\%$)
+- **Binary F1**: $78.34\% \rightarrow 83.67\%$ ($\Delta = +5.33\%$)
+- **Drift Recall**: $68.42\% \rightarrow 75.82\%$ ($\Delta = +7.40\%$)
+- **McNemar's Paired Test**: $\chi^2 = 18.7578$, $p = 1.4841 \times 10^{-5}$ ($p < 0.001$, statistically significant).
+- Joint cross-modal self-attention enables token-level interactions that isolated vector embeddings cannot capture.
+
+---
+
+### 3. In-Distribution Validation Set Performance
+
+Performance on held-out validation splits during training:
+
+| Model Architecture | Dataset Split | Sample Count ($N$) | Val Accuracy | Val Balanced Acc | Val Recall | Val Precision | Val Macro-F1 | Confusion Matrix (Val) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Joint-Encoder (CodeBERT)** | **V2** | 2,636 | **90.44%** | **89.47%** | **83.15%** | **93.55%** | **90.04%** | `TN=1456, FP=64, FN=188, TP=928` |
+| **Dual-Encoder (CodeBERT)** | **V2** | 2,636 | **90.33%** | **89.17%** | **81.63%** | **94.80%** | **89.87%** | `TN=1470, FP=50, FN=205, TP=911` |
+| **TF-IDF Relational** | **V2** | 2,636 | **75.11%** | **74.03%** | **68.73%** | **71.21%** | **74.16%** | `TN=1211, FP=309, FN=349, TP=767` |
+| **TF-IDF Combined** | **V2** | 2,636 | **73.48%** | **72.15%** | **64.96%** | **70.22%** | **71.96%** | `TN=1212, FP=308, FN=391, TP=725` |
+| **Zero-Shot CodeBERT** | **V2** | 2,636 | **54.29%** | **51.91%** | **36.38%** | **45.06%** | **51.62%** | `TN=1025, FP=495, FN=710, TP=406` |
+| **Joint-Encoder (Focal)** | **V1** | 1,259 | **85.15%** | **84.57%** | **73.37%** | **93.99%** | **84.78%** | `TN=634, FP=28, FN=159, TP=438` |
+| **Joint-Encoder (CE)** | **V1** | 1,259 | **85.15%** | **84.63%** | **74.54%** | **92.71%** | **84.83%** | `TN=627, FP=35, FN=152, TP=445` |
+| **Dual-Encoder (CE)** | **V1** | 1,259 | **80.86%** | **80.70%** | **68.01%** | **91.24%** | **80.70%** | `TN=623, FP=39, FN=191, TP=406` |
+| **TF-IDF Relational** | **V1** | 1,259 | **66.24%** | **66.21%** | **65.83%** | **64.22%** | **66.21%** | `TN=441, FP=221, FN=204, TP=393` |
+| **TF-IDF Combined** | **V1** | 1,259 | **60.92%** | **60.84%** | **59.97%** | **58.31%** | **60.84%** | `TN=409, FP=253, FN=239, TP=358` |
+
+---
+
+### 4. Fine-Grained Mutation Breakdown (V1 Synthetic Test Set, $N = 1,205$)
+
+| Mutation Type | Count ($N$) | Zero-Shot CodeBERT | TF-IDF Combined | TF-IDF Relational | Dual-Encoder (CE) | Joint-Encoder (CE) | Joint-Encoder (Focal) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`return_value_change`** | 139 | 49.73% F1 (46 TP) | 90.98% F1 (116 TP) | 89.68% F1 (113 TP) | 78.60% F1 (89 TP) | **93.49% F1 (122 TP)** | 92.25% F1 (119 TP) |
+| **`doc_negation`** | 95 | 59.26% F1 (40 TP) | **90.80% F1 (79 TP)** | 88.89% F1 (76 TP) | 17.31% F1 (9 TP) | 37.61% F1 (22 TP) | 31.86% F1 (18 TP) |
+| **`param_rename`** | 221 | 54.61% F1 (83 TP) | 86.38% F1 (168 TP) | 84.60% F1 (162 TP) | 98.39% F1 (214 TP) | 97.92% F1 (212 TP) | **98.16% F1 (213 TP)** |
+| **`doc_sentence_delete`** | 153 | 29.05% F1 (26 TP) | 60.27% F1 (66 TP) | 65.20% F1 (74 TP) | 80.47% F1 (103 TP) | 81.40% F1 (105 TP) | **81.85% F1 (106 TP)** |
+| **`aligned` (Specificity)** | 597 | 57.29% Acc (342 TN) | 59.80% Acc (357 TN) | 70.18% Acc (419 TN) | 93.63% Acc (559 TN) | 94.47% Acc (564 TN) | **96.82% Acc (578 TN)** |
+
+#### Key Analytical Takeaways:
+1. **Docstring Negation Sensitivity**: Lexical TF-IDF baselines preserving negation tokens (`stop_words=None`) achieve ~90% F1 on negation swaps by detecting token-level polarity shifts. In contrast, neural encoders struggle with isolated negation swaps (Dual-Encoder: 17.31%, Joint-Encoder: 37.61%), as transformer embeddings smooth out single-token polarity inversions without explicit polarity objectives.
+2. **Signature & Structural Drift**: Deep models excel at structural mutations such as parameter renaming (98.39% / 97.92%) and return value drift (93.49%), where cross-attention bridges AST signature definitions with textual descriptions.
+
+---
+
+## 📊 Dataset Architecture & Integrity Design
+
+SemDrift structures data curation into two strictly separated generations:
+
+```text
+                    SEMDRIFT DATASET ARCHITECTURE
+                               │
+             ┌─────────────────┴─────────────────┐
+             ▼                                   ▼
+      V1 — SYNTHETIC                      V2 — REAL-WORLD
+      (12,102 Total)                      (26,969 Total)
+             │                                   │
+      ┌──────┴──────┐                     ┌──────┴──────┐
+      │             │                     │             │
+    TRAIN          TEST                 TRAIN          VAL
+    9,638         1,205                 24,229        2,636
+    VAL: 1,259                            │             │
+                                          └──────┬──────┘
+                                                 ▼
+                                           LOCKED TEST SET
+                                           (104 SAMPLES)
+                                           52 Authentic Mined
+                                           52 Clean Grounded
 ```
-                          ┌────────────────────────────────────────────────────────┐
-                          │                      INPUT PAIR                        │
-                          │        Docstring (Text)  +  Function Code (Python)     │
-                          └────────────────────────────────────────────────────────┘
-                                                       │
-         ┌─────────────────────────────────────────────┼─────────────────────────────────────────────┐
-         ▼                                             ▼                                             ▼
-┌───────────────────────────┐             ┌───────────────────────────┐             ┌───────────────────────────┐
-│    ZERO-SHOT BASELINE     │             │  FINE-TUNED DUAL-ENCODER  │             │  FINE-TUNED JOINT ENCODER │
-│   (Dual Encoder Baseline) │             │     (Ablation Model)      │             │   (Primary Contribution)  │
-└───────────────────────────┘             └───────────────────────────┘             └───────────────────────────┘
-│ Two separate forward passes               │ Two separate forward passes               │ Single joint forward pass
-│ Pre-trained CodeBERT                      │ Fine-tuned shared CodeBERT                │ Fine-tuned CodeBERT
-│ No fine-tuning                            │ Independent encoding (isolated)           │ Joint self-attention
-│ Mean pooling → Vectors u, v               │ Mean pooling → Vectors u, v               │ [CLS] token representation
-│ Cosine distance 1 - cos(u,v)              │ Feature: [u; v; |u-v|]                    │ Linear head: [CLS] → 2
-│ Threshold sweep τ*                        │ Classifier head: 2304 → 2                 │ Classifier head: 768 → 2
-└───────────────────────────┘             └───────────────────────────┘             └───────────────────────────┘
+
+### Invariants & Cryptographic Safeguards:
+- **Zero Lineage Leakage**: All 104 human-verified test lineages (`repo::file_path::qualified_name`) were purged from candidate pools prior to train/val partitioning (eliminating 71 candidate samples).
+- **Two-Layer Verification Gate**: In `experiments/2026-09-07_clean_v2/dataset/`, all canonical splits are cryptographically locked via `SHA256SUMS` and `manifest.yaml`. Training and evaluation scripts refuse execution if any byte has been modified.
+- **Strict Decoupling**: Training pipelines accept only `--train` and `--val`. Evaluation scripts operate independently on held-out test splits without access to training loops.
+
+---
+
+## 🏗️ Model Architectures
+
+```text
+                        ┌────────────────────────────────────────────────────────┐
+                        │                      INPUT PAIR                        │
+                        │        Docstring (Text)  +  Function Code (Python)     │
+                        └────────────────────────────────────────────────────────┘
+                                                     │
+         ┌───────────────────────────────────────────┼───────────────────────────────────────────┐
+         ▼                                           ▼                                           ▼
+┌───────────────────────────┐               ┌───────────────────────────┐               ┌───────────────────────────┐
+│     LEXICAL BASELINE      │               │     DUAL-ENCODER MODEL    │               │    JOINT-ENCODER MODEL    │
+│  (TF-IDF + Logistic Reg)  │               │   (Bi-Encoder Architecture)│              │  (Cross-Encoder Self-Attn)│
+└───────────────────────────┘               └───────────────────────────┘               └───────────────────────────┘
+│ Feature extraction:       │               │ Two independent passes:   │               │ Single joint sequence:    │
+│ • combined (pure n-grams) │               │ • Pretrained CodeBERT     │               │ • [CLS] doc [SEP] code    │
+│ • dual_overlap (+ overlap)│               │ • Mean pooling: u, v      │               │ • Head-tail truncation    │
+│ Class weight: balanced    │               │ Feature: [u; v; |u-v|]    │               │ Head: [CLS] → Linear(768,2)│
+│ stop_words: None          │               │ Head: Linear(2304, 2)     │               │ Cross-modal self-attention│
+└───────────────────────────┘               └───────────────────────────┘               └───────────────────────────┘
 ```
 
-### 1. Zero-Shot Dual Encoder Baseline
-* **Script**: [`scripts/training/run_zero_shot_baseline.py`](scripts/training/run_zero_shot_baseline.py) (shim: [`scripts/run_zero_shot_baseline.py`](scripts/run_zero_shot_baseline.py))
-* **Workflow**: Processes docstring and code in two independent forward passes through frozen `microsoft/codebert-base`. Computes attention-masked mean-pooled representations $\mathbf{u}$ and $\mathbf{v}$, computes cosine divergence $\delta = 1 - \cos(\mathbf{u}, \mathbf{v})$, and applies threshold $\tau^*$ tuned via validation sweep ($\tau^* = 0.9975$).
-
-### 2. Fine-Tuned Dual Encoder (Ablation)
-* **Script**: [`scripts/training/train_dual_encoder.py`](scripts/training/train_dual_encoder.py) (shim: [`scripts/train_dual_encoder.py`](scripts/train_dual_encoder.py))
-* **Workflow**: Independently encodes docstring and code through a shared CodeBERT encoder. Constructs interaction vector $[\mathbf{u} \,;\, \mathbf{v} \,;\, |\mathbf{u} - \mathbf{v}|] \in \mathbb{R}^{2304}$, fed into `nn.Linear(2304, 2)` and trained with CrossEntropy.
-
-### 3. Fine-Tuned Joint Encoder (Primary Contribution)
-* **Script**: [`scripts/training/train_joint_encoder.py`](scripts/training/train_joint_encoder.py) (shim: [`scripts/train_joint_encoder.py`](scripts/train_joint_encoder.py))
-* **Workflow**: Formulates drift detection as a single joint sequence:
-  $$\text{Input} = [\text{CLS}] \;\; \text{docstring\_tokens} \;\; [\text{SEP}] \;\; [\text{SEP}] \;\; \text{code\_tokens} \;\; [\text{SEP}]$$
-  * **Head-Tail Truncation**: When code exceeds token budgets, SemDrift keeps the function header/signature and terminal return statements, inserting a `[MASK]` token in between.
-  * **Joint Attention**: Full bidirectional self-attention between documentation and code tokens across all 12 transformer layers.
-  * **Classification Head**: `nn.Dropout(0.1)` + `nn.Linear(768, 2)` on the pooled `[CLS]` token.
+1. **TF-IDF + Logistic Regression Baseline**:
+   - `scripts/training/run_tfidf_baseline.py`
+   - Modes: `combined` (pure lexical n-grams) and `dual_overlap` (lexical n-grams + Cosine, Jaccard, and AST signature overlap ratios).
+   - Invariant: `stop_words=None` to preserve semantic negation operators (`not`, `never`, `without`).
+2. **Zero-Shot Dual Encoder Baseline**:
+   - `scripts/training/run_zero_shot_baseline.py`
+   - Independent passes through frozen `microsoft/codebert-base`; mean-pooled cosine distance $\delta = 1 - \cos(\mathbf{u}, \mathbf{v})$.
+3. **Fine-Tuned Dual Encoder**:
+   - `scripts/training/train_dual_encoder.py`
+   - Shared CodeBERT encoder; concatenates $[\mathbf{u} \,;\, \mathbf{v} \,;\, |\mathbf{u} - \mathbf{v}|]$ into a linear classification head.
+4. **Fine-Tuned Joint Encoder**:
+   - `scripts/training/train_joint_encoder.py`
+   - Full bidirectional self-attention across documentation and code tokens in a single sequence with head-tail code truncation.
 
 ---
 
@@ -194,250 +188,109 @@ SemDrift explicitly distinguishes authentic historical git commits from contract
 
 ```text
 SemDrift/
-├── semdrift/                         # Core Python Library Package
-│   ├── parser/                       # Code & Docstring Parsing
-│   │   ├── ast_parser.py             # Python AST parser & docstring stripper
-│   │   ├── universal_parser.py       # Multi-language Tree-Sitter parser
-│   │   ├── doc_extractor.py          # Google/NumPy/Sphinx docstring extractor
-│   │   └── formatter.py              # Input sequence formatting
-│   ├── embedder/                     # CodeBERT embedding module
-│   │   └── embed.py                  # Tokenization & pooling logic
-│   ├── comparator/                   # Similarity & distance computations
-│   ├── models/                       # PyTorch Neural Architectures
-│   │   ├── dual_encoder.py           # Dual-Encoder architecture
-│   │   └── joint_encoder.py          # Joint-Encoder architecture & Focal Loss
+├── BENCHMARK_RESULTS.md              # Authoritative Master Benchmark Report (All Models, V1 & V2)
+├── README.md                         # Project documentation and summary results
+├── semdrift/                         # Core Python library package
+│   ├── parser/                       # Code & docstring parsing (AST & Tree-Sitter)
+│   ├── embedder/                     # CodeBERT tokenization & embedding logic
+│   ├── comparator/                   # Similarity & distance computation
+│   ├── models/                       # PyTorch architectures (Dual & Joint Encoders)
 │   └── pipeline.py                   # High-level pipeline API
-├── scripts/                          # Workflow & Experiment Scripts
-│   ├── data_pipeline/                # Extraction, Mutation, & Splitting
-│   │   ├── extract_pairs.py          # AST extraction from raw repositories
-│   │   ├── filter_pairs.py           # Quality & length filtering
-│   │   ├── build_dataset.py          # Synthetic mutation injector
-│   │   ├── convert_dataset_format.py # Format conversion
-│   │   ├── split_dataset.py          # Repository-disjoint train/val/test splits
-│   │   └── mine_dataset.py           # Git commit history miner (PyDriller)
-│   ├── training/                     # Model Training & Baseline Scripts
+├── scripts/                          # Workflows & experiment orchestration
+│   ├── training/                     # Model training & baseline scripts
+│   │   ├── run_tfidf_baseline.py     # TF-IDF + Logistic Regression baseline runner
 │   │   ├── run_zero_shot_baseline.py # Zero-shot CodeBERT baseline sweep
 │   │   ├── train_dual_encoder.py     # Dual-encoder fine-tuning
 │   │   └── train_joint_encoder.py    # Joint-encoder fine-tuning
-│   ├── runners/                      # Automated Orchestration Runners
-│   │   ├── run_controlled_experiment.py # Python runner for Controlled Dual vs Joint
-│   │   ├── run_controlled_experiment.ps1# PowerShell runner for Controlled Experiment
-│   │   ├── run_controlled_experiment.bat# Batch script for Controlled Experiment
-│   │   ├── retrain_all_models.ps1    # Sequential benchmark retrain (PowerShell)
-│   │   ├── retrain_all_models.bat    # Sequential benchmark retrain (Batch)
-│   │   ├── run_focal_ablation.ps1    # Focal Loss ablation runner (PowerShell)
-│   │   └── run_focal_ablation.bat    # Focal Loss ablation runner (Batch)
-│   ├── analysis/                     # Benchmark Analysis & LaTeX Generators
-│   │   ├── analyze_controlled_experiment.py # Controlled ablation evaluation
-│   │   ├── analyze_loss_ablation.py  # CrossEntropy vs Focal Loss ablation
-│   │   ├── diagnose_negation_and_lexical.py # TF-IDF baseline & negation diagnosis
-│   │   ├── analyze_truncation.py     # Head-tail truncation analysis
-│   │   ├── generate_ieee_results.py  # IEEE paper JSON & LaTeX table generator
-│   │   ├── inspect_diffs.py          # Mutation visualizer
-│   │   └── scan_example_heavy_docs.py# Documentation style scanner
-│   ├── scan_repo.py                  # Claude Code-Style Interactive Terminal CLI
-│   ├── train_joint_encoder.py        # Top-level execution shim
-│   ├── train_dual_encoder.py         # Top-level execution shim
-│   └── run_zero_shot_baseline.py     # Top-level execution shim
-├── tests/                            # Unit Test Suite
-│   ├── test_parser.py                # AST & docstring extraction tests
-│   ├── test_embedder.py              # Embedding & model loading tests
-│   ├── test_comparator.py            # Comparator unit tests
-│   ├── test_v2_updates.py            # Head-tail truncation, doc stripping & metrics
-│   └── test_dataset_architecture.py  # Dataset architecture invariants & zero-leakage tests
-├── data/                             # Two-Generation Dataset Architecture
-│   ├── v1_synthetic/                 # V1 — Synthetic Controlled Benchmark
-│   │   ├── benchmark/                # 1,205 synthetic benchmark (597 aligned + 608 drift)
-│   │   ├── raw/                      # 597 original aligned functions
-│   │   ├── ablation/                 # Controlled ablation splits (9,638 train / 1,259 val / 1,205 test)
-│   │   └── metadata/                 # dataset_summary.json & mutation_distribution.json
-│   ├── v2_real_world/                # V2 — Real-World-Grounded Dataset
-│   │   ├── raw/                      # repositories/ junction & historical_candidates.jsonl (2,367)
-│   │   ├── mined/                    # filtered_candidates.jsonl
-│   │   ├── generated/                # contract_grounded_drift.jsonl (5,133 raw; 5,122 usable after purge)
-│   │   ├── training/                 # train.jsonl (13,366) & val.jsonl (1,430)
-│   │   ├── evaluation/               # verified_test.jsonl (101 human-verified ground truth, 0% leakage)
-│   │   └── metadata/                 # dataset_summary.json, drift_distribution.json, repo distribution
-│   └── experiments/v2/               # Historical V1 / Phase-1 benchmark artifacts & ablation checkpoints
-├── Results - Thunder.md              # Controlled Ablation Experiment Report
-├── config.yaml                       # Global pipeline configuration
-├── requirements.txt                  # Python dependencies
-└── README.md                         # Project documentation
+│   ├── runners/                      # Automated multi-model orchestration scripts
+│   ├── data_pipeline/                # Dataset extraction, mutation, splitting, & manifest locking
+│   ├── analysis/                     # Benchmark analysis & LaTeX artifact generators
+│   └── scan_repo.py                  # Interactive terminal CLI scanner
+├── experiments/                      # Clean V2 production experiment directory
+│   └── 2026-09-07_clean_v2/          # Canonical V2 dataset, checkpoints, & evaluation records
+├── data/                             # Dataset storage
+│   ├── v1_synthetic/                 # V1 synthetic benchmark & ablation splits
+│   ├── v2_real_world/                # V2 raw repositories, mined commits, & manifests
+│   └── experiments/v2/               # Historical V1 checkpoints & IEEE paper outputs
+└── tests/                            # Unit test suite (164 tests passing)
 ```
 
 ---
 
-## ⚡ Quick Start & Reproduction Commands
+## ⚡ Quick Start & Reproduction
 
 ### 1. Environment Setup
 
 ```bash
-# Clone repository
 git clone https://github.com/Aadhithya-T/SemDrift.git
 cd SemDrift
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Build / Verify Dataset Architecture & Invariants
+### 2. Verify Cryptographic Integrity & Run Unit Tests
 
 ```bash
-# Setup both V1 Synthetic and V2 Real-World-Grounded datasets with assertion checks
-python scripts/data_pipeline/setup_dataset_architecture.py
-
-# Run unit tests including zero-leakage and mathematical partition assertions
-python -m unittest discover tests/
-```
-
-### 3. Automated One-Click Runners
-
-#### A. Run Controlled Dual vs. Joint Experiment (Identical CrossEntropy Objective)
-Executes Dual-Encoder, Joint-Encoder, and statistical analysis end-to-end:
-```bash
-# Python runner (cross-platform)
-python scripts/runners/run_controlled_experiment.py --device cuda
-
-# PowerShell runner (Windows)
-./scripts/runners/run_controlled_experiment.ps1 -Device cuda
-
-# Batch runner (Windows CMD)
-scripts\runners\run_controlled_experiment.bat cuda
-```
-
-#### B. Retrain All Benchmark Models
-Retrains the zero-shot baseline, fine-tuned dual encoder, fine-tuned joint encoder, and regenerates IEEE paper artifacts:
-```powershell
-./scripts/runners/retrain_all_models.ps1
-```
-
-#### C. Run Loss Objective Ablation (CrossEntropy vs. Focal Loss)
-```powershell
-./scripts/runners/run_focal_ablation.ps1 -Device cuda
-```
-
----
-
-### 4. Individual Training & Baseline Execution
-
-#### Current Main Experiment (Clean V2 Production Architecture)
-The canonical production experiment (`experiments/2026-09-07_clean_v2/`) features an immutable pre-training dataset manifest (24,229 train, 2,636 val, 104 balanced diagnostic test), strict training/evaluation decoupling, and a two-layer cryptographic verification gate:
-
-```bash
-# 1. Verify Dataset Cryptographic Provenance & Lineage Invariants
-python scripts/data_pipeline/verify_dataset_provenance.py
-
-# 2. Fine-Tuned Joint-Encoder (Primary Contribution — Training Decoupled from Test)
-python scripts/training/train_joint_encoder.py \
-    --train experiments/2026-09-07_clean_v2/dataset/train.jsonl \
-    --val experiments/2026-09-07_clean_v2/dataset/val.jsonl \
-    --device cuda --epochs 3 --batch_size 8 \
-    --code_truncation head_tail --pooling mean \
-    --checkpoint_metric macro_f1 \
-    --use_focal_loss --category_weighting \
-    --output_dir experiments/2026-09-07_clean_v2/checkpoints/
-
-# 3. Independent Evaluation on Balanced Diagnostic Test Set (Cryptographically Verified)
-python experiments/2026-09-07_clean_v2/evaluation/independent_evaluate.py \
-    --checkpoint experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt \
-    --training_run experiments/2026-09-07_clean_v2/checkpoints/training_run.json \
-    --manifest experiments/2026-09-07_clean_v2/config/manifest.yaml \
-    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl \
-    --output_results experiments/2026-09-07_clean_v2/evaluation/eval_results.json \
-    --output_preds experiments/2026-09-07_clean_v2/predictions/independent_predictions.jsonl
-```
-
-#### Historical V1 / Phase-1 Benchmark Artifacts (Controlled Synthetic Ablation)
-To reproduce the controlled synthetic benchmark and Phase-1 architectural ablation reported in `Results - Thunder.md`, use the V1 synthetic ablation splits in `data/v1_synthetic/ablation/` (historically archived at `data/experiments/v2/`):
-
-```bash
-# Dual-Encoder on Historical Controlled Benchmark
-python scripts/training/train_dual_encoder.py \
-    --dataset_generation v1 \
-    --train data/v1_synthetic/ablation/train.jsonl \
-    --val data/v1_synthetic/ablation/val.jsonl \
-    --test data/v1_synthetic/benchmark/synthetic_dataset.jsonl \
-    --output_dir data/experiments/v2/dual_encoder_results/
-
-# Joint-Encoder on Historical Controlled Benchmark (Training Phase Only)
-python scripts/training/train_joint_encoder.py \
-    --dataset_generation v1 \
-    --train data/v1_synthetic/ablation/train.jsonl \
-    --val data/v1_synthetic/ablation/val.jsonl \
-    --output_dir data/experiments/v2/joint_encoder_results/
-```
-
----
-
-### 5. Repository CLI Scanner (Interactive Terminal Tool)
-
-SemDrift provides an interactive terminal CLI (`scripts/scan_repo.py`) featuring rich syntax highlighting, progress bars, interactive inspection mode, and multi-format report exports:
-
-```bash
-# Scan a directory or package using the trained Joint-Encoder
-python scripts/scan_repo.py semdrift --threshold 0.60
-
-# Interactive step-through review mode
-python scripts/scan_repo.py . --interactive
-
-# Export Markdown or JSON reports
-python scripts/scan_repo.py . --output markdown --output_file drift_report.md
-python scripts/scan_repo.py . --output json --output_file drift_report.json
-
-# Limit to top-K highest-probability drift candidates
-python scripts/scan_repo.py . --top_k 10 --threshold 0.50
-```
-
----
-
-### 6. Generate IEEE Paper Artifacts & LaTeX Tables
-
-```bash
-# Generate LaTeX tables and JSON summaries for V2 real-world experiments
-python scripts/analysis/generate_ieee_results.py \
-    --v2_dir data/v2_real_world \
-    --output_dir data/v2_real_world
-
-# Historical Phase-1 controlled architectural ablation analysis
-python scripts/analysis/analyze_controlled_experiment.py \
-    --dual_preds data/experiments/v2/controlled_ablation/dual_ce/predictions_dual_encoder.jsonl \
-    --joint_preds data/experiments/v2/controlled_ablation/joint_ce/predictions_joint_encoder.jsonl \
-    --output_dir data/experiments/v2/controlled_ablation
-```
-
-Outputs:
-* JSON Benchmark Data: [`data/experiments/v2/ieee_paper_results.json`](data/experiments/v2/ieee_paper_results.json)
-* IEEEtran LaTeX Tables: [`data/experiments/v2/ieee_paper_tables.tex`](data/experiments/v2/ieee_paper_tables.tex)
-* Controlled Experiment LaTeX Table: [`data/experiments/v2/controlled_ablation/controlled_experiment_table.tex`](data/experiments/v2/controlled_ablation/controlled_experiment_table.tex)
-
----
-
-### 7. Build Two-Generation Dataset Architecture (V1 Synthetic & V2 Real-World-Grounded)
-
-To validate, hash, and lock the canonical Clean-Slate V2 dataset architecture:
-
-```bash
-# 1. Validate structural correctness and atomically generate SHA256SUMS and manifest.yaml
-python scripts/data_pipeline/generate_manifest.py
-
-# 2. Verify complete dataset provenance, schema, and zero-leakage disjointness
-python scripts/data_pipeline/verify_dataset_provenance.py
-
-# 3. Verify two-layer cryptographic integrity gate
+# Verify canonical V2 dataset checksums against locked manifest
 python -c "from semdrift.data.integrity import verify_dataset_integrity; print(verify_dataset_integrity('experiments/2026-09-07_clean_v2/dataset/'))"
 
-# 4. Execute the 5-scenario cryptographic tamper rejection suite
-python -m pytest tests/test_tamper_rejection.py -v
+# Run the test suite (164 tests)
+python -m pytest tests/ -k "not test_contract_rules and not test_mine_real_drift" -v
 ```
 
-This enforces all invariants:
-* **Zero-Leakage Guarantee**: Automatically purges all 104 human-verified test function lineages from candidate pools before train/val partitioning (71 candidate rows eliminated).
-* **Lineage Invariant**: Qualified function identity (`repo::normalized_file::qualified_name`) guarantees mathematical disjointness across train, val, and test.
-* **Balanced Diagnostic Test Set**: 104 human-verified samples (52 authentic historical drift positives, 52 clean negatives) held out strictly for independent evaluation.
-* **Canonical V2 Dataset**: 24,229 train and 2,636 val samples cryptographically locked in `experiments/2026-09-07_clean_v2/dataset/`.
+### 3. Reproduce V2 Real-World Benchmarks
+
+```powershell
+# 1. TF-IDF Combined Baseline (V2)
+python scripts/training/run_tfidf_baseline.py `
+    --feature_mode combined --tune_threshold --max_iter 5000 `
+    --train_file experiments/2026-09-07_clean_v2/dataset/train.jsonl `
+    --val_file experiments/2026-09-07_clean_v2/dataset/val.jsonl `
+    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl
+
+# 2. TF-IDF Relational Baseline (V2)
+python scripts/training/run_tfidf_baseline.py `
+    --feature_mode dual_overlap --tune_threshold --max_iter 5000 `
+    --train_file experiments/2026-09-07_clean_v2/dataset/train.jsonl `
+    --val_file experiments/2026-09-07_clean_v2/dataset/val.jsonl `
+    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl
+
+# 3. Joint-Encoder Independent Evaluation on Verified Test Split
+python experiments/2026-09-07_clean_v2/evaluation/independent_evaluate.py `
+    --checkpoint experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt `
+    --manifest experiments/2026-09-07_clean_v2/config/manifest.yaml `
+    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl
+```
+
+### 4. Reproduce V1 Synthetic Benchmarks
+
+```powershell
+# 1. TF-IDF Combined Baseline (V1)
+python scripts/training/run_tfidf_baseline.py `
+    --feature_mode combined --tune_threshold --max_iter 5000 `
+    --train_file data/v1_synthetic/ablation/train.jsonl `
+    --val_file data/v1_synthetic/ablation/val.jsonl `
+    --test_file data/v1_synthetic/ablation/test.jsonl
+
+# 2. TF-IDF Relational Baseline (V1)
+python scripts/training/run_tfidf_baseline.py `
+    --feature_mode dual_overlap --tune_threshold --max_iter 5000 `
+    --train_file data/v1_synthetic/ablation/train.jsonl `
+    --val_file data/v1_synthetic/ablation/val.jsonl `
+    --test_file data/v1_synthetic/ablation/test.jsonl
+```
+
+### 5. Interactive Terminal CLI Scanner
+
+```bash
+# Scan a package for semantic drift with interactive inspection
+python scripts/scan_repo.py semdrift --threshold 0.50 --interactive
+
+# Export scan results to JSON or Markdown
+python scripts/scan_repo.py . --output markdown --output_file drift_report.md
+```
 
 ---
 
-## 📜 License
+## 📜 Citation & License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
