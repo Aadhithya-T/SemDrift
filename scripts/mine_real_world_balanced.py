@@ -53,15 +53,25 @@ OUTPUT_DIR = PROJECT_ROOT / "data" / "real_world"
 REPO_PLATFORMS = {
     "python-gitlab": "gitlab",
     "meltano": "gitlab",
-    "click": "github",
-    "fastapi": "github",
-    "httpx": "github",
-    "marshmallow": "github",
-    "rich": "github",
-    "werkzeug": "github",
-    "urllib3": "github",
+    "ase": "gitlab",
+    "django": "github",
+    "scikit-learn": "github",
+    "sympy": "github",
+    "networkx": "github",
+    "tornado": "github",
     "flask": "github",
     "requests": "github",
+    "click": "github",
+    "pydantic": "github",
+    "aiohttp": "github",
+    "jinja": "github",
+    "marshmallow": "github",
+    "werkzeug": "github",
+    "httpx": "github",
+    "rich": "github",
+    "urllib3": "github",
+    "starlette": "github",
+    "fastapi": "github",
 }
 
 IGNORED_TOKEN_TYPES = {
@@ -691,39 +701,183 @@ def mine_repository_history(
     return drift_records, aligned_records
 
 
+def ingest_deep_jit_dataset(targets: Optional[Dict[str, int]] = None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Ingest authentic real-world commit-level drift and aligned pairs from Deep-JIT dataset."""
+    jit_dir = PROJECT_ROOT / "scratch" / "jit_data"
+    if not jit_dir.exists():
+        return [], []
+
+    if targets is None:
+        targets = {"Param": 250, "Return": 250, "Summary": 150}
+
+    jit_drifts: List[Dict[str, Any]] = []
+    jit_aligned: List[Dict[str, Any]] = []
+
+    for ctype, target_n in targets.items():
+        fpath = jit_dir / ctype / "train.json"
+        if not fpath.exists():
+            continue
+        try:
+            with fpath.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+
+        d_count = 0
+        a_count = 0
+        for s in data:
+            sample_id = s.get("id", f"jit_{ctype}_{d_count+a_count}")
+            repo_part = sample_id.split("-")[0].replace("_", "/")
+            is_drift = (s.get("label") == 1)
+
+            if is_drift and d_count >= target_n:
+                continue
+            if not is_drift and a_count >= target_n:
+                continue
+
+            code_text = s.get("new_code_raw", "") or s.get("old_code_raw", "")
+            doc_text = s.get("old_comment_raw", "") if is_drift else (s.get("new_comment_raw", "") or s.get("old_comment_raw", ""))
+
+            if len(code_text.strip()) < 10 or len(doc_text.strip()) < 10:
+                continue
+
+            record = {
+                "repo": "deep-jit",
+                "sub_repo": repo_part,
+                "source_platform": "github",
+                "file_path": f"{repo_part}/methods/{sample_id}.src",
+                "function_name": sample_id,
+                "qualified_name": sample_id,
+                "function_lineage": f"deep-jit::{repo_part}::{sample_id}",
+                "commit_hash": sample_id.split("-")[1] if len(sample_id.split("-")) > 1 else "jit_commit",
+                "code": code_text.strip(),
+                "docstring": doc_text.strip(),
+                "code_before": s.get("old_code_raw", "").strip(),
+                "code_after": s.get("new_code_raw", "").strip(),
+                "docstring_before": s.get("old_comment_raw", "").strip(),
+                "docstring_after": s.get("new_comment_raw", "").strip(),
+                "label": 1 if is_drift else 0,
+                "pseudo_label": 1 if is_drift else 0,
+                "drift_label": "drift" if is_drift else "aligned",
+                "mutation_type": f"{ctype.lower()}_contract_drift" if is_drift else "clean_refactoring",
+                "severity": "high" if is_drift else "none",
+                "verification_notes": f"[DEEP-JIT/GITHUB] Real-world {ctype.lower()} contract evolution from {repo_part}",
+                "contract_signals": {"dataset": "deep_jit", "type": ctype.lower()},
+            }
+
+            if is_drift:
+                jit_drifts.append(record)
+                d_count += 1
+            else:
+                jit_aligned.append(record)
+                a_count += 1
+
+    return jit_drifts, jit_aligned
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mine balanced real-world code/doc drift across GitHub and GitLab.")
     parser.add_argument("--repos", nargs="*", default=None, help="Repositories to mine under data/raw_repos/")
-    parser.add_argument("--max-commits-per-repo", type=int, default=1500, help="Max commits to scan per repository")
+    parser.add_argument("--max-commits-per-repo", type=int, default=2500, help="Max commits to scan per repository")
+    parser.add_argument("--workers", type=int, default=8, help="Parallel worker processes for mining")
+    parser.add_argument("--include-jit", action="store_true", default=True, help="Include Deep-JIT real-world dataset")
+    parser.add_argument("--force-mine", action="store_true", default=False, help="Bypass live repo cache and re-mine")
     args = parser.parse_args()
 
     target_repos = args.repos
     if not target_repos:
         target_repos = [
-            "python-gitlab",  # GitLab
-            "meltano",        # GitLab
-            "click",          # GitHub
-            "fastapi",        # GitHub
-            "httpx",          # GitHub
-            "marshmallow",    # GitHub
-            "rich",           # GitHub
-            "werkzeug",       # GitHub
-            "urllib3",        # GitHub
+            # GitLab Repositories
+            "python-gitlab",
+            "meltano",
+            "ase",
+            # GitHub Repositories
+            "django",
+            "scikit-learn",
+            "sympy",
+            "networkx",
+            "tornado",
+            "flask",
+            "requests",
+            "click",
+            "pydantic",
+            "aiohttp",
+            "jinja",
+            "marshmallow",
+            "werkzeug",
+            "httpx",
+            "rich",
+            "urllib3",
+            "starlette",
+            "fastapi",
         ]
 
     all_drift: List[Dict[str, Any]] = []
     all_aligned: List[Dict[str, Any]] = []
     repo_breakdowns: Dict[str, Dict[str, int]] = {}
 
-    for repo_name in target_repos:
-        drifts, aligneds = mine_repository_history(repo_name, args.max_commits_per_repo)
-        all_drift.extend(drifts)
-        all_aligned.extend(aligneds)
-        repo_breakdowns[repo_name] = {
-            "platform": REPO_PLATFORMS.get(repo_name, "github"),
-            "drift_positives": len(drifts),
-            "aligned_negatives": len(aligneds),
-        }
+    cache_file = PROJECT_ROOT / "data" / "raw_repos" / "live_mined_cache.json"
+    if cache_file.exists() and not args.force_mine:
+        LOGGER.info(f"Loading live mined repository cache from {cache_file} ...")
+        with cache_file.open("r", encoding="utf-8") as f:
+            cache_data = json.load(f)
+        all_drift = cache_data.get("drifts", [])
+        all_aligned = cache_data.get("aligned", [])
+        for r in all_drift:
+            rp = r["repo"]
+            if rp not in repo_breakdowns:
+                repo_breakdowns[rp] = {"platform": REPO_PLATFORMS.get(rp, "github"), "drift_positives": 0, "aligned_negatives": 0}
+            repo_breakdowns[rp]["drift_positives"] += 1
+        for r in all_aligned:
+            rp = r["repo"]
+            if rp not in repo_breakdowns:
+                repo_breakdowns[rp] = {"platform": REPO_PLATFORMS.get(rp, "github"), "drift_positives": 0, "aligned_negatives": 0}
+            repo_breakdowns[rp]["aligned_negatives"] += 1
+        LOGGER.info(f"Loaded {len(all_drift)} drifts and {len(all_aligned)} aligned negatives from cache.")
+    else:
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        num_workers = min(args.workers, len(target_repos))
+        LOGGER.info(f"Launching parallel mining across {len(target_repos)} repositories using {num_workers} processes (max {args.max_commits_per_repo} commits each) ...")
+
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+            future_to_repo = {
+                executor.submit(mine_repository_history, r, args.max_commits_per_repo): r
+                for r in target_repos
+            }
+            for future in as_completed(future_to_repo):
+                repo_name = future_to_repo[future]
+                try:
+                    drifts, aligneds = future.result()
+                    all_drift.extend(drifts)
+                    all_aligned.extend(aligneds)
+                    repo_breakdowns[repo_name] = {
+                        "platform": REPO_PLATFORMS.get(repo_name, "github"),
+                        "drift_positives": len(drifts),
+                        "aligned_negatives": len(aligneds),
+                    }
+                    LOGGER.info(
+                        f"[COMPLETED] {repo_name} ({REPO_PLATFORMS.get(repo_name, 'github')}): "
+                        f"+{len(drifts)} drifts, -{len(aligneds)} aligneds. "
+                        f"Running total: {len(all_drift)} drifts, {len(all_aligned)} aligneds."
+                    )
+                except Exception as e:
+                    LOGGER.error(f"Error while mining {repo_name}: {e}", exc_info=True)
+
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        with cache_file.open("w", encoding="utf-8") as f:
+            json.dump({"drifts": all_drift, "aligned": all_aligned}, f)
+
+    if args.include_jit:
+        jit_drifts, jit_aligned = ingest_deep_jit_dataset(targets={"Param": 250, "Return": 250, "Summary": 150})
+        if jit_drifts:
+            all_drift.extend(jit_drifts)
+            all_aligned.extend(jit_aligned)
+            repo_breakdowns["deep-jit"] = {
+                "platform": "github",
+                "drift_positives": len(jit_drifts),
+                "aligned_negatives": len(jit_aligned),
+            }
+            LOGGER.info(f"[COMPLETED] Deep-JIT Research Corpus: +{len(jit_drifts)} drifts, -{len(jit_aligned)} aligneds.")
 
     LOGGER.info("=" * 60)
     LOGGER.info(f"Total Mined Before Balancing: {len(all_drift)} Drift (+), {len(all_aligned)} Aligned (-)")
