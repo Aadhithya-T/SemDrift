@@ -1,0 +1,68 @@
+{
+  "dataset_name": "Newly Mined Real-World Balanced Dataset",
+  "description": "Authentic Git commit evolution mined from GitHub and GitLab repositories with strict AST contract verification",
+  "total_samples": 310,
+  "drift_positives": 155,
+  "aligned_negatives": 155,
+  "balance_ratio": "50% Drift / 50% Aligned",
+  "sources": {
+    "github": 138,
+    "gitlab": 172
+  },
+  "per_repository_counts": {
+    "python-gitlab": {
+      "platform": "gitlab",
+      "drift_positives": 64,
+      "aligned_negatives": 168
+    },
+    "meltano": {
+      "platform": "gitlab",
+      "drift_positives": 22,
+      "aligned_negatives": 599
+    },
+    "click": {
+      "platform": "github",
+      "drift_positives": 13,
+      "aligned_negatives": 272
+    },
+    "fastapi": {
+      "platform": "github",
+      "drift_positives": 0,
+      "aligned_negatives": 44
+    },
+    "httpx": {
+      "platform": "github",
+      "drift_positives": 9,
+      "aligned_negatives": 189
+    },
+    "marshmallow": {
+      "platform": "github",
+      "drift_positives": 10,
+      "aligned_negatives": 130
+    },
+    "rich": {
+      "platform": "github",
+      "drift_positives": 6,
+      "aligned_negatives": 223
+    },
+    "werkzeug": {
+      "platform": "github",
+      "drift_positives": 26,
+      "aligned_negatives": 726
+    },
+    "urllib3": {
+      "platform": "github",
+      "drift_positives": 5,
+      "aligned_negatives": 218
+    }
+  },
+  "mutation_types": {
+    "return_contract_drift": 92,
+    "param_contract_drift": 51,
+    "behavior_operator_drift": 6,
+    "default_value_drift": 5,
+    "raises_contract_drift": 1,
+    "clean_refactoring": 137,
+    "synchronized_doc_update": 18
+  }
+}
