@@ -1,0 +1,42 @@
+{
+  "dataset_name": "SemDrift Real-World Benchmark Dataset",
+  "total_samples": 5200,
+  "total_drift_samples": 2600,
+  "total_consistent_samples": 2600,
+  "drift_ratio": 0.5,
+  "splits": {
+    "train": 4606,
+    "val": 393,
+    "test": 201
+  },
+  "repositories_count": 19,
+  "drift_type_distribution": {
+    "return_type_mismatch": 752,
+    "none": 2600,
+    "parameter_obsolete": 881,
+    "parameter_rename": 500,
+    "exception_undocumented": 165,
+    "parameter_missing": 302
+  },
+  "repository_distribution": {
+    "urllib3": 80,
+    "tornado": 344,
+    "numpy": 191,
+    "jinja": 234,
+    "rich": 437,
+    "flask": 48,
+    "httpx": 111,
+    "scikit-learn": 1894,
+    "paramiko": 310,
+    "werkzeug": 129,
+    "pandas": 687,
+    "pytest": 254,
+    "click": 69,
+    "black": 104,
+    "fastapi": 28,
+    "pydantic": 202,
+    "requests": 37,
+    "marshmallow": 10,
+    "tqdm": 31
+  }
+}

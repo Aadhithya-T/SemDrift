@@ -1,0 +1,8 @@
+{
+  "return_type_mismatch": 752,
+  "none": 2600,
+  "parameter_obsolete": 881,
+  "parameter_rename": 500,
+  "exception_undocumented": 165,
+  "parameter_missing": 302
+}
