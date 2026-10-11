@@ -1,0 +1,129 @@
+{
+  "dataset_name": "Newly Mined Real-World Balanced Dataset",
+  "description": "Authentic Git commit evolution mined from GitHub and GitLab repositories with strict AST contract verification",
+  "total_samples": 2580,
+  "drift_positives": 1290,
+  "aligned_negatives": 1290,
+  "balance_ratio": "50% Drift / 50% Aligned",
+  "sources": {
+    "github": 2298,
+    "gitlab": 282
+  },
+  "per_repository_counts": {
+    "python-gitlab": {
+      "platform": "gitlab",
+      "drift_positives": 64,
+      "aligned_negatives": 64
+    },
+    "meltano": {
+      "platform": "gitlab",
+      "drift_positives": 22,
+      "aligned_negatives": 22
+    },
+    "flask": {
+      "platform": "github",
+      "drift_positives": 22,
+      "aligned_negatives": 22
+    },
+    "requests": {
+      "platform": "github",
+      "drift_positives": 22,
+      "aligned_negatives": 22
+    },
+    "django": {
+      "platform": "github",
+      "drift_positives": 9,
+      "aligned_negatives": 9
+    },
+    "ase": {
+      "platform": "gitlab",
+      "drift_positives": 55,
+      "aligned_negatives": 55
+    },
+    "tornado": {
+      "platform": "github",
+      "drift_positives": 17,
+      "aligned_negatives": 17
+    },
+    "click": {
+      "platform": "github",
+      "drift_positives": 14,
+      "aligned_negatives": 14
+    },
+    "scikit-learn": {
+      "platform": "github",
+      "drift_positives": 55,
+      "aligned_negatives": 55
+    },
+    "networkx": {
+      "platform": "github",
+      "drift_positives": 63,
+      "aligned_negatives": 63
+    },
+    "pydantic": {
+      "platform": "github",
+      "drift_positives": 46,
+      "aligned_negatives": 46
+    },
+    "jinja": {
+      "platform": "github",
+      "drift_positives": 55,
+      "aligned_negatives": 55
+    },
+    "marshmallow": {
+      "platform": "github",
+      "drift_positives": 26,
+      "aligned_negatives": 26
+    },
+    "httpx": {
+      "platform": "github",
+      "drift_positives": 9,
+      "aligned_negatives": 9
+    },
+    "starlette": {
+      "platform": "github",
+      "drift_positives": 3,
+      "aligned_negatives": 3
+    },
+    "urllib3": {
+      "platform": "github",
+      "drift_positives": 5,
+      "aligned_negatives": 5
+    },
+    "aiohttp": {
+      "platform": "github",
+      "drift_positives": 14,
+      "aligned_negatives": 14
+    },
+    "werkzeug": {
+      "platform": "github",
+      "drift_positives": 38,
+      "aligned_negatives": 38
+    },
+    "sympy": {
+      "platform": "github",
+      "drift_positives": 53,
+      "aligned_negatives": 53
+    },
+    "rich": {
+      "platform": "github",
+      "drift_positives": 48,
+      "aligned_negatives": 48
+    },
+    "deep-jit": {
+      "platform": "github",
+      "drift_positives": 650,
+      "aligned_negatives": 650
+    }
+  },
+  "mutation_types": {
+    "return_contract_drift": 360,
+    "param_contract_drift": 631,
+    "behavior_operator_drift": 75,
+    "raises_contract_drift": 22,
+    "default_value_drift": 52,
+    "summary_contract_drift": 150,
+    "clean_refactoring": 1247,
+    "synchronized_doc_update": 43
+  }
+}
