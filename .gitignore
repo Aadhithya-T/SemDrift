@@ -46,6 +46,7 @@ data/extracted_pairs.jsonl
 *.bin
 *.onnx
 *.safetensors
+*.joblib
 
 # ── Misc ─────────────────────────────────────────────
 *.log

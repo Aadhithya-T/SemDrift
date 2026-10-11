@@ -1,0 +1,15 @@
+\begin{table*}[t]
+\centering
+\caption{Comprehensive Benchmark Results on SemDrift Expansion V1 Dataset (10,000 samples).}
+\label{tab:expansion_v1_benchmark}
+\small
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Architecture} & \textbf{Acc} & \textbf{BalAcc} & \textbf{Prec} & \textbf{Rec} & \textbf{F1} & \textbf{Macro-F1} & \textbf{ROC-AUC} & \textbf{PR-AUC} \\
+\midrule
+Zero-Shot CodeBERT (Cosine Divergence) & 46.8\% & 53.0\% & 43.2\% & 89.7\% & 58.3\% & \textbf{42.4\%} & -- & -- \\
+TF-IDF Combined (Pure Lexical) & 90.1\% & 89.9\% & 87.3\% & 88.9\% & 88.1\% & \textbf{89.8\%} & 0.947 & 0.946 \\
+TF-IDF Relational (Dual Overlap) & 91.9\% & 91.6\% & 91.0\% & 89.5\% & 90.2\% & \textbf{91.7\%} & 0.959 & 0.955 \\
+\bottomrule
+\end{tabular}
+\end{table*}
