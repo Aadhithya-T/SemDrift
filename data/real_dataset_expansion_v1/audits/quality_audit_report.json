@@ -1,0 +1,25 @@
+{
+  "dataset_name": "SemDrift Expanded 10K+ Benchmark Dataset",
+  "audit_timestamp": "2026-10-10",
+  "sample_integrity": {
+    "total_samples": 10000,
+    "drift_samples": 5000,
+    "consistent_samples": 5000,
+    "target_achieved": true,
+    "duplicate_count": 0,
+    "uniqueness_ratio": 1.0
+  },
+  "split_isolation": {
+    "train_repositories_count": 24,
+    "val_repositories_count": 4,
+    "test_repositories_count": 5,
+    "train_val_leakage": 0,
+    "train_test_leakage": 0,
+    "val_test_leakage": 0,
+    "zero_leakage_verified": true
+  },
+  "baseline_preservation": {
+    "baseline_intact": true,
+    "baseline_count": 5200
+  }
+}

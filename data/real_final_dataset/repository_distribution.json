@@ -1,0 +1,21 @@
+{
+  "urllib3": 80,
+  "tornado": 344,
+  "numpy": 191,
+  "jinja": 234,
+  "rich": 437,
+  "flask": 48,
+  "httpx": 111,
+  "scikit-learn": 1894,
+  "paramiko": 310,
+  "werkzeug": 129,
+  "pandas": 687,
+  "pytest": 254,
+  "click": 69,
+  "black": 104,
+  "fastapi": 28,
+  "pydantic": 202,
+  "requests": 37,
+  "marshmallow": 10,
+  "tqdm": 31
+}

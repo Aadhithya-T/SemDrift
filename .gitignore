@@ -56,4 +56,7 @@ htmlcov/
 docs/
 
 data/raw_repos/
+data/expansion_repos/
 data/v2_real_world/raw/repositories/
+data/real_dataset_expansion_v1/candidates/
+data/real_dataset_expansion_v1/evidence/
