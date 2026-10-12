@@ -1,0 +1,53 @@
+sample_index,repo,qualified_name,provenance,status_exp192,fp_category,p_clean_v2,pred_clean_v2,p_exp192_single,pred_exp192_single,p_exp192_max,pred_exp192_max,doc_tokens,code_tokens,window_count,verification_notes
+52,click,Context.invoke,clean_grounded,FALSE_POSITIVE,Long Multi-Clause Documentation Paraphrase,0.40517,0,0.554478,1,0.641328,1,331,539,3,Typing and parameter binding cleanup; argument forwarding conventions remain unchanged
+53,click,convert_type,clean_grounded,FALSE_POSITIVE,Internal Helper Delegation / Argument Forwarding,0.410716,0,0.52714,1,0.52714,0,46,407,1,Refactored guessing logic into helper and made ty optional in signature matching docstring inference description
+54,click,_complete_visible_commands,clean_grounded,TRUE_NEGATIVE,,0.318557,0,0.279778,0,0.279778,0,61,159,1,Type annotations and null check; visible command filtering unchanged
+55,click,progressbar,clean_grounded,FALSE_POSITIVE,Long Multi-Clause Documentation Paraphrase,0.396502,0,0.521035,1,0.886362,1,1950,532,15,Type annotations added to signature; parameter and progress behavior unchanged
+56,click,option,clean_grounded,TRUE_NEGATIVE,,0.28546,0,0.40427,0,0.450114,0,218,130,2,"Promoted cls to explicit parameter in signature, aligning code with existing docstring"
+57,click,Option.prompt_for_value,clean_grounded,TRUE_NEGATIVE,,0.420549,0,0.416133,0,0.416133,0,74,648,1,Explicit handling of UNSET vs None defaults for prompts; prompt flow behavior unchanged
+58,click,secho,clean_grounded,TRUE_NEGATIVE,,0.306806,0,0.295762,0,0.295762,0,249,158,2,Type annotations and isinstance check for bytes; echo/style delegation unchanged
+59,click,argument,clean_grounded,TRUE_NEGATIVE,,0.290743,0,0.395152,0,0.434228,0,222,131,2,"Promoted cls to explicit parameter in signature, aligning code with existing docstring"
+60,click,Command.format_help_text,clean_grounded,TRUE_NEGATIVE,,0.329232,0,0.020402,0,0.020402,0,13,144,1,Refactored branching for help formatting and deprecation prefix; output behavior unchanged
+61,click,Context.to_info_dict,clean_grounded,TRUE_NEGATIVE,,0.356051,0,0.088877,0,0.088877,0,134,263,1,Delegated UNSET hiding to helper; dictionary schema and docstring promise unchanged
+62,click,add_completion_class,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.268703,0,0.80958,1,0.80958,1,104,81,1,Function now returns registered class for decorator usage; registration behavior unchanged
+63,click,_detect_program_name,clean_grounded,TRUE_NEGATIVE,,0.357727,0,0.476897,0,0.476897,0,262,439,2,Type annotations added to program name detection; detection heuristics unchanged
+64,click,Context.make_formatter,clean_grounded,TRUE_NEGATIVE,,0.410977,0,0.191493,0,0.191493,0,120,73,1,Return type annotation added; formatter instantiation unchanged
+65,click,group,clean_grounded,TRUE_NEGATIVE,,0.377371,0,0.497506,0,0.497506,0,87,173,1,Promoted cls parameter to signature; Group decorator behavior unchanged
+66,fastapi,Security,clean_grounded,FALSE_POSITIVE,Long Multi-Clause Documentation Paraphrase,0.3852,0,0.563875,1,0.606229,1,360,871,3,Doc link additions inside Annotated Doc metadata; Security dependency wrapper logic unchanged
+67,fastapi,get_redoc_html,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.395096,0,0.602508,1,0.602508,1,134,1250,1,Doc link additions inside Annotated Doc metadata; ReDoc HTML generation unchanged
+68,fastapi,is_union_of_base_models,clean_grounded,TRUE_NEGATIVE,,0.330688,0,0.042717,0,0.042717,0,16,168,1,Internal check updated to support both Pydantic v1 and v2 BaseModel subclasses; docstring contract holds
+69,fastapi,test_allowed_schema_type,clean_grounded,TRUE_NEGATIVE,,0.258599,0,0.355529,0,0.355529,0,21,65,1,Typing modernization List to list in test function; test assertion unchanged
+70,fastapi,jsonable_encoder,clean_grounded,TRUE_NEGATIVE,,0.415086,0,0.309439,0,0.309439,0,129,3912,1,Removed legacy Pydantic v1 root unpacking; general JSON serialization contract remains accurate
+71,django,javascript_catalog,clean_grounded,FALSE_POSITIVE,Internal Helper Delegation / Argument Forwarding,0.173904,0,0.854633,1,0.854633,1,136,194,1,Refactored catalog parsing into helper get_javascript_catalog; view contract and parameters unchanged
+72,django,split_exclude,clean_grounded,TRUE_NEGATIVE,,0.428467,0,0.295132,0,0.435737,0,314,754,2,Refactored prefix trimming and outer null condition; subquery construction contract holds
+73,django,ping_google,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.149576,0,0.692303,1,0.692303,1,97,95,1,Extracted URL deduction to _get_sitemap_full_url; pinging and reverse deduction unchanged
+74,django,post_process,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.389187,0,0.527631,1,0.527631,0,172,549,1,Refactored to multi-pass _post_process; hashing and reference adjustment contracts unchanged
+75,django,deconstruct,clean_grounded,TRUE_NEGATIVE,,0.48272,0,0.180308,0,0.207421,0,485,1408,4,Refactored deconstruction dict using walrus operator and f-strings; returned 4-tuple unchanged
+76,django,tokenize,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.342152,0,0.641358,1,0.641358,1,71,226,1,Refactored tag splitting into _tag_re_split; tokenization behavior unchanged
+77,django,assertNotContains,clean_grounded,FALSE_POSITIVE,Internal Helper Delegation / Argument Forwarding,0.262469,0,0.55939,1,0.55939,0,75,164,1,Delegated assertion logic to _assert_contains; assertion contract unchanged
+78,django,auth,clean_grounded,TRUE_NEGATIVE,,0.298945,0,0.181048,0,0.181048,0,59,115,1,Simplified user and perms context retrieval without lazy wrapper; context dictionary contract unchanged
+79,django,migrate,clean_grounded,TRUE_NEGATIVE,,0.40011,0,0.35713,0,0.35713,0,72,537,1,Refactored forward and backward plans into helper methods; migration execution contract unchanged
+80,django,bump_prefix,clean_grounded,TRUE_NEGATIVE,,0.565913,1,0.093978,0,0.093978,0,85,820,1,Cartesian product prefix generator prevents crash at Z; prefix bumping contract unchanged
+81,django,assertContains,clean_grounded,FALSE_POSITIVE,Internal Helper Delegation / Argument Forwarding,0.632908,1,0.667663,1,0.667663,1,121,283,1,Delegated assertion logic to _assert_contains; assertion contract unchanged
+82,django,build_lookup,clean_grounded,TRUE_NEGATIVE,,0.29234,0,0.34279,0,0.34279,0,109,777,1,Added Oracle null check and empty lookup fallback; lookup construction contract unchanged
+83,django,get_actions,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.397651,0,0.593028,1,0.593028,1,54,554,1,Filtered actions and sorted dictionary; action mapping contract unchanged
+84,django,_alter_column_type_sql,clean_grounded,TRUE_NEGATIVE,,0.410623,0,0.199816,0,0.199816,0,141,767,1,"Added comment SQL generation; returned (sql, other_actions) 2-tuple contract unchanged"
+85,django,model_to_dict,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.117969,0,0.626881,1,0.626881,1,120,193,1,Directly calls f.value_from_object for m2m fields; model_to_dict field extraction contract holds
+86,django,technical_500_response,clean_grounded,TRUE_NEGATIVE,,0.301667,0,0.44863,0,0.44863,0,38,67,1,Refactored traceback rendering into get_traceback_html; 500 error response contract unchanged
+87,django,annotate,clean_grounded,TRUE_NEGATIVE,,0.381921,0,0.302697,0,0.302697,0,45,63,1,Delegated annotation to _annotate helper; queryset annotation contract unchanged
+88,django,import_by_path,clean_grounded,TRUE_NEGATIVE,,0.202771,0,0.35661,0,0.35661,0,44,218,1,Added deprecation warning and delegated to import_string; import contract unchanged
+89,fastapi,create_invoice,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.1856,0,0.840316,1,0.840316,1,128,67,1,Ground-truth aligned repository function with verified docstring contract
+90,sqlalchemy,tests,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.312666,0,0.607185,1,0.607185,1,5,144,1,Ground-truth aligned repository function with verified docstring contract
+91,sqlalchemy,coverage,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.363949,0,0.618678,1,0.618678,1,5,122,1,Ground-truth aligned repository function with verified docstring contract
+92,sqlalchemy,github_cext_greenlet,clean_grounded,TRUE_NEGATIVE,,0.343549,0,0.344546,0,0.344546,0,5,63,1,Ground-truth aligned repository function with verified docstring contract
+93,sqlalchemy,github_cext,clean_grounded,TRUE_NEGATIVE,,0.338117,0,0.448085,0,0.448085,0,5,57,1,Ground-truth aligned repository function with verified docstring contract
+94,sqlalchemy,github_nocext,clean_grounded,TRUE_NEGATIVE,,0.354325,0,0.377551,0,0.377551,0,5,54,1,Ground-truth aligned repository function with verified docstring contract
+95,sqlalchemy,test_pep484,clean_grounded,TRUE_NEGATIVE,,0.375115,0,0.344789,0,0.344789,0,6,93,1,Ground-truth aligned repository function with verified docstring contract
+96,sqlalchemy,test_mypy,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.323776,0,0.515019,1,0.515019,0,6,131,1,Ground-truth aligned repository function with verified docstring contract
+97,pytest,Approx._yield_comparisons,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.332527,0,0.704029,1,0.704029,1,26,25,1,Ground-truth aligned repository function with verified docstring contract
+98,pytest,_recursive_sequence_map,clean_grounded,TRUE_NEGATIVE,,0.307623,0,0.276318,0,0.276318,0,12,138,1,Ground-truth aligned repository function with verified docstring contract
+99,pytest,ApproxNumpy._repr_compare.get_value_from_nested_list,clean_grounded,TRUE_NEGATIVE,,0.309182,0,0.047542,0,0.047542,0,36,78,1,Ground-truth aligned repository function with verified docstring contract
+100,pytest,ApproxScalar.__repr__,clean_grounded,TRUE_NEGATIVE,,0.422275,0,0.332565,0,0.332565,0,53,270,1,Ground-truth aligned repository function with verified docstring contract
+101,pytest,ApproxScalar.__eq__,clean_grounded,TRUE_NEGATIVE,,0.306719,0,0.061207,0,0.061207,0,19,270,1,Ground-truth aligned repository function with verified docstring contract
+102,pytest,ApproxScalar.tolerance,clean_grounded,FALSE_POSITIVE,Lexical Asymmetry / Descriptive Mismatch,0.349406,0,0.62406,1,0.62406,1,34,319,1,Ground-truth aligned repository function with verified docstring contract
+103,pytest,approx,clean_grounded,FALSE_POSITIVE,Long Multi-Clause Documentation Paraphrase,0.327888,0,0.697255,1,0.867821,1,2846,421,22,Ground-truth aligned repository function with verified docstring contract
