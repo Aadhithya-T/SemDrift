@@ -1,0 +1,97 @@
+{
+  "evaluation_name": "SemDrift Sliding-Window Joint-Encoder Phase 2 Locked Evaluation",
+  "timestamp_utc": "2026-10-12T20:19:54Z",
+  "elapsed_seconds": 58.62,
+  "environment": {
+    "python_version": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]",
+    "torch_version": "2.14.0.dev20260720+cu126",
+    "transformers_version": "5.13.0",
+    "scipy_version": "1.18.0",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "device": "cuda",
+    "gpu_name": "NVIDIA GeForce RTX 4050 Laptop GPU"
+  },
+  "model": {
+    "checkpoint_path": "C:\\Users\\aadhi\\OneDrive\\Desktop\\SemDrift\\experiments\\expansion_v1\\joint_doc192\\joint_encoder_checkpoint.pt",
+    "checkpoint_sha256": "6930634acab6448bc6753fbd1a987bcb39a6ebe50f05502992c00dfb5a9132f0",
+    "base_model": "microsoft/codebert-base",
+    "pooling": "cls",
+    "max_length": 512,
+    "window_size": 192,
+    "stride": 128,
+    "code_truncation": "head_tail",
+    "clean_docstrings": false
+  },
+  "datasets": {
+    "expansion_v1_test": {
+      "path": "C:\\Users\\aadhi\\OneDrive\\Desktop\\SemDrift\\data\\real_dataset_expansion_v1\\splits\\test.jsonl",
+      "sha256": "d300460d3799696fcba78722f27a10e4de2b044f08203231475ab063c8dce67a",
+      "sample_count": 1328
+    },
+    "authentic_diagnostic_test": {
+      "path": "C:\\Users\\aadhi\\OneDrive\\Desktop\\SemDrift\\experiments\\2026-09-07_clean_v2\\dataset\\verified_test.jsonl",
+      "sha256": "fff74007ea28dfd2f4822f4833f8d702489404ed8ad4882f53ea307ba540ef40",
+      "sample_count": 104
+    }
+  },
+  "locked_configurations": {
+    "A": {
+      "name": "Original single-window baseline",
+      "aggregation": "First window only",
+      "prob_key": "p_single",
+      "threshold": 0.5
+    },
+    "B": {
+      "name": "Validation-tuned single-window baseline",
+      "aggregation": "First window only",
+      "prob_key": "p_single",
+      "threshold": 0.52
+    },
+    "C": {
+      "name": "Sliding-window mean",
+      "aggregation": "Mean of window probabilities",
+      "prob_key": "p_mean",
+      "threshold": 0.52
+    },
+    "D": {
+      "name": "Locked sliding-window winner",
+      "aggregation": "Maximum of window probabilities",
+      "prob_key": "p_max",
+      "threshold": 0.58
+    }
+  },
+  "success_criteria_results": [
+    {
+      "criterion": "Expansion V1 Test Macro-F1",
+      "target": ">=85.0%",
+      "baseline_val": "91.91%",
+      "measured_val": "94.99%",
+      "delta": "+3.08%",
+      "status": "PASS"
+    },
+    {
+      "criterion": "Expansion V1 Test Drift Recall",
+      "target": ">=85.0%",
+      "baseline_val": "89.47%",
+      "measured_val": "96.37%",
+      "delta": "+6.90%",
+      "status": "PASS"
+    },
+    {
+      "criterion": "Authentic Historical Drift Caught",
+      "target": ">=10/52",
+      "baseline_val": "24/52",
+      "measured_val": "23/52",
+      "delta": "-1",
+      "status": "PASS"
+    },
+    {
+      "criterion": "Clean-Grounded False Positives",
+      "target": "<=5/52",
+      "baseline_val": "21/52",
+      "measured_val": "17/52",
+      "delta": "-4",
+      "status": "FAIL"
+    }
+  ]
+}
