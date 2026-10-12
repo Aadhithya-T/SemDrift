@@ -1,6 +1,6 @@
-# Master Benchmark Report: SemDrift V1 & V2 Comprehensive Evaluation
+# Master Benchmark Report: SemDrift V1, V2 & Expansion V1 Comprehensive Evaluation
 
-This document serves as the authoritative, repository-level record of all experimental models evaluated across both the **V1 Synthetic** and **V2 Real-World Grounded** datasets in SemDrift. It aggregates every metric, confusion matrix ($TN, FP, FN, TP$), fine-grained mutation breakdown, severity breakdown, repository breakdown, score distribution, and statistical significance test across all 5 model families.
+This document serves as the authoritative, repository-level record of all experimental models evaluated across the **V1 Synthetic**, **V2 Real-World Grounded**, and **Real Dataset Expansion V1** benchmarks in SemDrift. It aggregates every metric, confusion matrix ($TN, FP, FN, TP$), fine-grained mutation breakdown, severity breakdown, repository breakdown, score distribution, latency profile, and statistical significance test across all model families.
 
 ---
 
@@ -17,9 +17,21 @@ SemDrift investigates whether machine learning models can detect semantic drift 
    - When evaluated against the locked 104-sample diagnostic test set of authentic human commits mined from production repositories (Click, FastAPI, Django, etc.):
      - **TF-IDF Combined** achieves **32.69%** authentic drift recall at $\tau = 0.50$.
      - **Zero-Shot CodeBERT** achieves **36.54%** authentic drift recall at $\tau = 0.96$.
-     - **Joint-Encoder (CodeBERT)** drops to **3.85%** authentic drift recall.
-     - **Dual-Encoder (CodeBERT)** drops to **0.00%** authentic drift recall.
+     - **Joint-Encoder (CodeBERT)** drops to **3.85%** authentic drift recall ($2 / 52$).
+     - **Dual-Encoder (CodeBERT)** drops to **0.00%** authentic drift recall ($0 / 52$).
    - **Key Finding**: Fine-tuning deep neural models on generated/contract-grounded synthetic mutations leads them to exploit generator-specific shortcuts that fail to transfer to subtle, authentic human git evolution. In contrast, superficial lexical signals and raw pretrained representations generalize with far greater robustness.
+
+3. **The Expansion V1 Benchmark & Sliding-Window Inference Findings (10,000 samples)**:
+   - On the scaled 10,000-sample **Expansion V1 Benchmark** (33 repositories):
+     - **Dual-Encoder (CodeBERT Bi-Encoder)** achieves top synthetic performance at **97.27% Macro-F1** (Recall 94.74%, Precision 98.86%, Specificity 99.23%).
+     - **TF-IDF Relational** demonstrates strong lexical competence at **91.62% Macro-F1** (Recall 89.84%, ROC-AUC 0.9582).
+     - **Joint-Encoder (doc_max=192)** achieves **91.91% Macro-F1** with a single window.
+     - **Sliding-Window Inference (Config D, Window-Max $\tau=0.58$)** pushes Joint-Encoder performance to **94.99% Macro-F1** (+3.08% lift) and **96.37% Recall** (+6.90% lift), rescuing 38 false negatives ($FN: 58 \rightarrow 20$, $\chi^2 = 22.92, p = 1.69 \times 10^{-6}$).
+   - **Authentic Diagnostic Set Evaluation & The Truncation Asymmetry Paradox**:
+     - On authentic historical human drift, the Expansion V1 Joint Encoder detects **24 / 52** (46.15%) authentic drifts (vs Clean V2's 2 / 52), but incurs **21 / 52** (40.38%) clean false alarms.
+     - Sliding windows caught **0 additional authentic drifts** ($24 \rightarrow 23 / 52$). Error analysis revealed that synthetic mutations are placed deep in docstring tails (where sliding windows physically expose them), whereas authentic human drifts have their contradiction in the opening summary. The failure on authentic drift is representational (subtle logic inversions with high lexical overlap), not token truncation.
+   - **Checkpoint Parity Audit Resolution**:
+     - Verified bit-for-bit that the historical $2 / 52$ result belongs strictly to the Clean-Slate V2 checkpoint (`47f223de...`, trained on 24k samples with `pooling=mean`, `doc_max_tokens=96`). The Phase 2 result ($24 / 52$) belongs to the Expansion V1 checkpoint (`6930634a...`, trained on 8.1k samples with `pooling=cls`, `doc_max_tokens=192`). Both checkpoints reproduce with 100% fidelity.
 
 ---
 
@@ -42,6 +54,14 @@ SemDrift investigates whether machine learning models can detect semantic drift 
 - **Evaluation Split**: `data/v2_real_world/evaluation/Evaluation_set2.jsonl` (**2,000 samples**: **1,000 clean grounded**, **1,000 contract-grounded drift**).
 - **Mutation Profiles**: `aligned` (1,000), `doc_negation_drift` (704), `behavior_operator_drift` (235), `default_value_drift` (42), `param_contract_drift` (16), `return_contract_drift` (3).
 - **Severity Profiles**: `none / aligned` (1,000), `moderate` (765), `hard` (235).
+
+### D. Real Dataset Expansion V1 (`data/real_dataset_expansion_v1/`)
+- **Origin**: Scaled multi-repository extraction spanning 33 prominent open-source Python repositories with rigorous AST and docstring contract parsing.
+- **Total Dataset Size**: **10,000 samples** (8,128 Train, 544 Val, 1,328 Test).
+- **Train Split**: `data/real_dataset_expansion_v1/splits/train.jsonl` (**8,128 samples**: 4,756 clean aligned, 3,372 drifted).
+- **Val Split**: `data/real_dataset_expansion_v1/splits/val.jsonl` (**544 samples**: 175 clean aligned, 369 drifted).
+- **Held-Out Test Split**: `data/real_dataset_expansion_v1/splits/test.jsonl` (**1,328 samples**: **777 clean aligned**, **551 contract-grounded drift**; SHA-256: `d300460d...`).
+- **Mutation Categories (13 drift classes + aligned)**: `parameter_obsolete` (84), `mutation_behavior` (80), `return_type_mismatch` (77), `return_none_behavior` (75), `return_value_semantics` (68), `parameter_constraint_mismatch` (65), `parameter_order_mismatch` (32), `parameter_rename` (26), `parameter_missing` (14), `parameter_default_mismatch` (11), `exception_undocumented` (7), `exception_contract_mismatch` (7), `async_execution_mismatch` (5), `aligned / none` (777).
 
 ---
 
@@ -90,6 +110,15 @@ SemDrift investigates whether machine learning models can detect semantic drift 
 
 | Model | Dataset Generation | Validation Split ($N$) | Val Accuracy | Val Balanced Acc | Val Recall | Val Precision | Val Macro-F1 | TN | FP | FN | TP | Confusion Matrix (Val) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Dual-Encoder (CodeBERT)** | **Expansion V1** | 544 | **91.91%** | **93.89%** | **88.35%** | **99.69%** | **91.23%** | 174 | 1 | 43 | 326 | `TN=174, FP=1, FN=43, TP=326` |
+| **Joint-Encoder (doc192 sliding-max)** | **Expansion V1** | 544 | **92.65%** | **91.58%** | **94.58%** | **94.58%** | **91.58%** | 155 | 20 | 20 | 349 | `TN=155, FP=20, FN=20, TP=349` |
+| **Joint-Encoder (doc192 single)** | **Expansion V1** | 544 | **90.81%** | **89.62%** | **92.95%** | **93.46%** | **89.50%** | 151 | 24 | 26 | 343 | `TN=151, FP=24, FN=26, TP=343` |
+| **Joint-Encoder (Focal doc96)** | **Expansion V1** | 544 | **87.87%** | **84.15%** | **94.58%** | **88.35%** | **85.50%** | 129 | 46 | 20 | 349 | `TN=129, FP=46, FN=20, TP=349` |
+| **Joint-Encoder (Focal doc160)** | **Expansion V1** | 544 | **86.21%** | **87.13%** | **84.55%** | **94.55%** | **85.00%** | 157 | 18 | 57 | 312 | `TN=157, FP=18, FN=57, TP=312` |
+| **Joint-Encoder (CE doc96)** | **Expansion V1** | 544 | **85.66%** | **83.12%** | **90.24%** | **88.80%** | **83.42%** | 133 | 42 | 36 | 333 | `TN=133, FP=42, FN=36, TP=333` |
+| **TF-IDF Combined ($\tau=0.48$)** | **Expansion V1** | 544 | — | — | — | — | **82.19%** | — | — | — | — | `Val Sweep Tuned` |
+| **TF-IDF Relational ($\tau=0.49$)** | **Expansion V1** | 544 | — | — | — | — | **82.03%** | — | — | — | — | `Val Sweep Tuned` |
+| **Zero-Shot CodeBERT ($\tau=0.39$)** | **Expansion V1** | 544 | **63.60%** | **54.69%** | **79.67%** | **70.50%** | **54.62%** | 52 | 123 | 75 | 294 | `TN=52, FP=123, FN=75, TP=294` |
 | **Joint-Encoder (CodeBERT)** | **V2** | 2,636 | **90.44%** | **89.47%** | **83.15%** | **93.55%** | **90.04%** | 1,456 | 64 | 188 | 928 | `TN=1456, FP=64, FN=188, TP=928` |
 | **Dual-Encoder (CodeBERT)** | **V2** | 2,636 | **90.33%** | **89.17%** | **81.63%** | **94.80%** | **89.87%** | 1,470 | 50 | 205 | 911 | `TN=1470, FP=50, FN=205, TP=911` |
 | **TF-IDF Relational** | **V2** | 2,636 | **75.11%** | **74.03%** | **68.73%** | **71.21%** | **74.16%** | 1,211 | 309 | 349 | 767 | `TN=1211, FP=309, FN=349, TP=767` |
@@ -100,6 +129,51 @@ SemDrift investigates whether machine learning models can detect semantic drift 
 | **Dual-Encoder (CE)** | **V1** | 1,259 | **80.86%** | **80.70%** | **68.01%** | **91.24%** | **80.70%** | 623 | 39 | 191 | 406 | `TN=623, FP=39, FN=191, TP=406` |
 | **TF-IDF Relational** | **V1** | 1,259 | **66.24%** | **66.21%** | **65.83%** | **64.22%** | **66.21%** | 441 | 221 | 204 | 393 | `TN=441, FP=221, FN=204, TP=393` |
 | **TF-IDF Combined** | **V1** | 1,259 | **60.92%** | **60.84%** | **59.97%** | **58.31%** | **60.84%** | 409 | 253 | 239 | 358 | `TN=409, FP=253, FN=239, TP=358` |
+
+---
+
+### Table 5: Real Dataset Expansion V1 Benchmark (Held-Out Test Set, $N = 1,328$)
+
+| Model | Architecture / Method | Threshold ($\tau$) | Accuracy | Balanced Acc | Drift Recall | Drift Precision | Binary F1 | Macro F1 | ROC-AUC | PR-AUC | TN | FP | FN | TP | Confusion Matrix |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Zero-Shot CodeBERT** | Pretrained Cosine Divergence | `0.39` (tuned) | **46.76%** | **53.00%** | **89.66%** | **43.18%** | **58.29%** | **42.36%** | — | — | 127 | 650 | 57 | 494 | `TN=127, FP=650, FN=57, TP=494` |
+| **TF-IDF Combined** | Pure Lexical Baseline | `0.48` (tuned) | **90.06%** | **89.90%** | **88.93%** | **87.34%** | **88.13%** | **89.79%** | 0.9469 | 0.9462 | 706 | 71 | 61 | 490 | `TN=706, FP=71, FN=61, TP=490` |
+| **TF-IDF Combined** | Pure Lexical Baseline | `0.50` (default) | **90.51%** | **90.15%** | **88.02%** | **88.99%** | **88.50%** | **90.21%** | 0.9469 | 0.9462 | 717 | 60 | 66 | 485 | `TN=717, FP=60, FN=66, TP=485` |
+| **TF-IDF Relational** | Enhanced Lexical Baseline | `0.49` (tuned) | **91.87%** | **91.57%** | **89.84%** | **90.49%** | **90.16%** | **91.62%** | 0.9582 | 0.9541 | 725 | 52 | 56 | 495 | `TN=725, FP=52, FN=56, TP=495` |
+| **TF-IDF Relational** | Enhanced Lexical Baseline | `0.50` (default) | **92.02%** | **91.67%** | **89.66%** | **90.98%** | **90.31%** | **91.76%** | 0.9582 | 0.9541 | 728 | 49 | 57 | 494 | `TN=728, FP=49, FN=57, TP=494` |
+| **Dual-Encoder (CodeBERT)** | Fine-Tuned Bi-Encoder | `0.50` (default) | **97.36%** | **96.98%** | **94.74%** | **98.86%** | **96.76%** | **97.27%** | — | — | 771 | 6 | 29 | 522 | `TN=771, FP=6, FN=29, TP=522` |
+| **Joint-Encoder (Focal doc96)** | Cross-Input (Focal Loss) | `0.50` (default) | **84.94%** | **84.91%** | **84.75%** | **80.10%** | **82.36%** | **84.61%** | — | — | 661 | 116 | 84 | 467 | `TN=661, FP=116, FN=84, TP=467` |
+| **Joint-Encoder (CE doc96)** | Cross-Input (Cross-Entropy) | `0.50` (default) | **84.79%** | **84.94%** | **85.84%** | **79.23%** | **82.40%** | **84.50%** | — | — | 653 | 124 | 78 | 473 | `TN=653, FP=124, FN=78, TP=473` |
+| **Joint-Encoder doc192 (Config A)** | Baseline (Single-Window) | `0.50` (default) | **92.17%** | **91.78%** | **89.47%** | **91.47%** | **90.46%** | **91.91%** | 0.9799 | 0.9773 | 731 | 46 | 58 | 493 | `TN=731, FP=46, FN=58, TP=493` |
+| **Joint-Encoder doc192 (Config B)** | Tuned Single-Window | `0.52` (val tuned) | **92.32%** | **91.83%** | **88.93%** | **92.28%** | **90.57%** | **92.05%** | 0.9799 | 0.9773 | 736 | 41 | 61 | 490 | `TN=736, FP=41, FN=61, TP=490` |
+| **Joint-Encoder doc192 (Config C)** | Sliding Mean Aggregation | `0.52` (val tuned) | **94.65%** | **94.67%** | **94.74%** | **92.55%** | **93.63%** | **94.51%** | 0.9900 | 0.9883 | 735 | 42 | 29 | 522 | `TN=735, FP=42, FN=29, TP=522` |
+| **Joint-Encoder doc192 (Config D)** | **Locked Sliding Max Winner** | `0.58` (val tuned) | **95.11%** | **95.29%** | **96.37%** | **92.19%** | **94.23%** | **94.99%** | **0.9929** | **0.9923** | 732 | 45 | 20 | 531 | `TN=732, FP=45, FN=20, TP=531` |
+
+---
+
+### Table 6: Expansion V1 Models on Authentic Diagnostic Benchmark (Locked Test Set, $N = 104$)
+
+| Model / Configuration | Inference Strategy | Threshold ($\tau$) | Accuracy | Balanced Acc | Macro F1 | Authentic Drift Caught | Authentic Recall | Clean False Alarms | Clean Specificity | Confusion Matrix |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Clean-Slate V2 Baseline** | Historical (doc96, mean pool) | `0.50` | **50.00%** | **50.00%** | **36.47%** | **2 / 52** | 3.85% | **2 / 52** | **96.15%** | `TN=50, FP=2, FN=50, TP=2` |
+| **Config A: doc192 Baseline** | First Window Only | `0.50` | **52.88%** | **52.88%** | **52.67%** | **24 / 52** | **46.15%** | **21 / 52** | 59.62% | `TN=31, FP=21, FN=28, TP=24` |
+| **Config B: Tuned Baseline** | First Window Only | `0.52` | **52.88%** | **52.88%** | **52.53%** | **23 / 52** | 44.23% | **20 / 52** | 61.54% | `TN=32, FP=20, FN=29, TP=23` |
+| **Config C: Sliding Mean** | Mean of Window Probabilities | `0.52` | **55.77%** | **55.77%** | **55.36%** | **24 / 52** | **46.15%** | **18 / 52** | 65.38% | `TN=34, FP=18, FN=28, TP=24` |
+| **Config D: Locked Winner** | **Maximum Window Probability** | `0.58` | **55.77%** | **55.77%** | **55.17%** | **23 / 52** | 44.23% | **17 / 52** | **67.31%** | `TN=35, FP=17, FN=29, TP=23` |
+
+---
+
+### Table 7: Stratified Sliding-Window Latency Benchmarking (RTX 4050 Laptop GPU, $N = 1,328$)
+
+| Stratum ($K$) | Docstring Token Span | Sample Count ($N$) | Population Share | Mean Latency | Median Latency | P95 Latency | Min – Max Latency |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **$K = 1$** | $N_{doc} \le 192$ | 1,134 | 85.39% | 21.83 ms | 20.26 ms | 32.23 ms | 12.43 – 72.61 ms |
+| **$K = 2$** | $193 \le N_{doc} \le 320$ | 104 | 7.83% | 52.24 ms | 52.22 ms | 56.18 ms | 42.81 – 58.06 ms |
+| **$K = 3$** | $321 \le N_{doc} \le 448$ | 49 | 3.69% | 80.22 ms | 81.00 ms | 85.28 ms | 67.50 – 87.36 ms |
+| **$K \ge 4$** | $N_{doc} > 448$ | 41 | 3.09% | 145.97 ms | 111.00 ms | 220.37 ms | 94.96 – 569.67 ms |
+| **Overall** | All test instances | 1,328 | 100.0% | **30.20 ms** | **22.44 ms** | **80.68 ms** | 12.43 – 569.67 ms |
+
+---
 
 ---
 
@@ -229,7 +303,40 @@ SemDrift investigates whether machine learning models can detect semantic drift 
 
 ---
 
-## 7. Statistical Significance Tests (McNemar's $\chi^2$ Test)
+## 7. Fine-Grained Performance Breakdowns on Expansion V1 Test Set ($N = 1,328$)
+
+### A. Mutation Type Breakdown Across All Models ($N = 1,328$)
+
+| Mutation Type | Sample Count ($N$) | Zero-Shot CodeBERT Recall | TF-IDF Combined Recall | TF-IDF Relational Recall | Dual-Encoder (Bi-Encoder) Recall | Joint-Encoder (CE doc96) Recall | Joint-Encoder (Focal doc96) Recall |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`parameter_obsolete`** | 84 | 81.0% (68/84) | 97.6% (82/84) | **100.0% (84/84)** | 97.6% (82/84) | 89.3% (75/84) | 84.5% (71/84) |
+| **`mutation_behavior`** | 80 | 91.2% (73/80) | **100.0% (80/80)** | **100.0% (80/80)** | **100.0% (80/80)** | 83.8% (67/80) | 85.0% (68/80) |
+| **`return_type_mismatch`** | 77 | 83.1% (64/77) | **100.0% (77/77)** | **100.0% (77/77)** | 97.4% (75/77) | 81.8% (63/77) | 83.1% (64/77) |
+| **`return_none_behavior`** | 75 | 92.0% (69/75) | 98.7% (74/75) | **100.0% (75/75)** | 97.3% (73/75) | 88.0% (66/75) | 89.3% (67/75) |
+| **`return_value_semantics`** | 68 | 91.2% (62/68) | 97.1% (66/68) | **98.5% (67/68)** | **98.5% (67/68)** | 91.2% (62/68) | 89.7% (61/68) |
+| **`parameter_constraint_mismatch`** | 65 | 98.5% (64/65) | **100.0% (65/65)** | **100.0% (65/65)** | **100.0% (65/65)** | 87.7% (57/65) | 86.2% (56/65) |
+| **`parameter_order_mismatch`** | 32 | 93.8% (30/32) | 84.4% (27/32) | 96.9% (31/32) | **100.0% (32/32)** | **100.0% (32/32)** | **100.0% (32/32)** |
+| **`parameter_rename`** | 26 | 92.3% (24/26) | 11.5% (3/26) | 7.7% (2/26) | **100.0% (26/26)** | 88.5% (23/26) | 88.5% (23/26) |
+| **`parameter_missing`** | 14 | **100.0% (14/14)** | 21.4% (3/14) | 14.3% (2/14) | 0.0% (0/14) | 28.6% (4/14) | 21.4% (3/14) |
+| **`parameter_default_mismatch`** | 11 | 81.8% (9/11) | 36.4% (4/11) | 45.5% (5/11) | 90.9% (10/11) | **100.0% (11/11)** | **100.0% (11/11)** |
+| **`exception_contract_mismatch`** | 7 | **100.0% (7/7)** | **100.0% (7/7)** | **100.0% (7/7)** | **100.0% (7/7)** | **100.0% (7/7)** | 85.7% (6/7) |
+| **`exception_undocumented`** | 7 | **85.7% (6/7)** | 14.3% (1/7) | 0.0% (0/7) | 0.0% (0/7) | 14.3% (1/7) | 0.0% (0/7) |
+| **`async_execution_mismatch`** | 5 | 80.0% (4/5) | 20.0% (1/5) | 0.0% (0/5) | **100.0% (5/5)** | **100.0% (5/5)** | **100.0% (5/5)** |
+| **`aligned` (Specificity)** | 777 | 16.35% (127/777) | 90.86% (706/777) | 93.31% (725/777) | **99.23% (771/777)** | 84.04% (653/777) | 85.07% (661/777) |
+
+### B. Sliding-Window Stratification & Performance Breakdown ($N = 1,328$)
+
+| Window Stratum ($K$) | Token Range ($N_{doc}$) | Count ($N$) | Population Share | Single Baseline (Config A) Recall | Sliding Mean (Config C) Recall | Locked Sliding Max (Config D) Recall | Absolute Recall Lift ($\Delta$) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **$K = 1$** | $N_{doc} \le 192$ | 1,134 | 85.39% | 91.24% (427/468) | 94.66% (443/468) | **95.94% (449/468)** | **+4.70%** |
+| **$K = 2$** | $193 \le N_{doc} \le 320$ | 104 | 7.83% | 80.77% (42/52) | 96.15% (50/52) | **98.08% (51/52)** | **+17.31%** |
+| **$K = 3$** | $321 \le N_{doc} \le 448$ | 49 | 3.69% | 76.47% (13/17) | 88.24% (15/17) | **94.12% (16/17)** | **+17.65%** |
+| **$K \ge 4$** | $N_{doc} > 448$ | 41 | 3.09% | 78.57% (11/14) | **100.0% (14/14)** | **100.0% (14/14)** | **+21.43%** |
+| **Total / Overall** | Entire Test Split | 1,328 | 100.0% | 89.47% (493/551) | 94.74% (522/551) | **96.37% (531/551)** | **+6.90%** |
+
+---
+
+## 8. Statistical Significance Tests (McNemar's $\chi^2$ Test)
 
 ### A. V1 Synthetic Benchmark ($N = 1,205$)
 - **Joint-Encoder (CE) vs. Dual-Encoder (CE)**:
@@ -248,43 +355,115 @@ SemDrift investigates whether machine learning models can detect semantic drift 
   - Joint-Encoder suffers severe false-negative skew ($FN = 50$, $TP = 2$), predicting "aligned" for nearly all authentic commits.
   - TF-IDF correctly detects 17 authentic drifts vs. Joint's 2, confirming superior transfer of lexical signals to real human commits.
 
+### C. Real Dataset Expansion V1 Benchmark ($N = 1,328$)
+- **Dual-Encoder vs. Joint-Encoder (Focal doc96)**:
+  - Contingency Table: $n_{11} = 1,118$, $n_{10} = 175$ (Dual wins), $n_{01} = 10$ (Joint wins), $n_{00} = 25$. Discordant pairs = 185.
+  - $\chi^2 = 145.3838$ ($p = 0.0000$).
+  - **Result**: Dual-Encoder is statistically significantly superior to Joint-Encoder (doc96) on Expansion V1 ($p < 10^{-20}$).
+- **Dual-Encoder vs. TF-IDF Combined**:
+  - Contingency Table: $n_{11} = 1,182$, $n_{10} = 111$ (Dual wins), $n_{01} = 14$ (TF-IDF wins), $n_{00} = 21$. Discordant pairs = 125.
+  - $\chi^2 = 73.7280$ ($p = 0.0000$).
+  - **Result**: Dual-Encoder statistically significantly outperforms lexical TF-IDF Combined ($p < 10^{-16}$).
+- **Joint-Encoder (Focal doc96) vs. TF-IDF Combined**:
+  - Contingency Table: $n_{11} = 1,060$, $n_{10} = 68$ (Joint wins), $n_{01} = 136$ (TF-IDF wins), $n_{00} = 64$. Discordant pairs = 204.
+  - $\chi^2 = 22.0049$ ($p = 3.0 \times 10^{-6}$).
+  - **Result**: TF-IDF Combined significantly outperforms Joint-Encoder (doc96) on the full Expansion V1 benchmark.
+- **Joint-Encoder (Focal doc96) vs. Joint-Encoder (CE doc96)**:
+  - Contingency Table: $n_{11} = 1,095$, $n_{10} = 33$ (Focal wins), $n_{01} = 31$ (CE wins), $n_{00} = 169$. Discordant pairs = 64.
+  - $\chi^2 = 0.0156$ ($p = 0.9005$).
+  - **Result**: No statistically significant difference between Focal loss and standard CrossEntropy for the doc96 architecture.
+- **Sliding-Window Joint-Encoder (Config D) vs. Single-Window Baseline (Config A)**:
+  - Contingency Table: $n_{11} = 1,212$ (Both correct), $n_{10} = 51$ (Sliding Max wins), $n_{01} = 12$ (Baseline wins), $n_{00} = 53$ (Both incorrect).
+  - Discordant pairs: 63.
+  - $\chi^2 = 22.9206$ ($p = 1.6883 \times 10^{-6}$, with continuity correction).
+  - **Result**: Sliding-window maximum-probability aggregation delivers a **statistically significant lift** over the single-window baseline ($p < 0.001$), rescuing 38 false negatives.
+
 ---
 
-## 8. Artifact Directory & File Manifest
+## 9. Artifact Directory & File Manifest
 
 | Artifact Name | Scope | File Path |
 | :--- | :---: | :--- |
+| **Expansion V1 Master Benchmark Summary** | Expansion V1 | `experiments/expansion_v1/benchmarks/benchmark_summary.json` |
+| **Expansion V1 Benchmark Markdown Report** | Expansion V1 | `experiments/expansion_v1/benchmarks/benchmark_summary.md` |
+| **Expansion V1 LaTeX Benchmark Table** | Expansion V1 | `experiments/expansion_v1/benchmarks/benchmark_table.tex` |
+| **Phase 2 Sliding-Window Test Results** | Expansion V1 Test | `experiments/expansion_v1/joint_sliding_window/phase2/expansion_v1_test_results.json` |
+| **Phase 2 Authentic Diagnostic Results** | Diagnostic ($N=104$) | `experiments/expansion_v1/joint_sliding_window/phase2/authentic_diagnostic_results.json` |
+| **Phase 2 Sliding-Window Comparison Report** | Expansion V1 & Diag | `experiments/expansion_v1/joint_sliding_window/phase2/phase2_comparison_report.md` |
+| **Phase 2 Baseline Parity Audit Report** | Priority 0 Parity | `experiments/expansion_v1/joint_sliding_window/parity_audit/parity_audit_report.md` |
+| **Phase 2 Parity Audit Metadata & Hashes** | Priority 0 Parity | `experiments/expansion_v1/joint_sliding_window/parity_audit/audit_metadata.json` |
+| **Phase 3A Authentic Drift Error Analysis Report** | Error Analysis | `experiments/expansion_v1/joint_sliding_window/error_analysis/error_analysis_report.md` |
+| **Phase 3A Next Experiment Proposal** | Future Proposal | `experiments/expansion_v1/joint_sliding_window/error_analysis/next_experiment_proposal.md` |
+| **Phase 3A Authentic Miss Case Studies** | Error Analysis | `experiments/expansion_v1/joint_sliding_window/error_analysis/authentic_miss_analysis.csv` |
+| **Phase 3A Clean False Positive Case Studies** | Error Analysis | `experiments/expansion_v1/joint_sliding_window/error_analysis/clean_false_positive_analysis.csv` |
+| **Phase 3A Score & Length Distribution JSON** | Error Analysis | `experiments/expansion_v1/joint_sliding_window/error_analysis/confidence_and_length_analysis.json` |
+| **Phase 1 Validation Threshold Sweep** | Expansion V1 Val | `experiments/expansion_v1/joint_sliding_window/threshold_sweep_validation.json` |
+| **Phase 1 Locked Winning Configuration** | Expansion V1 Val | `experiments/expansion_v1/joint_sliding_window/selected_config.json` |
+| **Expansion V1 Dual-Encoder Results** | Expansion V1 Test | `experiments/expansion_v1/dual_encoder/results_dual_encoder.json` |
+| **Expansion V1 Joint-Encoder doc192 Results** | Expansion V1 Val | `experiments/expansion_v1/joint_doc192/results_joint_encoder.json` |
+| **Expansion V1 Joint-Encoder Focal (doc96)** | Expansion V1 Test | `experiments/expansion_v1/joint_encoder/results_joint_encoder.json` |
+| **Expansion V1 Joint-Encoder CE (doc96)** | Expansion V1 Test | `experiments/expansion_v1/joint_encoder_ce/results_joint_encoder.json` |
+| **Expansion V1 TF-IDF Relational Results** | Expansion V1 Test | `experiments/expansion_v1/tfidf_relational/results_tfidf_relational.json` |
+| **Expansion V1 TF-IDF Combined Results** | Expansion V1 Test | `experiments/expansion_v1/tfidf_combined/results_tfidf_combined.json` |
+| **Expansion V1 Zero-Shot CodeBERT Results** | Expansion V1 Test | `experiments/expansion_v1/zero_shot/results_baseline.json` |
 | **Evaluation Set 2 Master Summary** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/summary_eval_set_results.json` |
 | **Evaluation Set 2 Benchmark Report** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/EVAL_SET_BENCHMARK_REPORT.md` |
-| **Eval Set 2 Zero-Shot Results** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/zero_shot/results_baseline.json` |
-| **Eval Set 2 TF-IDF Combined Results** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/tfidf_combined/results_tfidf_combined.json` |
-| **Eval Set 2 TF-IDF Relational Results** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/tfidf_relational/results_tfidf_relational.json` |
-| **Eval Set 2 Dual-Encoder Results** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/dual_encoder/results_dual_encoder.json` |
-| **Eval Set 2 Joint-Encoder Results** | Eval Set 2 | `experiments/2026-09-07_clean_v2/evaluation/evaluation_set2_benchmarks/joint_encoder/results_joint_encoder.json` |
 | **V2 Joint-Encoder Evaluation** | V2 Test | `experiments/2026-09-07_clean_v2/evaluation/eval_results.json` |
-| **V2 Joint-Encoder Predictions** | V2 Test | `experiments/2026-09-07_clean_v2/predictions/independent_predictions.jsonl` |
 | **V2 Joint-Encoder Checkpoint Record** | V2 Train/Val | `experiments/2026-09-07_clean_v2/checkpoints/results_joint_encoder.json` |
 | **V2 Dual-Encoder Evaluation** | V2 Val/Test | `experiments/2026-09-07_clean_v2/dual_encoder_checkpoints/results_dual_encoder.json` |
-| **V2 Dual-Encoder Predictions** | V2 Test | `experiments/2026-09-07_clean_v2/dual_encoder_checkpoints/predictions_dual_encoder.jsonl` |
-| **V2 Zero-Shot Baseline Results** | V2 Val/Test | `data/v2_real_world/baseline_results/results_baseline.json` |
-| **V2 Zero-Shot Baseline Predictions** | V2 Test | `data/v2_real_world/baseline_results/predictions_baseline.jsonl` |
 | **V2 TF-IDF Combined Results** | V2 Val/Test | `experiments/2026-09-07_clean_v2/evaluation/results_tfidf_combined.json` |
-| **V2 TF-IDF Combined Predictions** | V2 Test | `experiments/2026-09-07_clean_v2/predictions/tfidf_combined_predictions.jsonl` |
 | **V2 TF-IDF Relational Results** | V2 Val/Test | `experiments/2026-09-07_clean_v2/evaluation/results_tfidf_relational.json` |
-| **V2 TF-IDF Relational Predictions** | V2 Test | `experiments/2026-09-07_clean_v2/predictions/tfidf_relational_predictions.jsonl` |
 | **V1 TF-IDF Combined Results** | V1 Val/Test | `data/v1_synthetic/baseline_results/results_tfidf_combined.json` |
-| **V1 TF-IDF Combined Predictions** | V1 Test | `data/v1_synthetic/baseline_results/tfidf_combined_predictions.jsonl` |
 | **V1 TF-IDF Relational Results** | V1 Val/Test | `data/v1_synthetic/baseline_results/results_tfidf_relational.json` |
-| **V1 TF-IDF Relational Predictions** | V1 Test | `data/v1_synthetic/baseline_results/tfidf_relational_predictions.jsonl` |
 | **V1 Controlled Ablation Report** | V1 Test | `data/experiments/v2/controlled_ablation/controlled_experiment_results.json` |
 | **V1 Joint-Encoder Focal Loss Results** | V1 Val/Test | `data/experiments/v2/joint_focal_controlled/results_joint_encoder.json` |
 | **V1 Joint-Encoder CE Results** | V1 Val/Test | `data/experiments/v2/joint_ce_controlled/results_joint_encoder.json` |
 | **V1 Dual-Encoder CE Results** | V1 Val/Test | `data/experiments/v2/dual_ce_controlled/results_dual_encoder.json` |
-| **V1 IEEE Paper Synthesis Report** | V1 Test | `data/experiments/v2/ieee_paper_results.json` |
 
 ---
 
-## 9. Reproducibility & Execution Commands
+## 10. Reproducibility & Execution Commands
+
+### Reproduce Expansion V1 Sliding-Window Evaluations
+```powershell
+# Phase 2 Locked Evaluation on Expansion V1 Test Split (N = 1,328)
+python scripts/training/evaluate_sliding_window_joint.py `
+    --checkpoint experiments/expansion_v1/joint_doc192/joint_encoder_checkpoint.pt `
+    --test_file data/real_dataset_expansion_v1/splits/test.jsonl `
+    --doc_max_tokens 192 --stride 128 --max_length 512 `
+    --batch_size 16 --threshold 0.58 --aggregation max `
+    --output_dir experiments/expansion_v1/joint_sliding_window/phase2 `
+    --device cuda
+
+# Phase 2 Locked Evaluation on Authentic Diagnostic Set (N = 104)
+python scripts/training/evaluate_sliding_window_joint.py `
+    --checkpoint experiments/expansion_v1/joint_doc192/joint_encoder_checkpoint.pt `
+    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl `
+    --doc_max_tokens 192 --stride 128 --max_length 512 `
+    --batch_size 16 --threshold 0.58 --aggregation max `
+    --output_dir experiments/expansion_v1/joint_sliding_window/phase2 `
+    --device cuda
+
+# Execute Phase 3A Error Analysis Script
+python scripts/analysis/run_phase3a_error_analysis.py
+```
+
+### Reproduce Expansion V1 TF-IDF Baselines
+```powershell
+# TF-IDF Combined Baseline (Expansion V1)
+python scripts/training/run_tfidf_baseline.py `
+    --feature_mode combined --tune_threshold --max_iter 5000 `
+    --train_file data/real_dataset_expansion_v1/splits/train.jsonl `
+    --val_file data/real_dataset_expansion_v1/splits/val.jsonl `
+    --test_file data/real_dataset_expansion_v1/splits/test.jsonl
+
+# TF-IDF Relational Baseline (Expansion V1)
+python scripts/training/run_tfidf_baseline.py `
+    --feature_mode dual_overlap --tune_threshold --max_iter 5000 `
+    --train_file data/real_dataset_expansion_v1/splits/train.jsonl `
+    --val_file data/real_dataset_expansion_v1/splits/val.jsonl `
+    --test_file data/real_dataset_expansion_v1/splits/test.jsonl
+```
 
 ### Reproduce Evaluation Set 2 Benchmarks (All 5 Models)
 ```powershell
