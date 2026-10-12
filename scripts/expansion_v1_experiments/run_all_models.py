@@ -217,11 +217,14 @@ def compute_mcnemar_test(preds_a_path: Path, preds_b_path: Path) -> Optional[Dic
             for line in f:
                 d = json.loads(line)
                 y_true = 1 if (d.get("drift_label") == 1 or d.get("label") in (1, "drifted")) else 0
-                pred = d.get("predicted_label_int")
-                if pred is None:
-                    p_str = d.get("predicted_label")
-                    pred = 1 if p_str in (1, "drifted", "1") else 0
-                res.append((y_true, int(pred)))
+                raw_pred = d.get("predicted_label_int")
+                if raw_pred is None:
+                    raw_pred = d.get("predicted_label")
+                if isinstance(raw_pred, str):
+                    pred = 1 if raw_pred.lower() in ("1", "drifted", "drift", "inconsistent") else 0
+                else:
+                    pred = 1 if raw_pred == 1 else 0
+                res.append((y_true, pred))
         return res
 
     pairs_a = load_preds(preds_a_path)
