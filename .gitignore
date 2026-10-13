@@ -57,3 +57,8 @@ docs/
 
 data/raw_repos/
 data/v2_real_world/raw/repositories/
+
+
+# ── Scripts ────────────────────────────────────────────
+*.pdf
+*.docx
