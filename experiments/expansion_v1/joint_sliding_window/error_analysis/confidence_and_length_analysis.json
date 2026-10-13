@@ -1,0 +1,246 @@
+{
+  "status": "EXPLORATORY_POST_HOC_ERROR_ANALYSIS",
+  "disclaimer": "The 104-instance diagnostic dataset has already been evaluated for benchmark reporting. All metrics in this file are exploratory diagnostics and must not be used for threshold tuning or model selection.",
+  "cryptographic_hashes": {
+    "diagnostic_dataset": "fff74007ea28dfd2f4822f4833f8d702489404ed8ad4882f53ea307ba540ef40",
+    "checkpoint_expansion_v1_joint_doc192": "6930634acab6448bc6753fbd1a987bcb39a6ebe50f05502992c00dfb5a9132f0",
+    "checkpoint_historical_clean_v2": "47f223de69d798664da1e4f923671325eae5f4c925e2190a0b8eca5acb5240b8",
+    "phase2_predictions_file": "443cc84b8058b4f1462556a347e21246b21547e64e11f45d6f73def69d872e1b",
+    "historical_predictions_file": "76061aed419e0ae7ab3a2f2ff2d2f39978f5878d118f1b111a372d38caeaed3d"
+  },
+  "ranking_and_calibration_metrics": {
+    "expansion_v1_joint_doc192": {
+      "roc_auc": 0.5429,
+      "pr_auc": 0.5574,
+      "brier_score": 0.2778
+    },
+    "historical_clean_v2": {
+      "roc_auc": 0.6054,
+      "pr_auc": 0.5835,
+      "brier_score": 0.2708
+    }
+  },
+  "four_quadrant_distributions": {
+    "authentic_caught_tp": {
+      "count": 24,
+      "probabilities_exp192": {
+        "count": 24,
+        "mean": 0.653,
+        "median": 0.6113,
+        "std": 0.1142,
+        "min": 0.519,
+        "max": 0.9675,
+        "p25": 0.5794,
+        "p75": 0.7316
+      },
+      "doc_token_lengths": {
+        "count": 24,
+        "mean": 298.5833,
+        "median": 176.5,
+        "std": 477.7155,
+        "min": 7.0,
+        "max": 2403.0,
+        "p25": 97.0,
+        "p75": 235.75
+      },
+      "code_token_lengths": {
+        "count": 24,
+        "mean": 911.1667,
+        "median": 349.5,
+        "std": 1414.0963,
+        "min": 60.0,
+        "max": 6974.0,
+        "p25": 186.5,
+        "p75": 1061.75
+      },
+      "window_counts": {
+        "1": 13,
+        "2": 7,
+        "19": 1,
+        "4": 1,
+        "5": 1,
+        "6": 1
+      },
+      "mutation_type_breakdown": {
+        "behavior_contract_drift": 6,
+        "param_contract_drift": 4,
+        "return_contract_drift": 8,
+        "default_value_drift": 4,
+        "exception_contract_drift": 2
+      },
+      "repository_breakdown": {
+        "click": 5,
+        "django": 9,
+        "tornado": 3,
+        "fastapi": 2,
+        "sqlalchemy": 1,
+        "pytest": 4
+      }
+    },
+    "authentic_missed_fn": {
+      "count": 28,
+      "probabilities_exp192": {
+        "count": 28,
+        "mean": 0.3047,
+        "median": 0.3286,
+        "std": 0.1222,
+        "min": 0.0918,
+        "max": 0.4932,
+        "p25": 0.2194,
+        "p75": 0.3993
+      },
+      "doc_token_lengths": {
+        "count": 28,
+        "mean": 765.4643,
+        "median": 132.0,
+        "std": 1886.0904,
+        "min": 21.0,
+        "max": 10074.0,
+        "p25": 66.25,
+        "p75": 512.5
+      },
+      "code_token_lengths": {
+        "count": 28,
+        "mean": 724.9286,
+        "median": 407.5,
+        "std": 1129.0803,
+        "min": 53.0,
+        "max": 6070.0,
+        "p25": 202.5,
+        "p75": 732.25
+      },
+      "window_counts": {
+        "1": 15,
+        "3": 3,
+        "2": 2,
+        "9": 1,
+        "79": 1,
+        "20": 1,
+        "5": 1,
+        "13": 1,
+        "4": 1,
+        "7": 1,
+        "11": 1
+      },
+      "mutation_type_breakdown": {
+        "behavior_contract_drift": 7,
+        "param_contract_drift": 9,
+        "return_contract_drift": 9,
+        "exception_contract_drift": 2,
+        "default_value_drift": 1
+      },
+      "repository_breakdown": {
+        "click": 6,
+        "fastapi": 3,
+        "django": 7,
+        "sqlalchemy": 9,
+        "tornado": 1,
+        "pytest": 2
+      },
+      "failure_category_breakdown": {
+        "Subtle Behavioral / Algorithmic Shift": 7,
+        "Long Sphinx/Table Overload & Token Asymmetry": 9,
+        "Parameter Refactor / Signature Dropped": 3,
+        "Exception/Error Handling Contract Drift": 2,
+        "Default Value / Keyword Literal Mismatch": 1,
+        "Return Structure / Generator-to-Object Drift": 6
+      }
+    },
+    "clean_false_positives_fp": {
+      "count": 21,
+      "probabilities_exp192": {
+        "count": 21,
+        "mean": 0.6356,
+        "median": 0.6187,
+        "std": 0.099,
+        "min": 0.515,
+        "max": 0.8546,
+        "p25": 0.5594,
+        "p75": 0.6923
+      },
+      "doc_token_lengths": {
+        "count": 21,
+        "mean": 324.8095,
+        "median": 104.0,
+        "std": 692.6537,
+        "min": 5.0,
+        "max": 2846.0,
+        "p25": 46.0,
+        "p75": 136.0
+      },
+      "code_token_lengths": {
+        "count": 21,
+        "mean": 341.2857,
+        "median": 226.0,
+        "std": 293.4269,
+        "min": 25.0,
+        "max": 1250.0,
+        "p25": 131.0,
+        "p75": 532.0
+      },
+      "window_counts": {
+        "3": 2,
+        "1": 17,
+        "15": 1,
+        "22": 1
+      },
+      "repository_breakdown": {
+        "click": 4,
+        "fastapi": 3,
+        "django": 8,
+        "sqlalchemy": 3,
+        "pytest": 3
+      },
+      "fp_category_breakdown": {
+        "Long Multi-Clause Documentation Paraphrase": 4,
+        "Internal Helper Delegation / Argument Forwarding": 4,
+        "Lexical Asymmetry / Descriptive Mismatch": 13
+      }
+    },
+    "clean_true_negatives_tn": {
+      "count": 31,
+      "probabilities_exp192": {
+        "count": 31,
+        "mean": 0.2827,
+        "median": 0.3094,
+        "std": 0.1349,
+        "min": 0.0204,
+        "max": 0.4975,
+        "p25": 0.1863,
+        "p75": 0.3673
+      },
+      "doc_token_lengths": {
+        "count": 31,
+        "mean": 101.2581,
+        "median": 61.0,
+        "std": 108.9291,
+        "min": 5.0,
+        "max": 485.0,
+        "p25": 20.0,
+        "p75": 131.5
+      },
+      "code_token_lengths": {
+        "count": 31,
+        "mean": 419.7419,
+        "median": 159.0,
+        "std": 710.7309,
+        "min": 54.0,
+        "max": 3912.0,
+        "p25": 85.5,
+        "p75": 488.0
+      },
+      "window_counts": {
+        "1": 25,
+        "2": 5,
+        "4": 1
+      },
+      "repository_breakdown": {
+        "click": 10,
+        "fastapi": 3,
+        "django": 10,
+        "sqlalchemy": 4,
+        "pytest": 4
+      }
+    }
+  }
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "repository": "scipy",
+    "url": "https://github.com/scipy/scipy.git",
+    "domain": "Scientific Computing",
+    "license": "BSD-3-Clause",
+    "description": "Scientific library for mathematics, science, and engineering.",
+    "immutable_commit_sha": "e6fa3531f47123a5008fe0909d00256c161b66e9",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\scipy"
+  },
+  {
+    "repository": "seaborn",
+    "url": "https://github.com/mwaskom/seaborn.git",
+    "domain": "Statistical Visualization",
+    "license": "BSD-3-Clause",
+    "description": "Statistical data visualization based on matplotlib.",
+    "immutable_commit_sha": "c1cb287835852406691aed60ea0c62710f2c6b18",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\seaborn"
+  },
+  {
+    "repository": "sqlalchemy",
+    "url": "https://github.com/sqlalchemy/sqlalchemy.git",
+    "domain": "Database & ORM",
+    "license": "MIT",
+    "description": "Database toolkit and Object Relational Mapper for Python.",
+    "immutable_commit_sha": "900646931b7fd03845ebe4fc8be84f77a8580123",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\sqlalchemy"
+  },
+  {
+    "repository": "aiohttp",
+    "url": "https://github.com/aio-libs/aiohttp.git",
+    "domain": "Async Networking & Web",
+    "license": "Apache-2.0",
+    "description": "Asynchronous HTTP client/server framework for asyncio.",
+    "immutable_commit_sha": "92d2a43f2d1affdf13d41306d3bf59a6fe3e8701",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\aiohttp"
+  },
+  {
+    "repository": "celery",
+    "url": "https://github.com/celery/celery.git",
+    "domain": "Distributed Systems & Tasks",
+    "license": "BSD-3-Clause",
+    "description": "Distributed task queue for real-time operation and scheduling.",
+    "immutable_commit_sha": "248739d05c7331ee0e857a3079c80e224e100787",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\celery"
+  },
+  {
+    "repository": "networkx",
+    "url": "https://github.com/networkx/networkx.git",
+    "domain": "Graph Algorithms & Networks",
+    "license": "BSD-3-Clause",
+    "description": "Software package for the creation, manipulation, and study of the structure, dynamics, and functions of complex networks.",
+    "immutable_commit_sha": "6da4704cbf32ba6f50f6d9c46cc0a071e3a87985",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\networkx"
+  },
+  {
+    "repository": "pillow",
+    "url": "https://github.com/python-pillow/Pillow.git",
+    "domain": "Image Processing",
+    "license": "HPND",
+    "description": "The friendly PIL fork for Python image processing.",
+    "immutable_commit_sha": "bbb25fadd8854b08bcd7b4c0c7ddde891ed042f2",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\pillow"
+  },
+  {
+    "repository": "starlette",
+    "url": "https://github.com/encode/starlette.git",
+    "domain": "ASGI Web Framework",
+    "license": "BSD-3-Clause",
+    "description": "Lightweight ASGI framework/toolkit for async web services.",
+    "immutable_commit_sha": "96d5023c55b29224edb8d684868c49f681d079a9",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\starlette"
+  },
+  {
+    "repository": "uvicorn",
+    "url": "https://github.com/encode/uvicorn.git",
+    "domain": "ASGI Web Server",
+    "license": "BSD-3-Clause",
+    "description": "An ASGI web server implementation for Python.",
+    "immutable_commit_sha": "724f82fdba1765fe5f821a3ebed6da5c1ddcb386",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\uvicorn"
+  },
+  {
+    "repository": "scrapy",
+    "url": "https://github.com/scrapy/scrapy.git",
+    "domain": "Web Scraping & Crawling",
+    "license": "BSD-3-Clause",
+    "description": "High-level web crawling and scraping framework.",
+    "immutable_commit_sha": "be7bdc4cd16644018fa56ef3503dce86744fa6d5",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\scrapy"
+  },
+  {
+    "repository": "peewee",
+    "url": "https://github.com/coleifer/peewee.git",
+    "domain": "Lightweight ORM",
+    "license": "MIT",
+    "description": "A small, expressive ORM for Python.",
+    "immutable_commit_sha": "e245a01b1f57005e7ae315736da8e6a70e65afba",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\peewee"
+  },
+  {
+    "repository": "attrs",
+    "url": "https://github.com/python-attrs/attrs.git",
+    "domain": "Classes & Data Modeling",
+    "license": "MIT",
+    "description": "Classes Without Boilerplate.",
+    "immutable_commit_sha": "644b4e165bfbeee7e127de6fcbda08b64014316f",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\attrs"
+  },
+  {
+    "repository": "loguru",
+    "url": "https://github.com/Delgan/loguru.git",
+    "domain": "Logging & Diagnostics",
+    "license": "MIT",
+    "description": "Python logging made stupidly simple.",
+    "immutable_commit_sha": "0412a60d6aff63a4ed009c7445993b42d294c2f1",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\loguru"
+  },
+  {
+    "repository": "mypy",
+    "url": "https://github.com/python/mypy.git",
+    "domain": "Static Type Checking",
+    "license": "MIT",
+    "description": "Optional static typing for Python.",
+    "immutable_commit_sha": "47f4844a5faa469c0493c51b3e4525cf0389663f",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\mypy"
+  },
+  {
+    "repository": "sympy",
+    "url": "https://github.com/sympy/sympy.git",
+    "domain": "Symbolic Mathematics",
+    "license": "BSD-3-Clause",
+    "description": "A Python library for symbolic mathematics.",
+    "immutable_commit_sha": "04a7da3aacdf095556c451cd17f3f33bf241a5f2",
+    "local_path": "C:\\Users\\ADMIN\\SemDrift\\data\\expansion_repos\\sympy"
+  }
+]

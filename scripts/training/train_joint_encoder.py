@@ -228,6 +228,7 @@ def main():
                         help="Dataset generation: 'v1' (controlled synthetic) or 'v2' (real-world-grounded)")
     parser.add_argument("--train", default=None, help="Train dataset (defaults to selected dataset_generation)")
     parser.add_argument("--val", default=None, help="Validation dataset (defaults to selected dataset_generation)")
+    parser.add_argument("--test", default=None, help="Optional test dataset path for evaluation after training")
     parser.add_argument("--manifest", default=None, help="Path to manifest.yaml (defaults to experiments/2026-09-07_clean_v2/config/manifest.yaml for V2)")
 
     # Architecture & Tokenization configs
@@ -538,10 +539,47 @@ def main():
         json.dump(training_run, f, indent=2)
     print(f"[OK] Results summary saved to: {results_path}", flush=True)
 
-    print("\n" + "=" * 70, flush=True)
-    print("TRAINING PHASE COMPLETE (ZERO TEST EXPOSURE)", flush=True)
-    print("Test set is strictly isolated. Execute independent_evaluate.py to evaluate on locked test set.", flush=True)
-    print("=" * 70, flush=True)
+    if args.test and os.path.exists(args.test):
+        print("\n" + "=" * 70, flush=True)
+        print("INDEPENDENT TEST EVALUATION (ISOLATED TEST SET)", flush=True)
+        print("=" * 70, flush=True)
+        test_dataset = SemDriftDataset(args.test, clean_docs=args.clean_docstrings)
+        if args.dry_run:
+            test_dataset.records = test_dataset.records[:16]
+        test_loader = DataLoader(
+            test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn
+        )
+        test_y_true, test_y_pred, test_probs, test_metas = evaluate(model, test_loader, args.device)
+        test_metrics = calculate_metrics(test_y_true, test_y_pred)
+        test_breakdowns = evaluate_breakdowns(test_y_true, test_y_pred, test_metas)
+
+        print(f"Test Accuracy           : {test_metrics['accuracy']:.4f}", flush=True)
+        print(f"Test Precision          : {test_metrics['precision']:.4f}", flush=True)
+        print(f"Test Recall             : {test_metrics['recall']:.4f}", flush=True)
+        print(f"Test Macro F1           : {test_metrics['macro_f1']:.4f}", flush=True)
+        print(f"Test Balanced Acc       : {test_metrics['balanced_accuracy']:.4f}", flush=True)
+        print(f"Test Confusion Matrix   : TN={test_metrics['tn']} | FP={test_metrics['fp']} | FN={test_metrics['fn']} | TP={test_metrics['tp']}", flush=True)
+
+        pred_path = os.path.join(args.output_dir, "predictions_joint_encoder.jsonl")
+        with open(pred_path, "w", encoding="utf-8") as f:
+            for rec, prob, pred in zip(test_dataset.records, test_probs, test_y_pred):
+                out = dict(rec)
+                out["predicted_label"] = "drifted" if pred == 1 else "aligned"
+                out["predicted_label_int"] = pred
+                out["probability_drift"] = round(float(prob), 6)
+                f.write(json.dumps(out, ensure_ascii=False) + "\n")
+        print(f"[OK] Saved test predictions to: {pred_path}", flush=True)
+
+        training_run["test_metrics"] = test_metrics
+        training_run["test_breakdowns"] = test_breakdowns
+        with open(results_path, "w", encoding="utf-8") as f:
+            json.dump(training_run, f, indent=2)
+        print(f"[OK] Updated results summary with test metrics: {results_path}", flush=True)
+    else:
+        print("\n" + "=" * 70, flush=True)
+        print("TRAINING PHASE COMPLETE (ZERO TEST EXPOSURE)", flush=True)
+        print("Test set is strictly isolated. Execute independent_evaluate.py to evaluate on locked test set.", flush=True)
+        print("=" * 70, flush=True)
 
 
 if __name__ == "__main__":

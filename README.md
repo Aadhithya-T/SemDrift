@@ -1,296 +1,379 @@
-# SemDrift — Semantic Drift Detection in Python Repositories
+# SemDrift — Semantic Drift Detection Between Code and Documentation
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.1+](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
-[![Transformers 4.30+](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)](https://huggingface.co/transformers/)
-[![Tree-Sitter](https://img.shields.io/badge/Tree--Sitter-Multi--Language-green.svg)](https://tree-sitter.github.io/)
-[![Unit Tests](https://img.shields.io/badge/tests-164%20passed-brightgreen.svg)](tests/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center">
+  <strong>Can a model tell when code no longer does what its documentation promises?</strong>
+</p>
 
-**SemDrift** is an empirical research framework for investigating and detecting **semantic drift** between source code and documentation comments (docstrings) in Python repositories. It benchmarks classical lexical baselines (TF-IDF + Logistic Regression), pretrained zero-shot representations, and fine-tuned deep transformer architectures (CodeBERT bi-encoders and cross-encoders) across two strictly separated dataset generations:
-1. **V1 Controlled Synthetic Dataset**: AST rule-based mutations across 10 repositories.
-2. **V2 Clean Real-World Dataset**: Contract-grounded training with a cryptographically locked diagnostic test set of authentic human commits mined from open-source repositories (Click, FastAPI, Django, Pandas, SQLAlchemy, Pytest).
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.9%2B-blue" alt="Python 3.9+" />
+  <img src="https://img.shields.io/badge/Model-CodeBERT-orange" alt="CodeBERT" />
+  <img src="https://img.shields.io/badge/Framework-PyTorch-red" alt="PyTorch" />
+  <img src="https://img.shields.io/badge/Status-Research%20Prototype-purple" alt="Research prototype" />
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License" />
+</p>
 
-> **Complete Empirical Records**: For full per-model confusion matrices ($TN, FP, FN, TP$), provenance breakdowns, drift score distributions ($P(\text{drift})$), severity analyses, and McNemar test contingency tables, see the repository-level master report: [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
+**SemDrift** is a research framework for detecting semantic inconsistencies between source code and its documentation. It investigates whether machine learning models can identify functions whose implementation no longer satisfies the behavioral contract described by their docstrings.
 
----
+Unlike approaches that rely exclusively on lexical similarity, SemDrift evaluates classical machine-learning baselines, pretrained representations, dual encoders, and joint CodeBERT encoders that process documentation and implementation together.
 
-## Core Empirical Findings: The Synthetic-to-Real Generalization Gap
-
-The empirical results reveal a critical distinction between performance under controlled synthetic conditions versus real-world software evolution:
-
-```text
-Synthetic Domain (V1 Controlled):
-  Lexical TF-IDF (65.23% / 70.04%) < Dual-Encoder (80.91%) < Joint-Encoder (85.06% / 85.81%)
-  → Cross-modal attention and negative mining provide significant gains on synthetic rule mutations.
-
-Authentic Real-World Domain (V2 Locked Diagnostic):
-  Fine-Tuned Neural (0.00% / 3.85% Recall) < Enhanced Lexical (21.15%) < Pure Lexical (32.69%) < Zero-Shot (36.54%)
-  → Fine-tuning on generated/contract-grounded drift causes neural models to exploit generator artifacts,
-    leading to severe false-negative collapse on authentic human commits. Pretrained and lexical signals
-    transfer with higher robustness.
-```
+The project combines model development, dataset construction, controlled experiments, provenance and leakage checks, statistical evaluation, and a Python repository-scanning CLI.
 
 ---
 
-## Benchmark Results
+## Research highlights
 
-### 1. V2 Real-World Grounded Benchmark (Locked Diagnostic Test Set, $N = 104$)
+- **95.11% test accuracy** using the joint encoder with sliding-window max pooling on the Expansion V1 test benchmark.
+- **94.99% Macro-F1** and **95.29% balanced accuracy** under the same evaluation configuration.
+- A controlled joint-versus-dual encoder comparison showing that joint encoding improves performance on the earlier V1 benchmark.
+- An investigation of the generalization gap between controlled benchmark performance and authentic historical documentation drift.
 
-Evaluated on the locked diagnostic split (`experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl`), consisting of **52 authentic historical human drift commits** mined from production repositories and **52 clean grounded functions** (100% held-out function lineages; zero training/validation overlap):
+> **Important:** These are benchmark-specific results. High performance on controlled or generated drift examples does not establish equivalent performance on authentic historical drift. SemDrift explicitly investigates this distinction.
 
-| Model Architecture | Category | Threshold ($\tau$) | Accuracy | Balanced Acc | Drift Recall | Drift Precision | Binary F1 | Macro F1 | ROC-AUC | PR-AUC | Confusion Matrix | Authentic Drift Caught |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- | :---: |
-| **Zero-Shot CodeBERT** | Pretrained Semantic | `0.96` (tuned) | **54.81%** | **54.81%** | **36.54%** | **57.58%** | **44.71%** | **53.25%** | — | — | `TN=38, FP=14, FN=33, TP=19` | **19 / 52** |
-| **TF-IDF Combined** | Pure Lexical Baseline | `0.50` (default) | **52.88%** | **52.88%** | **32.69%** | **54.84%** | **40.96%** | **50.88%** | 0.5459 | 0.5337 | `TN=38, FP=14, FN=35, TP=17` | **17 / 52** |
-| **TF-IDF Combined** | Pure Lexical Baseline | `0.53` (tuned) | **48.08%** | **48.08%** | **21.15%** | **45.83%** | **28.95%** | **44.02%** | 0.5459 | 0.5337 | `TN=39, FP=13, FN=41, TP=11` | **11 / 52** |
-| **TF-IDF Relational** | Enhanced Lexical Baseline | `0.50` (default) | **50.00%** | **50.00%** | **23.08%** | **50.00%** | **31.58%** | **46.09%** | 0.5318 | 0.5300 | `TN=40, FP=12, FN=40, TP=12` | **12 / 52** |
-| **TF-IDF Relational** | Enhanced Lexical Baseline | `0.51` (tuned) | **50.00%** | **50.00%** | **21.15%** | **50.00%** | **29.73%** | **45.46%** | 0.5318 | 0.5300 | `TN=41, FP=11, FN=41, TP=11` | **11 / 52** |
-| **Joint-Encoder (CodeBERT)** | Fine-Tuned Cross-Input | `0.50` (default) | **50.00%** | **50.00%** | **3.85%** | **50.00%** | **7.14%** | **36.47%** | — | — | `TN=50, FP=2, FN=50, TP=2` | **2 / 52** |
-| **Dual-Encoder (CodeBERT)** | Fine-Tuned Bi-Encoder | `0.50` (default) | **45.19%** | **45.19%** | **0.00%** | **0.00%** | **0.00%** | **31.13%** | — | — | `TN=47, FP=5, FN=52, TP=0` | **0 / 52** |
+## Table of contents
 
-#### Observations on V2:
-- **Lexical and Pretrained Advantage**: Pretrained CodeBERT (Zero-Shot) and pure n-gram TF-IDF detect 19 and 17 of 52 authentic drifts, respectively.
-- **Deep Fine-Tuned False-Negative Collapse**: The Joint-Encoder predicts "aligned" on 50 of 52 authentic drift instances ($FN=50$), achieving high clean-grounded specificity ($TN=50/52$, 96.15%) but near-zero real drift recall (3.85%). The Dual-Encoder predicts "aligned" on all 52 authentic drift instances ($FN=52$, 0.00% recall).
-- **Practical Takeaway**: Models trained on synthetic or rule-based drift patterns should not be assumed to transfer reliably to authentic human documentation drift without real-world grounded fine-tuning data.
-
----
-
-### 2. V1 Controlled Synthetic Benchmark ($N = 1,205$)
-
-Evaluated on the 10-repository synthetic test set (`data/v1_synthetic/ablation/test.jsonl`, 597 aligned + 608 drifted instances):
-
-| Model Architecture | Category | Objective | Accuracy | Balanced Acc | Drift Recall | Drift Precision | Binary F1 | Macro F1 | ROC-AUC | Confusion Matrix |
-| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Zero-Shot CodeBERT** | Pretrained Semantic | Cosine Divergence | 44.56% | 44.68% | 32.07% | 43.33% | 36.86% | 43.73% | — | `TN=342, FP=255, FN=413, TP=195` |
-| **TF-IDF Combined** | Pure Lexical Baseline | Logistic Regression | 65.23% | 65.18% | 70.56% | 64.13% | 67.19% | 65.10% | 0.7040 | `TN=357, FP=240, FN=179, TP=429` |
-| **TF-IDF Relational** | Enhanced Lexical Baseline | Logistic Regression | **70.04%** | **70.04%** | **69.90%** | **70.48%** | **70.19%** | **70.04%** | 0.7691 | `TN=419, FP=178, FN=183, TP=425` |
-| **Dual-Encoder (CodeBERT)** | Fine-Tuned Bi-Encoder | Cross-Entropy Loss | 80.91% | 81.03% | 68.42% | 91.63% | 78.34% | 80.64% | — | `TN=559, FP=38, FN=192, TP=416` |
-| **Joint-Encoder (CodeBERT)** | Fine-Tuned Cross-Input | Cross-Entropy Loss | **85.06%** | **85.15%** | **75.82%** | **93.32%** | **83.67%** | **84.95%** | — | `TN=564, FP=33, FN=147, TP=461` |
-| **Joint-Encoder (CodeBERT)** | Hard-Negative Mining | Focal Loss ($\gamma=2.0$) | **85.81%** | **85.91%** | **75.00%** | **96.00%** | **84.21%** | **85.66%** | — | `TN=578, FP=19, FN=152, TP=456` |
-
-#### Controlled Architectural Ablation (Dual vs. Joint Encoder under identical CE loss):
-Holding backbone (`microsoft/codebert-base`), training objective (`CrossEntropyLoss`), batch size (8), learning rate ($2 \times 10^{-5}$), and seeds constant:
-- **Accuracy**: $80.91\% \rightarrow 85.06\%$ ($\Delta = +4.15\%$)
-- **Binary F1**: $78.34\% \rightarrow 83.67\%$ ($\Delta = +5.33\%$)
-- **Drift Recall**: $68.42\% \rightarrow 75.82\%$ ($\Delta = +7.40\%$)
-- **McNemar's Paired Test**: $\chi^2 = 18.7578$, $p = 1.4841 \times 10^{-5}$ ($p < 0.001$, statistically significant).
-- Joint cross-modal self-attention enables token-level interactions that isolated vector embeddings cannot capture.
+- [The problem](#the-problem)
+- [How SemDrift works](#how-semdrift-works)
+- [Benchmark results](#benchmark-results)
+- [Datasets and evaluation](#datasets-and-evaluation)
+- [Repository structure](#repository-structure)
+- [Installation](#installation)
+- [Running the scanner](#running-the-scanner)
+- [Reproducing the research](#reproducing-the-research)
+- [Limitations](#limitations)
+- [Future directions](#future-directions)
+- [License](#license)
 
 ---
 
-### 3. In-Distribution Validation Set Performance
+## The problem
 
-Performance on held-out validation splits during training:
+Documentation drift occurs when a function's implementation changes but its documentation no longer accurately describes its behavior.
 
-| Model Architecture | Dataset Split | Sample Count ($N$) | Val Accuracy | Val Balanced Acc | Val Recall | Val Precision | Val Macro-F1 | Confusion Matrix (Val) |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Joint-Encoder (CodeBERT)** | **V2** | 2,636 | **90.44%** | **89.47%** | **83.15%** | **93.55%** | **90.04%** | `TN=1456, FP=64, FN=188, TP=928` |
-| **Dual-Encoder (CodeBERT)** | **V2** | 2,636 | **90.33%** | **89.17%** | **81.63%** | **94.80%** | **89.87%** | `TN=1470, FP=50, FN=205, TP=911` |
-| **TF-IDF Relational** | **V2** | 2,636 | **75.11%** | **74.03%** | **68.73%** | **71.21%** | **74.16%** | `TN=1211, FP=309, FN=349, TP=767` |
-| **TF-IDF Combined** | **V2** | 2,636 | **73.48%** | **72.15%** | **64.96%** | **70.22%** | **71.96%** | `TN=1212, FP=308, FN=391, TP=725` |
-| **Zero-Shot CodeBERT** | **V2** | 2,636 | **54.29%** | **51.91%** | **36.38%** | **45.06%** | **51.62%** | `TN=1025, FP=495, FN=710, TP=406` |
-| **Joint-Encoder (Focal)** | **V1** | 1,259 | **85.15%** | **84.57%** | **73.37%** | **93.99%** | **84.78%** | `TN=634, FP=28, FN=159, TP=438` |
-| **Joint-Encoder (CE)** | **V1** | 1,259 | **85.15%** | **84.63%** | **74.54%** | **92.71%** | **84.83%** | `TN=627, FP=35, FN=152, TP=445` |
-| **Dual-Encoder (CE)** | **V1** | 1,259 | **80.86%** | **80.70%** | **68.01%** | **91.24%** | **80.70%** | `TN=623, FP=39, FN=191, TP=406` |
-| **TF-IDF Relational** | **V1** | 1,259 | **66.24%** | **66.21%** | **65.83%** | **64.22%** | **66.21%** | `TN=441, FP=221, FN=204, TP=393` |
-| **TF-IDF Combined** | **V1** | 1,259 | **60.92%** | **60.84%** | **59.97%** | **58.31%** | **60.84%** | `TN=409, FP=253, FN=239, TP=358` |
+For example, a docstring might promise that a function returns a list, while the implementation now returns a generator. The function may remain syntactically valid, pass tests, and execute successfully, yet its documentation is no longer correct.
 
----
+SemDrift formulates this as a binary classification problem:
 
-### 4. Fine-Grained Mutation Breakdown (V1 Synthetic Test Set, $N = 1,205$)
+| Label | Meaning |
+|---|---|
+| `aligned` | The documentation is consistent with the implementation. |
+| `drifted` | The implementation contradicts, omits, or no longer satisfies a documented behavioral contract. |
 
-| Mutation Type | Count ($N$) | Zero-Shot CodeBERT | TF-IDF Combined | TF-IDF Relational | Dual-Encoder (CE) | Joint-Encoder (CE) | Joint-Encoder (Focal) |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **`return_value_change`** | 139 | 49.73% F1 (46 TP) | 90.98% F1 (116 TP) | 89.68% F1 (113 TP) | 78.60% F1 (89 TP) | **93.49% F1 (122 TP)** | 92.25% F1 (119 TP) |
-| **`doc_negation`** | 95 | 59.26% F1 (40 TP) | **90.80% F1 (79 TP)** | 88.89% F1 (76 TP) | 17.31% F1 (9 TP) | 37.61% F1 (22 TP) | 31.86% F1 (18 TP) |
-| **`param_rename`** | 221 | 54.61% F1 (83 TP) | 86.38% F1 (168 TP) | 84.60% F1 (162 TP) | 98.39% F1 (214 TP) | 97.92% F1 (212 TP) | **98.16% F1 (213 TP)** |
-| **`doc_sentence_delete`** | 153 | 29.05% F1 (26 TP) | 60.27% F1 (66 TP) | 65.20% F1 (74 TP) | 80.47% F1 (103 TP) | 81.40% F1 (105 TP) | **81.85% F1 (106 TP)** |
-| **`aligned` (Specificity)** | 597 | 57.29% Acc (342 TN) | 59.80% Acc (357 TN) | 70.18% Acc (419 TN) | 93.63% Acc (559 TN) | 94.47% Acc (564 TN) | **96.82% Acc (578 TN)** |
+The challenge is distinguishing genuine behavioral contradictions from harmless refactoring, helper delegation, paraphrasing, and implementation details that do not violate the documented contract.
 
-#### Key Analytical Takeaways:
-1. **Docstring Negation Sensitivity**: Lexical TF-IDF baselines preserving negation tokens (`stop_words=None`) achieve ~90% F1 on negation swaps by detecting token-level polarity shifts. In contrast, neural encoders struggle with isolated negation swaps (Dual-Encoder: 17.31%, Joint-Encoder: 37.61%), as transformer embeddings smooth out single-token polarity inversions without explicit polarity objectives.
-2. **Signature & Structural Drift**: Deep models excel at structural mutations such as parameter renaming (98.39% / 97.92%) and return value drift (93.49%), where cross-attention bridges AST signature definitions with textual descriptions.
+## How SemDrift works
 
----
+SemDrift compares documentation and implementation using multiple modeling approaches.
 
-## Dataset Architecture & Integrity Design
+### Joint encoder
 
-SemDrift structures data curation into two strictly separated generations:
+The joint encoder uses `microsoft/codebert-base` to process documentation and source code together. Self-attention allows the model to contextualize information across both inputs before making a drift prediction.
 
-```text
-                    SEMDRIFT DATASET ARCHITECTURE
-                               │
-             ┌─────────────────┴─────────────────┐
-             ▼                                   ▼
-      V1 — SYNTHETIC                      V2 — REAL-WORLD
-      (12,102 Total)                      (26,969 Total)
-             │                                   │
-      ┌──────┴──────┐                     ┌──────┴──────┐
-      │             │                     │             │
-    TRAIN          TEST                 TRAIN          VAL
-    9,638         1,205                 24,229        2,636
-    VAL: 1,259                            │             │
-                                          └──────┬──────┘
-                                                 ▼
-                                           LOCKED TEST SET
-                                           (104 SAMPLES)
-                                           52 Authentic Mined
-                                           52 Clean Grounded
-```
+This is the primary architecture investigated in the controlled architectural comparison.
 
-### Invariants & Cryptographic Safeguards:
-- **Zero Lineage Leakage**: All 104 human-verified test lineages (`repo::file_path::qualified_name`) were purged from candidate pools prior to train/val partitioning (eliminating 71 candidate samples).
-- **Two-Layer Verification Gate**: In `experiments/2026-09-07_clean_v2/dataset/`, all canonical splits are cryptographically locked via `SHA256SUMS` and `manifest.yaml`. Training and evaluation scripts refuse execution if any byte has been modified.
-- **Strict Decoupling**: Training pipelines accept only `--train` and `--val`. Evaluation scripts operate independently on held-out test splits without access to training loops.
+### Dual encoder
+
+The dual encoder processes documentation and code separately before combining their representations. It serves as an architectural baseline for investigating whether joint cross-input attention improves drift detection.
+
+### Classical and pretrained baselines
+
+The evaluation also includes:
+
+- TF-IDF with Logistic Regression.
+- Relational lexical features.
+- Zero-shot CodeBERT similarity-based classification.
+- Fine-tuned dual and joint CodeBERT models.
+- Joint encoder training with focal loss and hard-negative-oriented experiments.
+
+### Sliding-window inference
+
+The Expansion V1 experiments also investigate sliding-window inference for long inputs. Multiple windows are evaluated and their drift probabilities are aggregated using mean or max pooling.
+
+The selected sliding-window configuration improves performance on the Expansion V1 test benchmark. However, it does not demonstrate improved authentic-drift recall on the separate 104-example diagnostic set.
+
+### Repository scanning
+
+The CLI extracts Python functions and docstrings, applies the available model checkpoint, ranks potential inconsistencies by predicted drift probability, and presents results for manual review. It supports terminal inspection and Markdown or JSON reporting, depending on the selected output mode.
 
 ---
 
-## Model Architectures
+## Benchmark results
 
-```text
-                        ┌────────────────────────────────────────────────────────┐
-                        │                      INPUT PAIR                        │
-                        │        Docstring (Text)  +  Function Code (Python)     │
-                        └────────────────────────────────────────────────────────┘
-                                                     │
-         ┌───────────────────────────────────────────┼───────────────────────────────────────────┐
-         ▼                                           ▼                                           ▼
-┌───────────────────────────┐               ┌───────────────────────────┐               ┌───────────────────────────┐
-│     LEXICAL BASELINE      │               │     DUAL-ENCODER MODEL    │               │    JOINT-ENCODER MODEL    │
-│  (TF-IDF + Logistic Reg)  │               │   (Bi-Encoder Architecture)│              │  (Cross-Encoder Self-Attn)│
-└───────────────────────────┘               └───────────────────────────┘               └───────────────────────────┘
-│ Feature extraction:       │               │ Two independent passes:   │               │ Single joint sequence:    │
-│ • combined (pure n-grams) │               │ • Pretrained CodeBERT     │               │ • [CLS] doc [SEP] code    │
-│ • dual_overlap (+ overlap)│               │ • Mean pooling: u, v      │               │ • Head-tail truncation    │
-│ Class weight: balanced    │               │ Feature: [u; v; |u-v|]    │               │ Head: [CLS] → Linear(768,2)│
-│ stop_words: None          │               │ Head: Linear(2304, 2)     │               │ Cross-modal self-attention│
-└───────────────────────────┘               └───────────────────────────┘               └───────────────────────────┘
-```
+### 1. Expansion V1 — joint encoder with sliding windows
 
-1. **TF-IDF + Logistic Regression Baseline**:
-   - `scripts/training/run_tfidf_baseline.py`
-   - Modes: `combined` (pure lexical n-grams) and `dual_overlap` (lexical n-grams + Cosine, Jaccard, and AST signature overlap ratios).
-   - Invariant: `stop_words=None` to preserve semantic negation operators (`not`, `never`, `without`).
-2. **Zero-Shot Dual Encoder Baseline**:
-   - `scripts/training/run_zero_shot_baseline.py`
-   - Independent passes through frozen `microsoft/codebert-base`; mean-pooled cosine distance $\delta = 1 - \cos(\mathbf{u}, \mathbf{v})$.
-3. **Fine-Tuned Dual Encoder**:
-   - `scripts/training/train_dual_encoder.py`
-   - Shared CodeBERT encoder; concatenates $[\mathbf{u} \,;\, \mathbf{v} \,;\, |\mathbf{u} - \mathbf{v}|]$ into a linear classification head.
-4. **Fine-Tuned Joint Encoder**:
-   - `scripts/training/train_joint_encoder.py`
-   - Full bidirectional self-attention across documentation and code tokens in a single sequence with head-tail code truncation.
+The latest reported Expansion V1 sliding-window experiment evaluates **1,328 test samples**.
+
+| Metric | Sliding max, threshold 0.58 |
+|---|---:|
+| Accuracy | **95.11%** |
+| Macro-F1 | **94.99%** |
+| Balanced accuracy | **95.29%** |
+| Drift precision | 92.19% |
+| Drift recall | 96.37% |
+| Drift F1 | 94.23% |
+| True negatives | 732 |
+| False positives | 45 |
+| False negatives | 20 |
+| True positives | 531 |
+
+The single-window baseline at threshold 0.50 achieved 92.17% accuracy and 91.91% Macro-F1. Sliding-window max pooling improved accuracy and drift recall on this benchmark.
+
+A paired McNemar comparison between the sliding-window configuration and the single-window baseline yielded a continuity-corrected \(\chi^2=22.92\), \(p\approx1.69\times10^{-6}\).
+
+These results support an improvement on the evaluated Expansion V1 test set. They should not be interpreted as evidence of equivalent performance on every category of real-world documentation drift.
+
+### 2. Controlled joint-versus-dual encoder comparison
+
+The earlier V1 controlled comparison uses a frozen test benchmark of **1,205 samples**. Under the same cross-entropy training objective, the joint encoder outperformed the dual encoder.
+
+| Model | Accuracy | Macro-F1 | Drift F1 |
+|---|---:|---:|---:|
+| TF-IDF combined | 65.23% | 65.10% | 67.19% |
+| TF-IDF relational | 70.04% | 70.04% | 70.19% |
+| Dual encoder | 80.91% | 80.64% | 78.34% |
+| Joint encoder | **85.06%** | **84.95%** | **83.67%** |
+| Joint encoder with focal loss | **85.81%** | **85.66%** | **84.21%** |
+
+In the controlled cross-entropy comparison, joint encoding improved binary F1 by 5.33 percentage points over the dual encoder. A paired McNemar test reported \(\chi^2=18.76\), \(p\approx1.48\times10^{-5}\).
+
+The focal-loss model is a separate training configuration and should not be confused with the controlled cross-entropy architecture comparison.
+
+### 3. Authentic historical drift diagnostic
+
+The separate diagnostic set contains 104 verified examples:
+
+- 52 authentic historical documentation-drift cases mined from open-source repository history.
+- 52 clean-grounded functions.
+
+On this diagnostic set, the earlier Clean-Slate V2 joint encoder caught **2 of 52 authentic drift cases**, while the dual encoder caught none. A later Expansion V1 joint encoder checkpoint caught 24 of 52 authentic drift cases using single-window inference.
+
+These results belong to different model checkpoints and training configurations. They are not interchangeable measurements of one model.
+
+The diagnostic set is small and has been reused for exploratory analysis. Its results should therefore be interpreted as evidence of a generalization challenge, not as a definitive estimate of performance across all Python repositories.
+
+For complete historical metrics, confusion matrices, model comparisons, and dataset details, see [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
 
 ---
 
-## Repository Structure
+## Datasets and evaluation
+
+SemDrift separates controlled evaluation from real-world-grounded data construction and authentic historical diagnostics.
+
+### V1 — controlled synthetic benchmark
+
+The original frozen V1 benchmark contains 1,205 test examples from 10 repositories, with 597 aligned and 608 drifted examples.
+
+Controlled mutations include changes to return behavior, parameter names, documentation negation, and documentation sentences. These examples allow repeatable architectural comparisons, but the results depend on the mutation patterns represented in the dataset.
+
+Expansion V1 is a subsequent benchmark generation with a 1,328-sample test set. Its results are reported separately rather than mixed with the original V1 metrics.
+
+### V2 — real-world-grounded dataset
+
+The Clean-Slate V2 training and validation data use grounded examples constructed from real repository code and documented contracts. The training and validation splits contain 24,229 and 2,636 samples, respectively.
+
+The independent diagnostic set contains 104 examples, including 52 authentic historical drift cases. The dataset pipeline includes lineage checks and a frozen test manifest intended to reduce train/test contamination.
+
+**Real-world-grounded does not mean every drift example is an untouched historical human mistake.** Generated and rule-augmented examples are distinguished from authentic historical drift so that the different evaluation conditions remain visible.
+
+### Reproducibility principles
+
+SemDrift's experiments emphasize:
+
+- Explicit dataset provenance and sample lineage.
+- Fixed evaluation splits and recorded model configurations.
+- Confusion matrices and class-specific metrics alongside accuracy.
+- Statistical comparisons where paired predictions are available.
+- Separate reporting for controlled benchmarks and authentic-drift diagnostics.
+- Integrity checks and reproducible experiment artifacts.
+
+The repository's benchmark reports and experiment directories provide the detailed records needed to inspect individual results.
+
+---
+
+## Repository structure
+
+The repository contains the research pipeline, models, data preparation code, experiment artifacts, tests, and scanning interface.
 
 ```text
 SemDrift/
-├── BENCHMARK_RESULTS.md              # Authoritative Master Benchmark Report (All Models, V1 & V2)
-├── README.md                         # Project documentation and summary results
-├── semdrift/                         # Core Python library package
-│   ├── parser/                       # Code & docstring parsing (AST & Tree-Sitter)
-│   ├── embedder/                     # CodeBERT tokenization & embedding logic
-│   ├── comparator/                   # Similarity & distance computation
-│   ├── models/                       # PyTorch architectures (Dual & Joint Encoders)
-│   └── pipeline.py                   # High-level pipeline API
-├── scripts/                          # Workflows & experiment orchestration
-│   ├── training/                     # Model training & baseline scripts
-│   │   ├── run_tfidf_baseline.py     # TF-IDF + Logistic Regression baseline runner
-│   │   ├── run_zero_shot_baseline.py # Zero-shot CodeBERT baseline sweep
-│   │   ├── train_dual_encoder.py     # Dual-encoder fine-tuning
-│   │   └── train_joint_encoder.py    # Joint-encoder fine-tuning
-│   ├── runners/                      # Automated multi-model orchestration scripts
-│   ├── data_pipeline/                # Dataset extraction, mutation, splitting, & manifest locking
-│   ├── analysis/                     # Benchmark analysis & LaTeX artifact generators
-│   └── scan_repo.py                  # Interactive terminal CLI scanner
-├── experiments/                      # Clean V2 production experiment directory
-│   └── 2026-09-07_clean_v2/          # Canonical V2 dataset, checkpoints, & evaluation records
-├── data/                             # Dataset storage
-│   ├── v1_synthetic/                 # V1 synthetic benchmark & ablation splits
-│   ├── v2_real_world/                # V2 raw repositories, mined commits, & manifests
-│   └── experiments/v2/               # Historical V1 checkpoints & IEEE paper outputs
-└── tests/                            # Unit test suite (164 tests passing)
+├── semdrift/                 # Core package: parsing, formatting and models
+├── scripts/                  # Experiment and repository-scanning scripts
+│   └── scan_repo.py          # Terminal repository scanner
+├── data/                     # Dataset generations and prepared splits
+├── data_pipeline/            # Dataset preparation and validation
+├── training/                 # Model training utilities
+├── experiments/              # Checkpoints, predictions and experiment results
+│   ├── expansion_v1/         # Expansion V1 model comparisons
+│   └── 2026-09-07_clean_v2/  # Clean-Slate V2 artifacts
+├── archive/                  # Archived experiment artifacts
+├── tests/                    # Automated tests
+├── BENCHMARK_RESULTS.md      # Consolidated historical benchmark report
+├── requirements.txt
+└── LICENSE
 ```
+
+Some experiments and checkpoints may require additional artifacts that are not installed automatically.
 
 ---
 
-## Quick Start & Reproduction
+## Installation
 
-### 1. Environment Setup
+### Requirements
+
+- Python 3.9 or newer.
+- PyTorch.
+- Hugging Face Transformers.
+- A supported Python environment with the project dependencies installed.
+- A GPU is recommended for faster transformer inference, but CPU execution may be possible.
+
+### Set up the environment
+
+Clone the repository and enter its directory:
 
 ```bash
 git clone https://github.com/Aadhithya-T/SemDrift.git
 cd SemDrift
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+On Windows:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+On macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Install the project dependencies:
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. Verify Cryptographic Integrity & Run Unit Tests
+The scanner requires a compatible model checkpoint. The repository currently configures the scanner to look for the Clean-Slate V2 checkpoint at:
 
-```bash
-# Verify canonical V2 dataset checksums against locked manifest
-python -c "from semdrift.data.integrity import verify_dataset_integrity; print(verify_dataset_integrity('experiments/2026-09-07_clean_v2/dataset/'))"
-
-# Run the test suite (164 tests)
-python -m pytest tests/ -k "not test_contract_rules and not test_mine_real_drift" -v
+```text
+experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt
 ```
 
-### 3. Reproduce V2 Real-World Benchmarks
-
-```powershell
-# 1. TF-IDF Combined Baseline (V2)
-python scripts/training/run_tfidf_baseline.py `
-    --feature_mode combined --tune_threshold --max_iter 5000 `
-    --train_file experiments/2026-09-07_clean_v2/dataset/train.jsonl `
-    --val_file experiments/2026-09-07_clean_v2/dataset/val.jsonl `
-    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl
-
-# 2. TF-IDF Relational Baseline (V2)
-python scripts/training/run_tfidf_baseline.py `
-    --feature_mode dual_overlap --tune_threshold --max_iter 5000 `
-    --train_file experiments/2026-09-07_clean_v2/dataset/train.jsonl `
-    --val_file experiments/2026-09-07_clean_v2/dataset/val.jsonl `
-    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl
-
-# 3. Joint-Encoder Independent Evaluation on Verified Test Split
-python experiments/2026-09-07_clean_v2/evaluation/independent_evaluate.py `
-    --checkpoint experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt `
-    --manifest experiments/2026-09-07_clean_v2/config/manifest.yaml `
-    --test_file experiments/2026-09-07_clean_v2/dataset/verified_test.jsonl
-```
-
-### 4. Reproduce V1 Synthetic Benchmarks
-
-```powershell
-# 1. TF-IDF Combined Baseline (V1)
-python scripts/training/run_tfidf_baseline.py `
-    --feature_mode combined --tune_threshold --max_iter 5000 `
-    --train_file data/v1_synthetic/ablation/train.jsonl `
-    --val_file data/v1_synthetic/ablation/val.jsonl `
-    --test_file data/v1_synthetic/ablation/test.jsonl
-
-# 2. TF-IDF Relational Baseline (V1)
-python scripts/training/run_tfidf_baseline.py `
-    --feature_mode dual_overlap --tune_threshold --max_iter 5000 `
-    --train_file data/v1_synthetic/ablation/train.jsonl `
-    --val_file data/v1_synthetic/ablation/val.jsonl `
-    --test_file data/v1_synthetic/ablation/test.jsonl
-```
-
-### 5. Interactive Terminal CLI Scanner
-
-```bash
-# Scan a package for semantic drift with interactive inspection
-python scripts/scan_repo.py semdrift --threshold 0.50 --interactive
-
-# Export scan results to JSON or Markdown
-python scripts/scan_repo.py . --output markdown --output_file drift_report.md
-```
+An archived fallback checkpoint is also configured in the scanner. Confirm that the required checkpoint is present before running inference. Model weights are not guaranteed to be downloaded automatically by the installation steps above.
 
 ---
 
-## Citation & License
+## Running the scanner
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+The repository includes a Python repository-scanning CLI.
+
+Scan the current repository:
+
+```bash
+python scripts/scan_repo.py .
+```
+
+Scan a specific project directory:
+
+```bash
+python scripts/scan_repo.py /path/to/python/project
+```
+
+Use interactive inspection mode:
+
+```bash
+python scripts/scan_repo.py . --interactive
+```
+
+Set a custom decision threshold:
+
+```bash
+python scripts/scan_repo.py . --threshold 0.60
+```
+
+Export a Markdown report:
+
+```bash
+python scripts/scan_repo.py . --output markdown --output_file drift_report.md
+```
+
+The scanner can also produce JSON output using its supported output options. Use the CLI help to inspect the arguments available in the checked-out version:
+
+```bash
+python scripts/scan_repo.py --help
+```
+
+### Interpreting results
+
+A high drift probability indicates that the model considers a function more likely to be inconsistent with its documentation. It is **not a calibrated guarantee** that a real behavioral contradiction exists.
+
+Treat flagged functions as candidates for review. Validate them against function behavior, call sites, tests, and repository history before concluding that a defect exists.
+
+The default CLI checkpoint belongs to the Clean-Slate V2 model lineage. Do not assume that the 95.11% Expansion V1 sliding-window benchmark result applies to the default CLI model; the checkpoint, inference procedure, and evaluation data differ.
+
+---
+
+## Reproducing the research
+
+For model comparisons and historical benchmark metrics, start with:
+
+- [Master benchmark report](BENCHMARK_RESULTS.md)
+- [`experiments/`](experiments/)
+- [`tests/`](tests/)
+
+To reproduce a reported result, use the corresponding dataset split, checkpoint, preprocessing configuration, inference settings, and threshold recorded for that experiment. Do not substitute the CLI's default checkpoint for an experimental checkpoint unless the experiment explicitly specifies it.
+
+The 95.11% Expansion V1 result uses sliding-window max pooling at threshold 0.58. It is not directly comparable to a single-window result without accounting for the inference configuration.
+
+The authentic-drift diagnostic has already been reused for exploratory model comparisons. It should not be treated as an untouched confirmatory test set for future model selection.
+
+---
+
+## Limitations
+
+SemDrift is an experimental research prototype, not a production-grade correctness verifier.
+
+1. **Generalization:** Strong results on controlled and grounded benchmarks do not guarantee equivalent performance on authentic historical drift.
+2. **False positives:** Legitimate refactoring, helper delegation, and high-level documentation can be mistaken for drift.
+3. **False negatives:** Subtle behavioral changes may be missed even when the documentation explicitly describes the affected behavior.
+4. **Long inputs:** Transformer sequence limits and the selected windowing strategy affect which evidence is available to the model.
+5. **Threshold sensitivity:** Classification decisions depend on the chosen threshold; changing it trades off precision and recall.
+6. **Language scope:** The primary empirical evaluation focuses on Python. Parser infrastructure for other languages should not be interpreted as equivalent validated model performance.
+7. **Diagnostic sample size:** The 104-case authentic-drift diagnostic is valuable for error analysis but too limited to establish broad real-world performance by itself.
+
+SemDrift should therefore be used to prioritize manual review, not to automatically rewrite documentation or certify behavioral correctness.
+
+---
+
+## Future directions
+
+Potential research directions include:
+
+- Evaluating on a larger, untouched collection of authentic historical drift.
+- Improving sensitivity to behavioral contracts rather than surface-level lexical patterns.
+- Distinguishing legitimate implementation refactoring from actual contract violations.
+- Investigating parameter, return-value, and exception-contract supervision.
+- Extending evaluation to additional languages and repository types.
+- Improving calibration and reporting uncertainty alongside drift scores.
+
+These directions remain open research questions rather than claims of completed functionality.
+
+---
+
+## License
+
+SemDrift is released under the [MIT License](LICENSE).
+
+## Acknowledgments
+
+SemDrift uses [CodeBERT](https://huggingface.co/microsoft/codebert-base), PyTorch, Hugging Face Transformers, and the broader open-source Python ecosystem.
+
+---
+
+**SemDrift — measuring the gap between what code does and what its documentation promises.**

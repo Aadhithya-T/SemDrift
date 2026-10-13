@@ -46,6 +46,7 @@ data/extracted_pairs.jsonl
 *.bin
 *.onnx
 *.safetensors
+*.joblib
 
 # ── Misc ─────────────────────────────────────────────
 *.log
@@ -56,9 +57,15 @@ htmlcov/
 docs/
 
 data/raw_repos/
+data/expansion_repos/
 data/v2_real_world/raw/repositories/
+<<<<<<< HEAD
 
 
 # ── Scripts ────────────────────────────────────────────
 *.pdf
 *.docx
+=======
+data/real_dataset_expansion_v1/candidates/
+data/real_dataset_expansion_v1/evidence/
+>>>>>>> 1ccb3a7bcab89fda5cfeaf80a86d266ab80e30a0

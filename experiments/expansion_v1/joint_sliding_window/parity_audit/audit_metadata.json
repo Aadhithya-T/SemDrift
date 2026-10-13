@@ -1,0 +1,59 @@
+{
+  "audit_name": "SemDrift Phase 2 Baseline Parity Audit (Priority 0)",
+  "git_commit": "bc0717bd51a0a20c771789028fd228d828615a3b",
+  "git_branch": "main",
+  "hashes": {
+    "checkpoint_clean_v2": "47f223de69d798664da1e4f923671325eae5f4c925e2190a0b8eca5acb5240b8",
+    "checkpoint_expansion_v1_joint_doc192": "6930634acab6448bc6753fbd1a987bcb39a6ebe50f05502992c00dfb5a9132f0",
+    "checkpoint_expansion_v1_joint_doc160": "9ec9007c623620fc877326d8610d32c82e1780fc9603dca903f83f8a260932cd",
+    "checkpoint_expansion_v1_joint_encoder": "8d6d97c1ec95ee2dd4c003b4a4dd0d5d0d239c3147f8db759a0e7d8d1de42053",
+    "dataset_diagnostic_verified_test": "fff74007ea28dfd2f4822f4833f8d702489404ed8ad4882f53ea307ba540ef40",
+    "dataset_expansion_v1_test": "d300460d3799696fcba78722f27a10e4de2b044f08203231475ab063c8dce67a",
+    "script_historical_independent_evaluate": "97ea84f5dcb6a700f94254097642886f04498d4db9280dabaeb7932c8ad7e7e0",
+    "script_phase2_evaluator": "5e1889a9bb2d28aa867939ab39199fe8749dffa740360e9baa1f6bf826f60636",
+    "script_phase1_evaluator": "119e2595aa56e8b56841cdbe5e0843a87a92f11b817cabfdcd4f6f90abf79797",
+    "module_sliding_window": "86ffe616a4e29d118a477efd26fb48d20fecfcc9ca2fa5e7b3b9edba31ff168b"
+  },
+  "investigation_summary": {
+    "root_cause": "CHECKPOINT_MISMATCH",
+    "explanation": "The historical 2/52 result was produced by the Clean-Slate V2 checkpoint (experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt, SHA: 47f223de...), trained on 24,229 samples with pooling=mean and doc_max_tokens=96. The Phase 2 evaluation evaluated the Expansion V1 checkpoint (experiments/expansion_v1/joint_doc192/joint_encoder_checkpoint.pt, SHA: 6930634a...), trained on 8,128 samples with pooling=cls and doc_max_tokens=192. When the Clean-Slate V2 checkpoint is re-evaluated using its exact protocol, it reproduces TN=50, FP=2, FN=50, TP=2 (2/52 authentic, 2/52 clean) with 100% bit-for-bit parity.",
+    "historical_clean_v2_reproduction": {
+      "checkpoint": "experiments/2026-09-07_clean_v2/checkpoints/joint_encoder_checkpoint.pt",
+      "sha256": "47f223de69d798664da1e4f923671325eae5f4c925e2190a0b8eca5acb5240b8",
+      "authentic_historical_mined": {
+        "tp": 2,
+        "fn": 50,
+        "total": 52,
+        "recall_pct": 3.85
+      },
+      "clean_grounded": {
+        "fp": 2,
+        "tn": 50,
+        "total": 52,
+        "fpr_pct": 3.85
+      },
+      "confusion_matrix": "TN=50, FP=2, FN=50, TP=2",
+      "exact_parity_with_historical_archive": true
+    },
+    "phase2_config_a_metrics": {
+      "checkpoint": "experiments/expansion_v1/joint_doc192/joint_encoder_checkpoint.pt",
+      "sha256": "6930634acab6448bc6753fbd1a987bcb39a6ebe50f05502992c00dfb5a9132f0",
+      "authentic_historical_mined": {
+        "tp": 24,
+        "fn": 28,
+        "total": 52,
+        "recall_pct": 46.15
+      },
+      "clean_grounded": {
+        "fp": 21,
+        "tn": 31,
+        "total": 52,
+        "fpr_pct": 40.38
+      },
+      "confusion_matrix": "TN=31, FP=21, FN=28, TP=24"
+    },
+    "sample_disagreements_count": 47,
+    "authentic_disagreements_count": 26,
+    "clean_disagreements_count": 21
+  }
+}

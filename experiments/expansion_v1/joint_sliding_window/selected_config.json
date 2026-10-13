@@ -1,0 +1,192 @@
+{
+  "status": "LOCKED_FROM_PHASE_1_VALIDATION",
+  "checkpoint": "C:\\Users\\aadhi\\OneDrive\\Desktop\\SemDrift\\experiments\\expansion_v1\\joint_doc192\\joint_encoder_checkpoint.pt",
+  "validation_dataset": "C:\\Users\\aadhi\\OneDrive\\Desktop\\SemDrift\\data\\real_dataset_expansion_v1\\splits\\val.jsonl",
+  "sample_count": 544,
+  "selected_strategy": "sliding_max",
+  "locked_threshold": 0.58,
+  "validation_metrics": {
+    "accuracy": 0.9265,
+    "balanced_accuracy": 0.9158,
+    "precision": 0.9458,
+    "recall": 0.9458,
+    "f1": 0.9458,
+    "macro_f1": 0.9158,
+    "roc_auc": 0.9758,
+    "pr_auc": 0.9899,
+    "tn": 155,
+    "fp": 20,
+    "fn": 20,
+    "tp": 349,
+    "confusion_matrix": "TN=155, FP=20, FN=20, TP=349",
+    "count": 544,
+    "threshold": 0.58
+  },
+  "single_baseline_comparison": {
+    "default_tau_050": {
+      "accuracy": 0.9081,
+      "balanced_accuracy": 0.8962,
+      "precision": 0.9346,
+      "recall": 0.9295,
+      "f1": 0.9321,
+      "macro_f1": 0.895,
+      "roc_auc": 0.961,
+      "pr_auc": 0.9822,
+      "tn": 151,
+      "fp": 24,
+      "fn": 26,
+      "tp": 343,
+      "confusion_matrix": "TN=151, FP=24, FN=26, TP=343",
+      "count": 544,
+      "threshold": 0.5
+    },
+    "tuned_val": {
+      "accuracy": 0.9099,
+      "balanced_accuracy": 0.8991,
+      "precision": 0.9372,
+      "recall": 0.9295,
+      "f1": 0.9333,
+      "macro_f1": 0.8973,
+      "roc_auc": 0.961,
+      "pr_auc": 0.9822,
+      "tn": 152,
+      "fp": 23,
+      "fn": 26,
+      "tp": 343,
+      "confusion_matrix": "TN=152, FP=23, FN=26, TP=343",
+      "count": 544,
+      "threshold": 0.52
+    }
+  },
+  "sliding_mean_comparison": {
+    "default_tau_050": {
+      "accuracy": 0.9228,
+      "balanced_accuracy": 0.9085,
+      "precision": 0.9383,
+      "recall": 0.9485,
+      "f1": 0.9434,
+      "macro_f1": 0.911,
+      "roc_auc": 0.967,
+      "pr_auc": 0.985,
+      "tn": 152,
+      "fp": 23,
+      "fn": 19,
+      "tp": 350,
+      "confusion_matrix": "TN=152, FP=23, FN=19, TP=350",
+      "count": 544,
+      "threshold": 0.5
+    },
+    "tuned_val": {
+      "accuracy": 0.9265,
+      "balanced_accuracy": 0.9143,
+      "precision": 0.9434,
+      "recall": 0.9485,
+      "f1": 0.9459,
+      "macro_f1": 0.9155,
+      "roc_auc": 0.967,
+      "pr_auc": 0.985,
+      "tn": 154,
+      "fp": 21,
+      "fn": 19,
+      "tp": 350,
+      "confusion_matrix": "TN=154, FP=21, FN=19, TP=350",
+      "count": 544,
+      "threshold": 0.52
+    }
+  },
+  "sliding_max_comparison": {
+    "default_tau_050": {
+      "accuracy": 0.9228,
+      "balanced_accuracy": 0.907,
+      "precision": 0.936,
+      "recall": 0.9512,
+      "f1": 0.9435,
+      "macro_f1": 0.9107,
+      "roc_auc": 0.9758,
+      "pr_auc": 0.9899,
+      "tn": 151,
+      "fp": 24,
+      "fn": 18,
+      "tp": 351,
+      "confusion_matrix": "TN=151, FP=24, FN=18, TP=351",
+      "count": 544,
+      "threshold": 0.5
+    },
+    "tuned_val": {
+      "accuracy": 0.9265,
+      "balanced_accuracy": 0.9158,
+      "precision": 0.9458,
+      "recall": 0.9458,
+      "f1": 0.9458,
+      "macro_f1": 0.9158,
+      "roc_auc": 0.9758,
+      "pr_auc": 0.9899,
+      "tn": 155,
+      "fp": 20,
+      "fn": 20,
+      "tp": 349,
+      "confusion_matrix": "TN=155, FP=20, FN=20, TP=349",
+      "count": 544,
+      "threshold": 0.58
+    }
+  },
+  "window_distribution": {
+    "4": 15,
+    "1": 367,
+    "3": 49,
+    "14": 2,
+    "2": 67,
+    "6": 5,
+    "5": 20,
+    "11": 4,
+    "7": 5,
+    "9": 3,
+    "12": 1,
+    "8": 3,
+    "10": 2,
+    "27": 1
+  },
+  "latency_summary": {
+    "K=1": {
+      "count": 367,
+      "mean_ms": 24.25,
+      "median_ms": 24.7,
+      "p95_ms": 33.24,
+      "min_ms": 12.95,
+      "max_ms": 41.23
+    },
+    "K=2": {
+      "count": 67,
+      "mean_ms": 54.93,
+      "median_ms": 55.16,
+      "p95_ms": 58.55,
+      "min_ms": 49.27,
+      "max_ms": 63.21
+    },
+    "K=3": {
+      "count": 49,
+      "mean_ms": 82.41,
+      "median_ms": 81.94,
+      "p95_ms": 88.16,
+      "min_ms": 76.58,
+      "max_ms": 89.25
+    },
+    "K>=4": {
+      "count": 61,
+      "mean_ms": 182.79,
+      "median_ms": 139.78,
+      "p95_ms": 334.3,
+      "min_ms": 104.09,
+      "max_ms": 745.38
+    },
+    "Overall": {
+      "count": 544,
+      "mean_ms": 51.05,
+      "median_ms": 29.81,
+      "p95_ms": 143.76,
+      "min_ms": 12.95,
+      "max_ms": 745.38
+    }
+  },
+  "timestamp": "2026-10-12T20:09:14Z"
+}

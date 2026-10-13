@@ -1,0 +1,160 @@
+{
+  "dataset": "C:\\Users\\aadhi\\OneDrive\\Desktop\\SemDrift\\data\\real_dataset_expansion_v1\\splits\\test.jsonl",
+  "sample_count": 1328,
+  "configurations": {
+    "A": {
+      "name": "Original single-window baseline",
+      "aggregation": "First window only",
+      "threshold": 0.5,
+      "metrics": {
+        "accuracy": 92.17,
+        "balanced_accuracy": 91.78,
+        "macro_f1": 91.91,
+        "weighted_f1": 92.16,
+        "precision": 91.47,
+        "recall": 89.47,
+        "f1": 90.46,
+        "roc_auc": 0.9799,
+        "pr_auc": 0.9773,
+        "tn": 731,
+        "fp": 46,
+        "fn": 58,
+        "tp": 493,
+        "confusion_matrix": "TN=731, FP=46, FN=58, TP=493",
+        "count": 1328
+      }
+    },
+    "B": {
+      "name": "Validation-tuned single-window baseline",
+      "aggregation": "First window only",
+      "threshold": 0.52,
+      "metrics": {
+        "accuracy": 92.32,
+        "balanced_accuracy": 91.83,
+        "macro_f1": 92.05,
+        "weighted_f1": 92.3,
+        "precision": 92.28,
+        "recall": 88.93,
+        "f1": 90.57,
+        "roc_auc": 0.9799,
+        "pr_auc": 0.9773,
+        "tn": 736,
+        "fp": 41,
+        "fn": 61,
+        "tp": 490,
+        "confusion_matrix": "TN=736, FP=41, FN=61, TP=490",
+        "count": 1328
+      }
+    },
+    "C": {
+      "name": "Sliding-window mean",
+      "aggregation": "Mean of window probabilities",
+      "threshold": 0.52,
+      "metrics": {
+        "accuracy": 94.65,
+        "balanced_accuracy": 94.67,
+        "macro_f1": 94.51,
+        "weighted_f1": 94.66,
+        "precision": 92.55,
+        "recall": 94.74,
+        "f1": 93.63,
+        "roc_auc": 0.99,
+        "pr_auc": 0.9883,
+        "tn": 735,
+        "fp": 42,
+        "fn": 29,
+        "tp": 522,
+        "confusion_matrix": "TN=735, FP=42, FN=29, TP=522",
+        "count": 1328
+      }
+    },
+    "D": {
+      "name": "Locked sliding-window winner",
+      "aggregation": "Maximum of window probabilities",
+      "threshold": 0.58,
+      "metrics": {
+        "accuracy": 95.11,
+        "balanced_accuracy": 95.29,
+        "macro_f1": 94.99,
+        "weighted_f1": 95.12,
+        "precision": 92.19,
+        "recall": 96.37,
+        "f1": 94.23,
+        "roc_auc": 0.9929,
+        "pr_auc": 0.9923,
+        "tn": 732,
+        "fp": 45,
+        "fn": 20,
+        "tp": 531,
+        "confusion_matrix": "TN=732, FP=45, FN=20, TP=531",
+        "count": 1328
+      }
+    }
+  },
+  "mcnemar_test_d_vs_a": {
+    "contingency_table": {
+      "both_correct_n11": 1212,
+      "config_d_unique_wins_n10": 51,
+      "config_a_unique_wins_n01": 12,
+      "both_incorrect_n00": 53
+    },
+    "discordant_pairs": 63,
+    "chi2_statistic": 22.9206,
+    "p_value": 1.688297e-06,
+    "statistically_significant_005": true
+  },
+  "latency_summary": {
+    "K=1": {
+      "count": 1134,
+      "mean_ms": 21.83,
+      "median_ms": 20.26,
+      "p95_ms": 32.23,
+      "min_ms": 12.43,
+      "max_ms": 72.61
+    },
+    "K=2": {
+      "count": 104,
+      "mean_ms": 52.24,
+      "median_ms": 52.22,
+      "p95_ms": 56.18,
+      "min_ms": 42.81,
+      "max_ms": 58.06
+    },
+    "K=3": {
+      "count": 49,
+      "mean_ms": 80.22,
+      "median_ms": 81.0,
+      "p95_ms": 85.28,
+      "min_ms": 67.5,
+      "max_ms": 87.36
+    },
+    "K>=4": {
+      "count": 41,
+      "mean_ms": 145.97,
+      "median_ms": 111.0,
+      "p95_ms": 220.37,
+      "min_ms": 94.96,
+      "max_ms": 569.67
+    },
+    "Overall": {
+      "count": 1328,
+      "mean_ms": 30.2,
+      "median_ms": 22.44,
+      "p95_ms": 80.68,
+      "min_ms": 12.43,
+      "max_ms": 569.67
+    }
+  },
+  "window_distribution": {
+    "1": 1134,
+    "2": 104,
+    "4": 22,
+    "3": 49,
+    "7": 1,
+    "11": 1,
+    "8": 4,
+    "5": 10,
+    "6": 2,
+    "20": 1
+  }
+}
